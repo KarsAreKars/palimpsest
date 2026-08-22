@@ -645,7 +645,7 @@ export abstract class BaseAppService implements AppService {
       // A custom library folder on Android shared storage needs All Files
       // Access. Without it the write fails with EACCES and, because callers
       // (sync, imports) don't await/catch this, it surfaced as an unhandled
-      // rejection crash (Sentry READEST-A). Re-request the permission through
+      // rejection crash (READEST-A). Re-request the permission through
       // the same flow used at import time and retry once. Only prompt once per
       // session so background saves don't repeatedly yank the user to system
       // settings; after that a still-denied save is logged, not crashed —

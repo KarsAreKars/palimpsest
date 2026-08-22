@@ -1,4 +1,3 @@
-import posthog from 'posthog-js';
 import Stripe from 'stripe';
 import { loadStripe, Stripe as StripeClient } from '@stripe/stripe-js';
 import { getAPIBaseUrl, isTauriAppPlatform, isWebAppPlatform } from '@/services/environment';
@@ -107,7 +106,6 @@ export const redirectToStripePortal = async (url: string): Promise<void> => {
 
 export const handleStripeCheckoutError = (error: string) => {
   console.error(error);
-  posthog.capture('checkout_error', { error });
 };
 
 export const getSubscriptionSuccessUrl = (sessionId: string) => {

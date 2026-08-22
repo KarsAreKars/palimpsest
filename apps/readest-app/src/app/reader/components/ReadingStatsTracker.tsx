@@ -21,7 +21,7 @@ const nowSec = () => Math.floor(Date.now() / 1000);
 
 // Statistics are best-effort telemetry: a failed write or sync (e.g. the
 // statistics DB torn down mid-flight on app teardown -> "database ... not
-// loaded", Sentry READEST-6) must never surface as an unhandled rejection.
+// loaded", READEST-6) must never surface as an unhandled rejection.
 const runBestEffort = (work: Promise<unknown>): void => {
   void work.catch((err) => console.warn('[stats] background operation failed:', err));
 };
@@ -114,7 +114,7 @@ export default function ReadingStatsTracker({ bookKey }: { bookKey: string }) {
       schedulePush();
     } catch (err) {
       // The statistics DB can be closed mid-write on app/tab teardown
-      // ("database ... not loaded", Sentry READEST-6). Best-effort: log and
+      // ("database ... not loaded", READEST-6). Best-effort: log and
       // never reject, so the fire-and-forget dispatch sites stay safe.
       console.warn('[stats] failed to persist reading events:', err);
     }

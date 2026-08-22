@@ -35,7 +35,6 @@ mod mobi_parser;
 mod nightly_update;
 mod parser_common;
 mod range_file;
-mod sentry_config;
 #[cfg(desktop)]
 mod spawn_fresh_browser;
 mod transfer_file;
@@ -296,16 +295,6 @@ fn is_updater_disabled() -> bool {
     updater_disabled()
 }
 
-// Record the WebView engine/version (parsed from the app's User-Agent) so Sentry
-// events can be correlated with WebView version. Called once from
-// `NativeAppService.init()`; no-op when Sentry is disabled.
-#[tauri::command]
-fn set_webview_info(user_agent: String) {
-    if let Some((engine, version)) = sentry_config::parse_webview_info(&user_agent) {
-        sentry_config::set_webview_info(engine, version);
-    }
-}
-
 #[derive(Clone, serde::Serialize)]
 #[allow(dead_code)]
 struct SingleInstancePayload {
@@ -315,83 +304,6 @@ struct SingleInstancePayload {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    // Initialize Sentry as early as possible so panics during startup are
-    // captured. `None` DSN (unset SENTRY_DSN) => disabled, so local and fork
-    // builds don't report. This client covers Rust panics and the events the
-    // WebView forwards; native crashes belong to the sentry-android /
-    // sentry-cocoa SDKs on mobile and go unreported on desktop, where the
-    // out-of-process minidump handler is deliberately off (see the
-    // `minidump_feature_is_enabled_on_no_target` test). The guard must outlive
-    // the app, so it is held until `run()` returns (after the blocking
-    // `.run(...)` call).
-    let sentry_guard = sentry_config::sentry_dsn().map(|dsn| {
-        sentry::init((
-            dsn,
-            sentry::ClientOptions {
-                release: Some(sentry_config::sentry_release().into()),
-                environment: Some(sentry_config::sentry_environment().into()),
-                traces_sample_rate: 0.0,
-                send_default_pii: false,
-                // On Android the context integration reads `uname()` and reports
-                // the OS as "Linux"; relabel it "Android" (and recover the Android
-                // version from the kernel string) so events group correctly.
-                before_send: Some(std::sync::Arc::new(|mut event| {
-                    // Drop known-benign browser noise (e.g. View Transition
-                    // skipped/aborted, ResizeObserver loop) before it is reported.
-                    if event.exception.values.iter().any(|ex| {
-                        ex.value
-                            .as_deref()
-                            .is_some_and(sentry_config::is_ignored_browser_error)
-                    }) {
-                        return None;
-                    }
-                    // Drop the contained MOBI cover panic: the `mobi` crate panics
-                    // on a corrupt cover record, which extract_cover catch_unwinds
-                    // (the import still succeeds), but the panic hook reports it
-                    // anyway. Match our own frame so unrelated slice panics stay.
-                    if event.exception.values.iter().any(|ex| {
-                        ex.stacktrace.iter().any(|st| {
-                            st.frames.iter().any(|f| {
-                                f.function
-                                    .as_deref()
-                                    .is_some_and(sentry_config::is_mobi_cover_panic_frame)
-                            })
-                        })
-                    }) {
-                        return None;
-                    }
-                    if let Some(sentry::protocol::Context::Os(os)) = event.contexts.get_mut("os") {
-                        if let Some(name) = sentry_config::corrected_os_name(
-                            std::env::consts::OS,
-                            os.name.as_deref(),
-                        ) {
-                            os.name = Some(name.to_owned());
-                            if let Some(version) = os
-                                .version
-                                .as_deref()
-                                .and_then(sentry_config::android_version_from_uname)
-                            {
-                                os.version = Some(version);
-                            }
-                        }
-                    }
-                    // Tag the WebView engine/version (reported by the app at
-                    // startup) so crashes can be correlated with it.
-                    if let Some((engine, version)) = sentry_config::webview_info() {
-                        event
-                            .tags
-                            .insert("webview.engine".to_string(), engine.clone());
-                        event
-                            .tags
-                            .insert("webview.version".to_string(), version.clone());
-                    }
-                    Some(event)
-                })),
-                ..Default::default()
-            },
-        ))
-    });
-
     let builder = tauri::Builder::default()
         .plugin(
             tauri_plugin_log::Builder::new()
@@ -409,7 +321,6 @@ pub fn run() {
             upload_file,
             get_environment_variable,
             get_executable_dir,
-            set_webview_info,
             #[cfg(desktop)]
             is_updater_disabled,
             allow_paths_in_scopes,
@@ -520,11 +431,6 @@ pub fn run() {
 
     #[cfg(feature = "webdriver")]
     let builder = builder.plugin(tauri_plugin_webdriver::init());
-
-    let builder = match sentry_guard.as_ref() {
-        Some(client) => builder.plugin(tauri_plugin_sentry::init(client)),
-        None => builder,
-    };
 
     builder
         .setup(|#[allow(unused_variables)] app| {

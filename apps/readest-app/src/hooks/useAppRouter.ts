@@ -12,6 +12,6 @@ export const useAppRouter = () => {
   // paginator turns require. Route through the transition router wherever the
   // API is usable (appService folds in the Linux WebKitGTK carve-out); engines
   // without it navigate plainly, sidestepping the DOM-update-budget TimeoutError
-  // seen on unsupported webviews (Sentry READEST-9).
+  // seen on unsupported webviews (READEST-9).
   return appService?.supportsViewTransitionsAPI ? transitionRouter : plainRouter;
 };

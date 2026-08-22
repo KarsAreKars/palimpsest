@@ -69,11 +69,6 @@ vi.mock('@/utils/share', () => ({
   canShareText: () => true,
 }));
 
-vi.mock('@/utils/telemetry', () => ({
-  optInTelemetry: vi.fn(),
-  optOutTelemetry: vi.fn(),
-}));
-
 // Unrelated to the Scroll section and pulls in the device-control store.
 vi.mock('@/components/settings/PageTurnerSettings', () => ({
   default: () => null,

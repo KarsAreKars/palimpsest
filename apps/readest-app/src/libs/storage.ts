@@ -234,7 +234,7 @@ export const deleteFile = async (filePath: string) => {
   } catch (error) {
     // Best-effort cloud cleanup: removing the remote copy is non-critical and
     // callers dispatch this without awaiting, so throwing here surfaces as an
-    // unhandled promise rejection (Sentry READEST-5). Log and swallow instead.
+    // unhandled promise rejection (READEST-5). Log and swallow instead.
     console.warn('File deletion failed:', error);
   }
 };

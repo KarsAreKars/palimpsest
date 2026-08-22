@@ -43,7 +43,7 @@ export interface ProgressThrottle {
  * (`while (true) { await reader.read(); onProgress(...) }`), and `transferSpeed`
  * is recomputed from wall-clock time on every call. Emitting each one churns the
  * transfer store per chunk and sustains a synchronous React update storm past
- * the nested-update limit (Sentry READEST-2). Throttling caps store writes and
+ * the nested-update limit (READEST-2). Throttling caps store writes and
  * defers the trailing emit to a macrotask, so the render fan-out cannot loop.
  */
 export const createProgressThrottle = (

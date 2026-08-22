@@ -15,7 +15,6 @@
     "start-web:vinext": "dotenv -e .env.web -- vinext start",
     "build-tauri": "dotenv -e .env.tauri -- next build",
     "build-browser-ext": "pnpm --filter @readest/send-to-readest-extension build",
-    "upload-sourcemaps": "node scripts/upload-sourcemaps.mjs",
     "dev-android": "dotenv -v KEEP_SOURCEMAPS=1 -e .env.tauri -- tauri android build -t aarch64 -- --features devtools && adb install -r src-tauri/gen/android/app/build/outputs/apk/universal/release/app-universal-release.apk",
     "dev-ios": "dotenv -v KEEP_SOURCEMAPS=1 -e .env.tauri -- tauri ios build -- --features devtools && ideviceinstaller install src-tauri/gen/apple/build/arm64/Readest.ipa",
     "dev-ios-sim": "rm -rf src-tauri/gen/apple/build/arm64-sim/Readest.app && dotenv -e .env.tauri -- tauri ios build --target aarch64-sim -- --features devtools && xcrun simctl install booted src-tauri/gen/apple/build/arm64-sim/Readest.app",
@@ -198,7 +197,6 @@
     "nunjucks": "^3.2.4",
     "overlayscrollbars": "^2.11.4",
     "overlayscrollbars-react": "^0.5.6",
-    "posthog-js": "^1.246.0",
     "react": "19.2.8",
     "react-colorful": "^5.8.0",
     "react-dom": "19.2.8",
@@ -225,7 +223,6 @@
   "devDependencies": {
     "@next/bundle-analyzer": "^15.4.2",
     "@playwright/test": "^1.60.0",
-    "@sentry/cli": "^2.39.1",
     "@tailwindcss/typography": "^0.5.16",
     "@tauri-apps/cli": "2.11.4",
     "@testing-library/dom": "^10.4.0",

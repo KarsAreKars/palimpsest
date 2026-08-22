@@ -13,7 +13,6 @@
     "allow-upload-file",
     "allow-get-environment-variable",
     "allow-get-executable-dir",
-    "allow-set-webview-info",
     "allow-is-updater-disabled",
     "allow-allow-paths-in-scopes",
     "allow-optimize-cover-thumbnails",

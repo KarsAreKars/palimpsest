@@ -23,7 +23,7 @@ export const useMedianPageDurationSecs = (bookMd5?: string): number | null => {
     };
 
     // Statistics are best-effort: a failed DB open/read (e.g. torn down on app
-    // teardown) must never surface as an unhandled rejection (Sentry READEST-6).
+    // teardown) must never surface as an unhandled rejection (READEST-6).
     void load().catch((err) => console.warn('[stats] median page duration failed:', err));
   }, [appService, bookMd5]);
 

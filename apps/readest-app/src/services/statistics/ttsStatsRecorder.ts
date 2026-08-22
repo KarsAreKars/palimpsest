@@ -324,7 +324,7 @@ export class TtsStatsRecorder {
       this.#schedulePush();
     } catch (err) {
       // The statistics DB can be closed mid-write on app teardown; log and
-      // never reject (Sentry READEST-6).
+      // never reject (READEST-6).
       console.warn('[stats] failed to persist TTS listening events:', err);
     }
   }

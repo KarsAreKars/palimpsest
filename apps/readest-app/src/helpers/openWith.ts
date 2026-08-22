@@ -26,7 +26,7 @@ const parseCLIOpenWithFiles = async () => {
     matches = await getMatches();
   } catch (err) {
     // getMatches() rejects when argv carries an option the file-only CLI schema
-    // does not define — as sentry-minidump's `--crash-reporter-server` relaunch
+    // does not define — as the removed crash reporter's `--crash-reporter-server` relaunch
     // used to (READEST-Y, before that handler was removed). Treat a parse failure
     // as "no CLI files" instead of leaking an unhandled rejection.
     console.warn('Failed to parse CLI open-with args', err);
