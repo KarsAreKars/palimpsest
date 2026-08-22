@@ -11,6 +11,7 @@ import { eventDispatcher } from '@/utils/event';
 import { setShortcutsDialogVisible } from '@/components/KeyboardShortcutsHelp';
 import { MAX_ZOOM_LEVEL, MIN_ZOOM_LEVEL, ZOOM_STEP } from '@/services/constants';
 import { getParagraphActionForKey } from '@/utils/paragraphPresentation';
+import { getNarration } from '@/services/narration/speakMode';
 import { getScrollGapAttr } from '@/utils/webtoon';
 import { extendSelectionFromContents, KeyModifiers } from '@/utils/sel';
 import { getReadingAreaRect, keyboardTurnDirection } from './useAutoPageTurn';
@@ -97,7 +98,20 @@ const useBookShortcuts = ({ sideBarBookKey, bookKeys }: UseBookShortcutsProps) =
     return extended;
   };
 
+  // Palimpsest: while a narration session is active, arrow keys belong to
+  // sentence navigation (plan §5), not page pagination. Space already routes
+  // through onTTSPlayPause → tts-toggle-play → the narration delegation.
+  const narrationActive = () => {
+    const entry = sideBarBookKey ? getNarration(sideBarBookKey) : undefined;
+    return entry?.controller.active ? entry : undefined;
+  };
+
   const goLeft = () => {
+    const narration = narrationActive();
+    if (narration) {
+      void narration.controller.prev();
+      return;
+    }
     const viewSettings = getViewSettings(sideBarBookKey ?? '');
     // If paragraph mode is enabled, navigate to previous paragraph instead
     if (viewSettings?.paragraphMode?.enabled && sideBarBookKey) {
@@ -112,6 +126,11 @@ const useBookShortcuts = ({ sideBarBookKey, bookKeys }: UseBookShortcutsProps) =
   };
 
   const goRight = () => {
+    const narration = narrationActive();
+    if (narration) {
+      void narration.controller.next();
+      return;
+    }
     const viewSettings = getViewSettings(sideBarBookKey ?? '');
     // If paragraph mode is enabled, navigate to next paragraph instead
     if (viewSettings?.paragraphMode?.enabled && sideBarBookKey) {

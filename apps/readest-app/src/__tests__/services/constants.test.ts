@@ -137,18 +137,16 @@ describe('services/constants', () => {
       }
     });
 
-    it('SUPPORTED_BOOK_EXTS includes common formats', () => {
-      expect(SUPPORTED_BOOK_EXTS).toContain('epub');
-      expect(SUPPORTED_BOOK_EXTS).toContain('pdf');
-      expect(SUPPORTED_BOOK_EXTS).toContain('mobi');
-      expect(SUPPORTED_BOOK_EXTS).toContain('txt');
-      expect(SUPPORTED_BOOK_EXTS).toContain('md');
+    it('SUPPORTED_BOOK_EXTS is the Palimpsest import gate: PDF + .hpub only', () => {
+      // Plan constraint: digital-born PDFs are the only input format; .hpub
+      // carries the dual layer (PDF + text layer + manifest).
+      expect(SUPPORTED_BOOK_EXTS).toEqual(['pdf', 'hpub']);
     });
 
     it('BOOK_ACCEPT_FORMATS is a comma-separated string of dotted extensions', () => {
       expect(typeof BOOK_ACCEPT_FORMATS).toBe('string');
-      expect(BOOK_ACCEPT_FORMATS).toContain('.epub');
       expect(BOOK_ACCEPT_FORMATS).toContain('.pdf');
+      expect(BOOK_ACCEPT_FORMATS).toContain('.hpub');
       expect(BOOK_ACCEPT_FORMATS.split(', ').length).toBe(SUPPORTED_BOOK_EXTS.length);
     });
 

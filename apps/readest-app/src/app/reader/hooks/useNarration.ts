@@ -88,6 +88,9 @@ export const useNarration = ({ bookKey }: { bookKey: string }) => {
       controller.addEventListener('stopped', onEnded);
       registerNarration(bookKey, { controller, speakMode: false });
       setAvailable(true);
+      console.info('narration: session ready —', controller.units.length, 'units');
+      // Test/demo hook: lets the e2e harness await narration readiness.
+      (window as unknown as Record<string, unknown>)['__palimpsestNarrationReady'] = bookKey;
     })();
 
     return () => {
@@ -114,41 +117,10 @@ export const useNarration = ({ bookKey }: { bookKey: string }) => {
     return () => window.removeEventListener('message', onMessage);
   }, [bookKey, available]);
 
-  // ── keyboard controls (plan §5) ───────────────────────────────────────────
-  useEffect(() => {
-    if (!available) return;
-    const handle = (key: string, preventDefault?: () => void) => {
-      const controller = controllerRef.current;
-      if (!controller?.active) return;
-      if (key === ' ') {
-        preventDefault?.();
-        void controller.togglePlay();
-      } else if (key === 'ArrowRight') {
-        preventDefault?.();
-        void controller.next();
-      } else if (key === 'ArrowLeft') {
-        preventDefault?.();
-        void controller.prev();
-      }
-    };
-    const onKeydown = (e: KeyboardEvent) => {
-      const target = e.target as HTMLElement | null;
-      if (target && /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName)) return;
-      if (target?.isContentEditable) return;
-      handle(e.key, () => e.preventDefault());
-    };
-    const onMessage = (e: MessageEvent) => {
-      const data = e.data as { type?: string; bookKey?: string; key?: string };
-      if (data?.type !== 'iframe-keydown' || data.bookKey !== bookKey) return;
-      if (data.key) handle(data.key);
-    };
-    window.addEventListener('keydown', onKeydown);
-    window.addEventListener('message', onMessage);
-    return () => {
-      window.removeEventListener('keydown', onKeydown);
-      window.removeEventListener('message', onMessage);
-    };
-  }, [bookKey, available]);
+  // Keyboard controls (plan §5) route through the app's unified shortcut
+  // layer: Space → onTTSPlayPause → tts-toggle-play (delegated to narration
+  // in useTTSControl); arrows → goLeft/goRight in useBookShortcuts (narration
+  // sentence skip while a session is active). Covers window and iframe keys.
 
   return { narrationAvailable: available, narrationController: controllerRef.current };
 };

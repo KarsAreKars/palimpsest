@@ -16,7 +16,12 @@ import { getDir } from '@/utils/book';
 import { EdgeSpeechProvider } from '@/services/tts/providers/edge';
 import { NarrationPlayer, type AudioSink } from './player';
 import { WebAudioSink } from './webAudioSink';
-import { loadNarration, type HpubManifest, type NarrationUnit } from './index';
+import {
+  loadNarration,
+  buildNarrationForBook,
+  type HpubManifest,
+  type NarrationUnit,
+} from './index';
 import { resolveClickToUnit } from './locate';
 
 export interface NarrationControllerDeps {
@@ -60,7 +65,22 @@ export class NarrationController extends EventTarget {
     book: Book,
     deps: NarrationControllerDeps = {},
   ): Promise<NarrationController | null> {
-    const units = await loadNarration(appService, book);
+    let units = await loadNarration(appService, book);
+    if (
+      (!units || units.length === 0) &&
+      (await appService.exists(`${getDir(book)}/manifest.json`, 'Books'))
+    ) {
+      // The text layer is present but the spoken script was never built
+      // (e.g. an .hpub package predating the narration pipeline). Build it
+      // once, in place — same artifacts, same directory.
+      try {
+        console.info('narration: building spoken script from text layer…');
+        await buildNarrationForBook(appService, book);
+        units = await loadNarration(appService, book);
+      } catch (e) {
+        console.warn('narration: spoken-script build failed', e);
+      }
+    }
     if (!units || units.length === 0) return null;
     const dir = getDir(book);
     const md = (await appService.readFile(`${dir}/content.md`, 'Books', 'text')) as string;
