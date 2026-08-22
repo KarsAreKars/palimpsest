@@ -52,7 +52,7 @@ const nextConfig = {
   // Configure assetPrefix or else the server won't properly resolve your assets.
   assetPrefix: '',
   reactStrictMode: true,
-  serverExternalPackages: ['isows'],
+  serverExternalPackages: ['isows', 'speech-rule-engine', 'temml'],
   allowedDevOrigins: ['192.168.2.120'],
   webpack: (config, { isServer }) => {
     config.resolve.alias = {
@@ -68,6 +68,11 @@ const nextConfig = {
         ? { '@readest/turso-database-wasm/webpack': false, 'jieba-wasm': false }
         : {}),
     };
+    if (!isServer) {
+      // speech-rule-engine (narration verbalizer) has a Node-only 'fs'
+      // require that is never exercised at runtime.
+      config.resolve.fallback = { ...config.resolve.fallback, fs: false };
+    }
     return config;
   },
   turbopack: {
@@ -77,6 +82,10 @@ const nextConfig = {
       // imports not implemented") — use a project-relative path.
       fflate: './node_modules/fflate',
       ...(appPlatform !== 'web' ? { '@tursodatabase/database-wasm': './src/utils/stub.ts' } : {}),
+      // speech-rule-engine's bundle has a Node-only locale-loading path that
+      // requires 'fs'; it is never hit at runtime (locales are preloaded).
+      // Stub it for browser bundles only — server bundles keep the real fs.
+      fs: { browser: './src/utils/stub.ts' },
     },
   },
   transpilePackages: [

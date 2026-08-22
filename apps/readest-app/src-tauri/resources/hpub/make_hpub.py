@@ -51,20 +51,13 @@ def emit(result: dict, code: int) -> None:
 # ─── 1. coverage ─────────────────────────────────────────────────────────────
 
 def extract_page_texts(pdf_path: str) -> list[str]:
-    import pypdfium2 as pdfium
+    """Per-page text-layer text. Uses pypdf (the extractor phase-0 alignment
+    was validated with); pypdfium2's reading order differs on table-heavy
+    pages enough to perturb containment scoring."""
+    from pypdf import PdfReader
 
-    pdf = pdfium.PdfDocument(pdf_path)
-    try:
-        texts = []
-        for page in pdf:
-            textpage = page.get_textpage()
-            try:
-                texts.append(textpage.get_text_range() or "")
-            finally:
-                textpage.close()
-        return texts
-    finally:
-        pdf.close()
+    reader = PdfReader(pdf_path)
+    return [(page.extract_text() or "") for page in reader.pages]
 
 
 def coverage_check(page_texts: list[str]) -> None:
@@ -91,9 +84,18 @@ def coverage_check(page_texts: list[str]) -> None:
 
 # ─── 2. marker extraction ────────────────────────────────────────────────────
 
-def marker_extract(pdf_path: str):
+def marker_extract(pdf_path: str, cache_dir: Path | None = None):
     """One build_document pass, rendered to Markdown + JSON. Returns
-    (md_text, doc_tree, images{name: PIL.Image})."""
+    (md_text, doc_tree, images{name: PIL.Image}). Caches to disk so
+    alignment/gate iteration doesn't pay the ~3.4 s/page Marker cost twice."""
+    if cache_dir:
+        cache_dir.mkdir(parents=True, exist_ok=True)
+        md_cache = cache_dir / "content.md"
+        tree_cache = cache_dir / "tree.json"
+        if md_cache.is_file() and tree_cache.is_file():
+            log("reusing cached marker output")
+            return md_cache.read_text(encoding="utf-8"), json.loads(tree_cache.read_text()), {}
+
     from marker.converters.pdf import PdfConverter
     from marker.models import create_model_dict
     from marker.renderers.json import JSONRenderer
@@ -105,6 +107,9 @@ def marker_extract(pdf_path: str):
         md_out = converter.resolve_dependencies(MarkdownRenderer)(document)
         json_out = converter.resolve_dependencies(JSONRenderer)(document)
     tree = json_out.model_dump(mode="json", exclude={"metadata"})
+    if cache_dir:
+        (cache_dir / "content.md").write_text(md_out.markdown, encoding="utf-8")
+        (cache_dir / "tree.json").write_text(json.dumps(tree), encoding="utf-8")
     return md_out.markdown, tree, md_out.images or {}
 
 
@@ -274,6 +279,11 @@ def main() -> None:
     out.add_argument("--out-hpub", help="write packaged .hpub zip here")
     out.add_argument("--out-dir", help="write unpacked artifacts into this directory")
     ap.add_argument("--title", default=None, help="book title (default: PDF metadata or filename)")
+    ap.add_argument(
+        "--workdir",
+        default=None,
+        help="cache directory for marker output (speeds up alignment iteration)",
+    )
     args = ap.parse_args()
 
     pdf_path = Path(args.pdf)
@@ -288,7 +298,9 @@ def main() -> None:
 
     log(f"2/5 marker extraction ({len(page_texts)} pages — this is the slow part)")
     try:
-        md_text, tree, images = marker_extract(str(pdf_path))
+        md_text, tree, images = marker_extract(
+            str(pdf_path), Path(args.workdir) / "marker" if args.workdir else None
+        )
     except Exception as e:  # noqa: BLE001 — surface marker failures as import failures
         emit({"status": "error", "stage": "marker", "detail": str(e)}, 1)
         return
@@ -315,6 +327,13 @@ def main() -> None:
     manifest["containment"] = {"mean": containment["mean"], "min": containment["min"]}
     log(f"containment: mean={containment['mean']} min={containment['min']}")
     if containment["mean"] < MIN_MEAN_CONTAINMENT or containment["min"] < MIN_PAGE_CONTAINMENT:
+        # Dump the artifacts for post-mortem analysis before failing.
+        if args.workdir:
+            debug_dir = Path(args.workdir) / "rejected"
+            debug_dir.mkdir(parents=True, exist_ok=True)
+            (debug_dir / "content.md").write_text(md_text, encoding="utf-8")
+            (debug_dir / "manifest.json").write_text(json.dumps(manifest, indent=2), encoding="utf-8")
+            log(f"debug artifacts written to {debug_dir}")
         emit(
             {
                 "status": "rejected",

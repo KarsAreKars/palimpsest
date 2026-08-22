@@ -67,6 +67,17 @@ class ExtractionQueue {
         title: book.sourceTitle || book.title,
       });
       this.emit(book, result);
+      // Chain the narration pipeline: extraction landed the text layer,
+      // now build the spoken script (plan §4). Failure here must not eat
+      // the extraction result — the text layer is still valid.
+      if (result.status === 'ok') {
+        try {
+          const { buildNarrationForBook } = await import('@/services/narration');
+          await buildNarrationForBook(appService, book);
+        } catch (e) {
+          console.warn('narration build failed after extraction', e);
+        }
+      }
     });
     void this.pump();
   }
