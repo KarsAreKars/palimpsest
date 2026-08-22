@@ -3,7 +3,6 @@ import { TTSHighlightOptions } from '@/services/tts/types';
 // Detail payload for the app-bus `tts-speak` event (see useTTSControl.handleTTSSpeak,
 // which honors a passed `range` + `index`). Paragraph mode starts audio from the
 // focused paragraph so the listener and the highlighted paragraph stay aligned.
-// Mirrors rsvpTts.ts (decision 5, #3235).
 export interface ParagraphTtsSpeakDetail {
   bookKey: string;
   // Section spine index of the focused paragraph — starts TTS in the right section.
@@ -17,7 +16,7 @@ export interface ParagraphTtsSpeakDetail {
 // Build the `tts-speak` detail for "start audio from the focused paragraph"
 // (#3235). Returns `{ bookKey }` only when there is nothing to align to.
 //
-// Start-alignment rules (mirror buildRsvpTtsSpeakDetail):
+// Start-alignment rules:
 //   - index = the paragraph's spine index (when known), so audio begins in the
 //     focused section even if the range can't be used.
 //   - range is included ONLY when it is live: it exists and its ownerDocument is

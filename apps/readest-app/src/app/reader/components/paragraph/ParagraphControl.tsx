@@ -38,8 +38,8 @@ const ParagraphControl: React.FC<ParagraphControlProps> = ({ bookKey, viewRef, g
     reengageTtsFollow,
   } = useParagraphMode({ bookKey, viewRef });
 
-  // Device-level display scale for the paragraph text (#5246), persisted like
-  // the RSVP overlay's display settings.
+  // Device-level display scale for the paragraph text (#5246), persisted in
+  // localStorage.
   const [fontScaleIndex, setFontScaleIndex] = useState(loadParagraphFontScaleIndex);
   const handleFontScaleIndexChange = useCallback((index: number) => {
     setFontScaleIndex(saveParagraphFontScaleIndex(index));

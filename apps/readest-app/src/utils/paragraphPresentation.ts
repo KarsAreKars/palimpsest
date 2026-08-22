@@ -118,8 +118,8 @@ export const getParagraphPresentation = (
 };
 
 // Display scale applied on top of the reader's font size in paragraph mode
-// (#5246). Device-level (localStorage), like the RSVP overlay's display
-// settings — 1x keeps the paragraph at the book's own font size.
+// (#5246). Device-level (localStorage)
+// — 1x keeps the paragraph at the book's own font size.
 export const PARAGRAPH_FONT_SCALE_OPTIONS = [1, 1.15, 1.3, 1.5, 1.75, 2, 2.5, 3, 4, 5];
 export const PARAGRAPH_FONT_SCALE_STORAGE_KEY = 'readest_paragraph_fontsize';
 

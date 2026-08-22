@@ -348,8 +348,8 @@ const SettingsDialog: React.FC<{ bookKey: string }> = ({ bookKey }) => {
       isOpen={true}
       onClose={handleClose}
       // Settings sits in the overlay z-index scale (see ModalPortal.tsx) above
-      // the RSVP immersive overlay (z-100) so dictionary management opened from
-      // inside RSVP shows on top instead of behind it (#3235), and below the
+      // full-screen immersive overlays (z-100) so dictionary management opened from
+      // inside one shows on top instead of behind it (#3235), and below the
       // modal layer (z-120) so a modal opened from inside Settings (e.g. Add
       // OPDS Catalog) renders on top. !important beats the Dialog's hardcoded z-50.
       className='modal-open !z-[110]'

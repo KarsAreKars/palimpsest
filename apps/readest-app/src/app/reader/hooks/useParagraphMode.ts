@@ -602,8 +602,7 @@ export const useParagraphMode = ({ bookKey, viewRef }: UseParagraphModeProps) =>
   // Audio (TTS) toggle from the paragraph bar (#3235). When a TTS session is
   // engaged, stop it; otherwise start it from the FOCUSED paragraph with
   // start-alignment — the paragraph's range (validated live) + its section index
-  // — so audio begins at the same paragraph that's highlighted. Mirrors RSVP's
-  // handleToggleTtsAudio.
+  // — so audio begins at the same paragraph that's highlighted.
   const toggleTtsAudio = useCallback(() => {
     if (ttsActiveRef.current) {
       eventDispatcher.dispatch('tts-stop', { bookKey: bookKeyRef.current });

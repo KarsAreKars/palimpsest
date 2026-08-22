@@ -44,7 +44,7 @@ import { findPairedAudiobookSection, loadPairedAudiobookSection } from './paired
 
 // App-wide monotonic sequence for 'tts-position' events. A fresh TTSController
 // is constructed per `tts-speak`, so a per-instance counter would restart at 0
-// and consumers (paragraph mode, RSVP) holding `lastSequenceSeen` from a prior
+// and consumers (paragraph mode) holding `lastSequenceSeen` from a prior
 // session would drop the new session's early positions until they exceeded the
 // old count. A module-level counter keeps the sequence strictly increasing
 // across sessions.
@@ -1763,7 +1763,7 @@ export class TTSController extends EventTarget {
 
   // Re-emit the controller's current position on the canonical 'tts-position'
   // signal with a fresh (monotonic) sequence. Lets a follower that engages
-  // mid-session (paragraph / RSVP mode entered while TTS is already playing or
+  // mid-session (paragraph mode entered while TTS is already playing or
   // paused) sync to the current position without waiting for the next word or
   // sentence boundary. Mirrors reapplyCurrentHighlight's word-vs-sentence
   // choice, but dispatches a position instead of drawing a highlight.

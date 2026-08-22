@@ -368,11 +368,6 @@ const useBookShortcuts = ({ sideBarBookKey, bookKeys }: UseBookShortcutsProps) =
     return true;
   };
 
-  const startRSVP = () => {
-    if (!sideBarBookKey) return;
-    eventDispatcher.dispatch('rsvp-start', { bookKey: sideBarBookKey });
-  };
-
   const toggleAutoScroll = () => {
     if (!sideBarBookKey) return;
     // Auto Scroll only exists in scrolled mode (#4998); the View menu item is
@@ -413,7 +408,6 @@ const useBookShortcuts = ({ sideBarBookKey, bookKeys }: UseBookShortcutsProps) =
       onToggleScrollMode: toggleScrollMode,
       onToggleBookmark: toggleBookmark,
       onToggleParagraphMode: toggleParagraphMode,
-      onStartRSVP: startRSVP,
       onToggleAutoScroll: toggleAutoScroll,
       onToggleToolbar: toggleToolbar,
       onOpenFontLayoutSettings: () => {

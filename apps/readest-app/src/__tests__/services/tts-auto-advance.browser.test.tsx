@@ -347,8 +347,8 @@ describe('TTS auto-advance across a chapter boundary (browser e2e)', () => {
 
   // Slice 2: the hook republishes the controller's canonical 'tts-position'
   // CustomEvent onto the app-wide eventDispatcher (tagged with bookKey) so
-  // paragraph mode + RSVP can follow TTS without touching the controller. It
-  // also emits 'tts-playback-state' transitions for consumers (like RSVP) that
+  // paragraph mode can follow TTS without touching the controller. It
+  // also emits 'tts-playback-state' transitions for consumers that
   // can't read the hook-local isPlaying flag.
   it('republishes controller tts-position + tts-playback-state onto the global eventDispatcher', async () => {
     const viewSettings: ViewSettings = {

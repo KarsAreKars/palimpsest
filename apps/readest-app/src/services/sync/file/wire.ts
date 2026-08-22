@@ -47,7 +47,7 @@ export interface RemoteBookConfig {
 
 /**
  * Convert the live local BookConfig into the wire envelope. We deliberately
- * drop transient view state (search config, RSVP position, viewSettings,
+ * drop transient view state (search config, viewSettings,
  * etc.) — those are device-local UI preferences, not progress. The lone
  * exception is `referencePageCount`, which is book data wearing a view-setting
  * costume; it travels as its own envelope key (see RemoteBookConfig).

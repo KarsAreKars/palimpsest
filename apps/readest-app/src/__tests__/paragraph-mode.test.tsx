@@ -596,7 +596,7 @@ describe('paragraph mode display settings (#5246)', () => {
 
     // The bare `"Bitter", serif` pair dropped the user's CJK/custom font, so
     // CJK text fell back to the system font (#5246). The overlay must resolve
-    // the same chain as the RSVP overlay (getBaseFontFamily).
+    // the same font chain via getBaseFontFamily.
     expect(paragraphContent.style.fontFamily).toContain('Bitter');
     expect(paragraphContent.style.fontFamily).toContain('LXGW WenKai');
   });

@@ -81,13 +81,13 @@ export const useTTSControl = ({ bookKey, onRequestHidePanel }: UseTTSControlProp
   const [ttsClientsInited, setTtsClientsInitialized] = useState(false);
 
   // Broadcast playback transitions on the app-wide bus so consumers that
-  // can't read the hook-local isPlaying flag (RSVP, paragraph mode) can react.
+  // can't read the hook-local isPlaying flag (paragraph mode) can react.
   const emitPlaybackState = (state: 'playing' | 'paused' | 'stopped') => {
     playbackStateRef.current = state;
     eventDispatcher.dispatch('tts-playback-state', { bookKey, state });
   };
 
-  // A follower (paragraph / RSVP mode) that engages mid-session asks the
+  // A follower (paragraph mode) that engages mid-session asks the
   // controller to re-broadcast its current playback state and position, so it
   // can sync immediately instead of waiting for the next word/sentence boundary
   // (or forcing the user to stop and restart TTS inside the mode). Replays only
@@ -98,8 +98,8 @@ export const useTTSControl = ({ bookKey, onRequestHidePanel }: UseTTSControlProp
     const state = playbackStateRef.current;
     if (state !== 'playing' && state !== 'paused') return;
     if (!ttsControllerRef.current) return;
-    // Position first, then state: RSVP's 'paused' handler drops following, which
-    // would discard a position arriving after it. Position-first lets the
+    // Position first, then state: a follower's 'paused' handler drops
+    // following, which would discard a position arriving after it. Position-first lets the
     // follower sync the current word/paragraph before a (possibly paused) state
     // lands. Only the entering mode listens to these events, so the order is
     // deterministic. The live flow (separate emits) is unaffected.
@@ -133,22 +133,6 @@ export const useTTSControl = ({ bookKey, onRequestHidePanel }: UseTTSControlProp
     eventDispatcher.dispatch('create-tts-highlight', { bookKey, ...sentence });
   };
 
-  // Set the TTS rate from the app bus. The RSVP overlay is full-screen, so its
-  // rate picker can't reach the TTS panel; it dispatches `tts-set-rate` and we
-  // reuse the same controller rate-change path the panel uses (handleSetRate,
-  // defined below — stop→setRate→start while playing, throttled). Also persists
-  // the value to viewSettings so it survives like a panel change.
-  const handleTTSSetRate = (event: CustomEvent) => {
-    const detail = event.detail as { bookKey: string; rate?: number } | undefined;
-    if (detail?.bookKey !== bookKey || typeof detail.rate !== 'number') return;
-    const viewSettings = getViewSettings(bookKey);
-    if (viewSettings) {
-      viewSettings.ttsRate = detail.rate;
-      setViewSettings(bookKey, viewSettings);
-    }
-    handleSetRate(detail.rate);
-  };
-
   const handleTTSTogglePlay = async (event: CustomEvent) => {
     const detail = event.detail as { bookKey: string } | undefined;
     if (detail?.bookKey !== bookKey) return;
@@ -178,7 +162,6 @@ export const useTTSControl = ({ bookKey, onRequestHidePanel }: UseTTSControlProp
     eventDispatcher.on('tts-forward', handleTTSForward);
     eventDispatcher.on('tts-backward', handleTTSBackward);
     eventDispatcher.on('tts-toggle-play', handleTTSTogglePlay);
-    eventDispatcher.on('tts-set-rate', handleTTSSetRate);
     eventDispatcher.on('tts-highlight-sentence', handleTTSHighlightSentence);
     eventDispatcher.on('tts-sync-request', handleTTSSyncRequest);
     return () => {
@@ -188,7 +171,6 @@ export const useTTSControl = ({ bookKey, onRequestHidePanel }: UseTTSControlProp
       eventDispatcher.off('tts-forward', handleTTSForward);
       eventDispatcher.off('tts-backward', handleTTSBackward);
       eventDispatcher.off('tts-toggle-play', handleTTSTogglePlay);
-      eventDispatcher.off('tts-set-rate', handleTTSSetRate);
       eventDispatcher.off('tts-highlight-sentence', handleTTSHighlightSentence);
       eventDispatcher.off('tts-sync-request', handleTTSSyncRequest);
       if (ttsControllerRef.current) {
@@ -551,7 +533,7 @@ export const useTTSControl = ({ bookKey, onRequestHidePanel }: UseTTSControlProp
     };
 
     // Republish the controller's canonical position signal onto the app-wide
-    // bus so paragraph mode + RSVP can follow TTS without touching the
+    // bus so paragraph mode can follow TTS without touching the
     // controller. This MUST be its own listener: handleHighlightMark /
     // handleHighlightWord early-return on following-suppression and text
     // selection, which would silently stop the modes from following. The
@@ -1133,9 +1115,8 @@ export const useTTSControl = ({ bookKey, onRequestHidePanel }: UseTTSControlProp
   const handleSetRate = useCallback(
     throttle(async (rate: number) => {
       // Before the controller check: the rate is persisted whether or not a
-      // session is running (the RSVP overlay can set it with Read Aloud
-      // stopped), so the pauses have to follow it either way or the next
-      // session starts with pauses scaled for the old rate.
+      // session is running, so the pauses have to follow it either way or the
+      // next session starts with pauses scaled for the old rate.
       applyRateScaledGaps(rate);
       const ttsController = ttsControllerRef.current;
       if (!ttsController) return;

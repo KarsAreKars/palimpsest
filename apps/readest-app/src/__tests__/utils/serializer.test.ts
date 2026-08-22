@@ -23,7 +23,6 @@ describe('BookConfig serialization', () => {
   it('writes schemaVersion to settings-aware config JSON using camelCase', () => {
     const config: BookConfig = {
       updatedAt: 123,
-      rsvpPosition: { cfi: 'epubcfi(/6/4!/4/2)', wordText: 'hello' },
       viewSettings: { zoomLevel: 120 },
       searchConfig: { query: 'alice' },
     };
@@ -33,7 +32,6 @@ describe('BookConfig serialization', () => {
 
     expect(parsed.schemaVersion).toBe(BOOK_CONFIG_SCHEMA_VERSION);
     expect(parsed.schema_version).toBeUndefined();
-    expect(parsed.rsvpPosition).toEqual({ cfi: 'epubcfi(/6/4!/4/2)', wordText: 'hello' });
     expect(parsed.viewSettings).toEqual({ zoomLevel: 120 });
     expect(parsed.searchConfig).toEqual({ query: 'alice' });
   });

@@ -60,7 +60,7 @@ export const mergeNotes = (local: BookNote[], remote: BookNote[]): BookNote[] =>
  * element-set CRDT regardless of which side won the scalar race. Null /
  * undefined remote fields are dropped before the spread so a server can
  * never inject keys the wire envelope isn't supposed to carry (viewSettings,
- * searchConfig, RSVP) — those never appear in `remote.config` because
+ * searchConfig) — those never appear in `remote.config` because
  * `buildRemotePayload` strips them on push.
  *
  * Returns both the merged config (with `booknotes` populated) and the merged

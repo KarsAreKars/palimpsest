@@ -12,7 +12,6 @@ import { eventDispatcher } from '@/utils/event';
 import type { FooterBarProps, NavigationHandlers, FooterBarChildProps } from './types';
 import { debounce } from '@/utils/debounce';
 import { isForcedMobileLayout } from '../../utils/mobileLayout';
-import { RSVPControl } from '../rsvp';
 import MobileFooterBar from './MobileFooterBar';
 import DesktopFooterBar from './DesktopFooterBar';
 import { getFooterBarPosition } from './position';
@@ -268,7 +267,6 @@ const FooterBar: React.FC<FooterBarProps> = ({
       )}
 
       <TTSControl bookKey={bookKey} gridInsets={gridInsets} />
-      <RSVPControl bookKey={bookKey} gridInsets={gridInsets} />
     </>
   );
 };

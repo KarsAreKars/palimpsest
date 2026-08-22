@@ -164,7 +164,7 @@ const ParagraphOverlay: React.FC<ParagraphOverlayProps> = ({
 
   const contentStyle = useMemo(() => {
     if (!viewSettings) return {};
-    // Resolve the same font chain as the RSVP overlay (custom + CJK +
+    // Resolve the full font chain (custom + CJK +
     // fallbacks); a bare serif/sans pair dropped the user's CJK/custom font,
     // so CJK text fell back to the system font (#5246).
     const defaultFontFamily = viewSettings.defaultFont

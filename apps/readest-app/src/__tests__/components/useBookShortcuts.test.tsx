@@ -214,15 +214,6 @@ describe('useBookShortcuts', () => {
     expect(mockView.goToFraction).not.toHaveBeenCalled();
   });
 
-  it('dispatches rsvp-start for the current book when the RSVP shortcut fires', () => {
-    const dispatchSpy = vi.spyOn(eventDispatcher, 'dispatch');
-
-    render(<Harness />);
-    shortcutState.actions?.['onStartRSVP']?.();
-
-    expect(dispatchSpy).toHaveBeenCalledWith('rsvp-start', { bookKey: 'book-1' });
-  });
-
   it('targets the active book when the settings shortcut opens the dialog (#5591)', () => {
     render(<Harness />);
     shortcutState.actions?.['onOpenFontLayoutSettings']?.();

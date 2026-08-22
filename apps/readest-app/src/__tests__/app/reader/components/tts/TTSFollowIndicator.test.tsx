@@ -19,7 +19,7 @@ describe('TTSFollowIndicator', () => {
     expect(queryByRole('button')).toBeNull();
   });
 
-  it('appends the estimated suffix for RSVP non-Edge following', () => {
+  it('appends the estimated suffix for estimator-paced non-Edge following', () => {
     const { getByText } = render(<TTSFollowIndicator status='following' estimated />);
     expect(getByText('Following audio')).toBeTruthy();
     // getByText normalizes whitespace, so the leading separator space is trimmed.

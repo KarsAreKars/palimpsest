@@ -25,7 +25,7 @@ import { SCROLL_WRAPPER_CLASS, SCROLL_WRAPPER_FIT_CLASS } from './scrollable';
  * from the user's font settings. Each value is a ready-to-use `font-family`
  * string ending in the matching generic family. Shared by getFontStyles (which
  * exposes them as CSS variables inside the reader iframe) and getBaseFontFamily
- * (which applies the body font directly to top-level UI such as the RSVP overlay).
+ * (which applies the body font directly to top-level UI such as immersive overlays).
  */
 const buildFontFamilyLists = (
   serif: string,
@@ -64,8 +64,8 @@ const buildFontFamilyLists = (
 
 /**
  * Resolve the body font-family string (serif or sans-serif chain, per the
- * user's "Default Font" setting) for use outside the reader iframe — e.g. the
- * RSVP overlay, which renders in the top document and can't read the iframe's
+ * user's "Default Font" setting) for use outside the reader iframe — e.g. a
+ * full-screen immersive overlay, which renders in the top document and can't read the iframe's
  * --serif/--sans-serif CSS variables. Custom fonts are already mounted in the
  * top document, so the returned chain resolves them by family name.
  */

@@ -2,13 +2,11 @@ import { describe, it, expect } from 'vitest';
 import {
   transformBookNoteToDB,
   transformBookNoteFromDB,
-  transformBookConfigToDB,
-  transformBookConfigFromDB,
   transformBookToDB,
   transformBookFromDB,
 } from '@/utils/transform';
-import { BookConfig, BookNote, Book } from '@/types/book';
-import { DBBookConfig, DBBookNote } from '@/types/records';
+import { BookNote, Book } from '@/types/book';
+import { DBBookNote } from '@/types/records';
 
 describe('transformBookNoteToDB with xpointer fields', () => {
   it('passes through xpointer0 and xpointer1', () => {
@@ -228,62 +226,6 @@ describe('transformBookNote with global flag', () => {
     // already stored — which is exactly what we want for legacy clients.
     expect(Object.hasOwn(legacyDb, 'global')).toBe(true);
     expect(JSON.parse(JSON.stringify(legacyDb))).not.toHaveProperty('global');
-  });
-});
-
-describe('transformBookConfigToDB / transformBookConfigFromDB rsvpPosition', () => {
-  const baseConfig: BookConfig = {
-    bookHash: 'hash1',
-    updatedAt: 1700000000000,
-  };
-
-  it('serializes rsvpPosition to JSON string in DB record', () => {
-    const config: BookConfig = {
-      ...baseConfig,
-      rsvpPosition: { cfi: 'epubcfi(/6/4!/4/2/1:0)', wordText: 'hello' },
-    };
-    const db = transformBookConfigToDB(config, 'user1');
-    expect(db.rsvp_position).toBe(
-      JSON.stringify({ cfi: 'epubcfi(/6/4!/4/2/1:0)', wordText: 'hello' }),
-    );
-  });
-
-  it('omits rsvp_position when rsvpPosition is undefined', () => {
-    const db = transformBookConfigToDB(baseConfig, 'user1');
-    expect(db.rsvp_position).toBeUndefined();
-  });
-
-  it('deserializes rsvp_position from DB record', () => {
-    const dbConfig: DBBookConfig = {
-      user_id: 'user1',
-      book_hash: 'hash1',
-      rsvp_position: JSON.stringify({ cfi: 'epubcfi(/6/4!/4/2/1:0)', wordText: 'hello' }),
-      updated_at: '2023-11-14T22:13:20.000Z',
-    };
-    const config = transformBookConfigFromDB(dbConfig);
-    expect(config.rsvpPosition).toEqual({ cfi: 'epubcfi(/6/4!/4/2/1:0)', wordText: 'hello' });
-  });
-
-  it('leaves rsvpPosition undefined when rsvp_position is absent from DB', () => {
-    const dbConfig: DBBookConfig = {
-      user_id: 'user1',
-      book_hash: 'hash1',
-      updated_at: '2023-11-14T22:13:20.000Z',
-    };
-    const config = transformBookConfigFromDB(dbConfig);
-    expect(config.rsvpPosition).toBeUndefined();
-  });
-
-  it('round-trips rsvpPosition through DB transform', () => {
-    const config: BookConfig = {
-      ...baseConfig,
-      rsvpPosition: { cfi: 'epubcfi(/6/8!/4/2/3:5)', wordText: 'world' },
-    };
-    const db = transformBookConfigToDB(config, 'user1');
-    // Simulate what DB returns (updated_at as ISO string)
-    const dbRecord: DBBookConfig = { ...db, updated_at: new Date(config.updatedAt).toISOString() };
-    const restored = transformBookConfigFromDB(dbRecord);
-    expect(restored.rsvpPosition).toEqual(config.rsvpPosition);
   });
 });
 
