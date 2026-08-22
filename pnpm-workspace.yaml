@@ -21,6 +21,7 @@ onlyBuiltDependencies:
 patchedDependencies:
   '@ai-sdk/provider-utils@4.0.27': patches/@ai-sdk__provider-utils@4.0.27.patch
   mdast-util-gfm-autolink-literal@2.0.1: patches/mdast-util-gfm-autolink-literal@2.0.1.patch
+  speech-rule-engine@5.0.0-rc.4: patches/speech-rule-engine@5.0.0-rc.4.patch
 
 overrides:
   deepmerge-ts: '>=8.0.1 <9'

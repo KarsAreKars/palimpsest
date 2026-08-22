@@ -41,12 +41,19 @@ export const initVerbalizer = (): Promise<void> => {
       // CJS/ESM interop: both libs may surface as default or namespace.
       sre = ((sreMod as { default?: SreApi }).default ?? sreMod) as SreApi;
       temml = ((temmlMod as { default?: TemmlApi }).default ?? temmlMod) as unknown as TemmlApi;
-      await sre.setupEngine({
-        modality: 'speech',
-        domain: 'clearspeak',
-        style: 'default',
-        locale: 'en',
-      });
+      // SRE's browser path can park forever on locale readiness; fail loudly
+      // instead of hanging the narration build (callers fall back cleanly).
+      await Promise.race([
+        sre.setupEngine({
+          modality: 'speech',
+          domain: 'clearspeak',
+          style: 'default',
+          locale: 'en',
+        }),
+        new Promise((_, reject) =>
+          setTimeout(() => reject(new Error('SRE setupEngine timed out')), 30_000),
+        ),
+      ]);
     })();
   }
   return ready;
