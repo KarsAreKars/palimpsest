@@ -29,6 +29,19 @@ export interface NarrationControllerDeps {
   sink?: AudioSink;
 }
 
+// React StrictMode double-mounts effects in dev; the spoken-script build is
+// expensive, so share one in-flight build per book hash.
+const buildInFlight = new Map<string, Promise<unknown>>();
+const buildOnce = (appService: AppService, book: Book): Promise<unknown> => {
+  const key = book.hash;
+  let p = buildInFlight.get(key);
+  if (!p) {
+    p = buildNarrationForBook(appService, book).finally(() => buildInFlight.delete(key));
+    buildInFlight.set(key, p);
+  }
+  return p;
+};
+
 export class NarrationController extends EventTarget {
   readonly units: NarrationUnit[];
   readonly manifest: HpubManifest;
@@ -75,7 +88,7 @@ export class NarrationController extends EventTarget {
       // once, in place — same artifacts, same directory.
       try {
         console.info('narration: building spoken script from text layer…');
-        await buildNarrationForBook(appService, book);
+        await buildOnce(appService, book);
         units = await loadNarration(appService, book);
       } catch (e) {
         console.warn('narration: spoken-script build failed', e);
@@ -83,9 +96,11 @@ export class NarrationController extends EventTarget {
     }
     if (!units || units.length === 0) return null;
     const dir = getDir(book);
-    const md = (await appService.readFile(`${dir}/content.md`, 'Books', 'text')) as string;
+    const toText = (c: string | ArrayBuffer): string =>
+      typeof c === 'string' ? c : new TextDecoder().decode(c);
+    const md = toText(await appService.readFile(`${dir}/content.md`, 'Books', 'text'));
     const manifest = JSON.parse(
-      (await appService.readFile(`${dir}/manifest.json`, 'Books', 'text')) as string,
+      toText(await appService.readFile(`${dir}/manifest.json`, 'Books', 'text')),
     ) as HpubManifest;
 
     const provider = deps.provider ?? new EdgeSpeechProvider();

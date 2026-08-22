@@ -742,8 +742,14 @@ export async function importBook(
       if (hpubSidecars.some((s) => s.path.includes('/'))) {
         await fs.createDir(`${bookDir}/assets`, 'Books', true);
       }
+      const TEXT_SIDECAR_RE = /\.(md|json|jsonl|txt)$/i;
       for (const sidecar of hpubSidecars) {
-        await fs.writeFile(`${bookDir}/${sidecar.path}`, 'Books', sidecar.data);
+        // Text artifacts are stored as strings so readFile('text') round-trips
+        // on every AppService (web keeps the stored type as-is).
+        const data = TEXT_SIDECAR_RE.test(sidecar.path)
+          ? new TextDecoder().decode(sidecar.data)
+          : sidecar.data;
+        await fs.writeFile(`${bookDir}/${sidecar.path}`, 'Books', data);
       }
     }
     if (saveCover && (!(await fs.exists(getCoverFilename(book), 'Books')) || overwrite)) {

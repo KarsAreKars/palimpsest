@@ -23,13 +23,21 @@ export const NARRATION_FORMAT_VERSION = 1;
 export type { HpubManifest, NarrationUnit };
 
 /** Load a book's narration script if its text layer has been narrated. */
+/**
+ * readFile('text') returns the content as stored; the web AppService keeps
+ * ArrayBuffers for anything written as binary (e.g. .hpub sidecar bytes),
+ * so text artifacts must be decoded defensively.
+ */
+const toText = (content: string | ArrayBuffer): string =>
+  typeof content === 'string' ? content : new TextDecoder().decode(content);
+
 export const loadNarration = async (
   appService: AppService,
   book: Book,
 ): Promise<NarrationUnit[] | null> => {
   const path = `${getDir(book)}/${NARRATION_FILENAME}`;
   if (!(await appService.exists(path, 'Books'))) return null;
-  const raw = (await appService.readFile(path, 'Books', 'text')) as string;
+  const raw = toText(await appService.readFile(path, 'Books', 'text'));
   return raw
     .split('\n')
     .filter((line) => line.trim().length > 0)
@@ -55,9 +63,9 @@ export const buildNarrationForBook = async (
     return null;
   }
   const manifest = JSON.parse(
-    (await appService.readFile(manifestPath, 'Books', 'text')) as string,
+    toText(await appService.readFile(manifestPath, 'Books', 'text')),
   ) as HpubManifest;
-  const md = (await appService.readFile(mdPath, 'Books', 'text')) as string;
+  const md = toText(await appService.readFile(mdPath, 'Books', 'text'));
 
   // TODO(settings): read equationVerbosity from the user's narration settings
   // once the setting ships (plan §4 — default full/announce+speak).
