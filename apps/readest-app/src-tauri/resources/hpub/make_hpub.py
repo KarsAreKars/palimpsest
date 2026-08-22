@@ -34,9 +34,29 @@ MAX_SHINGLE_OCCURRENCES = 25  # shingles too common to anchor a page
 MIN_PAGE_TEXT_CHARS = 20
 MAX_NOTEXT_FRACTION = 0.20
 
-# Quality gate (phase-0 evidence: worst-case book scored 0.94 mean / 0.70 min)
-MIN_MEAN_CONTAINMENT = 0.90
-MIN_PAGE_CONTAINMENT = 0.70
+# Quality gate (amendment A2 — class-aware: strict where tokens exist,
+# lenient where they legitimately don't):
+#   prose pages   — per-page containment >= 0.70, prose mean >= 0.85
+#   mixed pages   — per-page containment >= 0.50 (figure tokens legitimately
+#                   missing from the text layer)
+#   visual pages  — excluded from containment scoring (diagrams became images)
+#   drift signal  — >= 3 consecutive failing prose/mixed pages rejects the book
+#   backstop      — < 50% of pages anchored rejects outright, any classes
+MIN_PROSE_CONTAINMENT = 0.70
+MIN_PROSE_MEAN_CONTAINMENT = 0.85
+MIN_MIXED_CONTAINMENT = 0.50
+MAX_FAILING_RUN = 3
+MIN_ANCHORED_FRACTION = 0.50
+
+# Constraint #2 enforced directly: a math-dense PDF whose text layer lost the
+# math is a failed import even if prose containment passes.
+MIN_EQUATION_REGIONS_FOR_CHECK = 20
+MIN_MD_MATH_FRACTION = 0.20
+
+# Page classification by visual-block bbox area share.
+VISUAL_BLOCK_TYPES = {"Picture", "Diagram", "Table", "TableOfContents", "Figure", "FigureGroup"}
+VISUAL_PAGE_THRESHOLD = 0.50
+MIXED_PAGE_THRESHOLD = 0.15
 
 
 def log(msg: str) -> None:
@@ -129,6 +149,67 @@ def shingle_seq(tokens, n=SHINGLE):
 
 def strip_html(html: str) -> str:
     return re.sub(r"<[^>]+>", " ", html or "")
+
+
+def classify_pages(tree: dict) -> dict[int, str]:
+    """Classify each page as prose / mixed / visual by the bbox-area share of
+    visual blocks (Picture, Diagram, Table, TableOfContents, ...) in Marker's
+    JSON tree. Amendment A2: the narration layer reads this to announce visual
+    blocks instead of skipping them silently."""
+    classes: dict[int, str] = {}
+    for pno, page in enumerate(tree.get("children") or [], start=1):
+        page_bbox = page.get("bbox")
+        page_area = (
+            (page_bbox[2] - page_bbox[0]) * (page_bbox[3] - page_bbox[1]) if page_bbox else 0
+        )
+        visual_area = 0.0
+        visual_blocks = 0
+
+        def walk(node):
+            nonlocal visual_area, visual_blocks
+            for child in node.get("children") or []:
+                bt = child.get("block_type")
+                if bt in VISUAL_BLOCK_TYPES:
+                    visual_blocks += 1
+                    bb = child.get("bbox")
+                    if bb:
+                        visual_area += max(0.0, (bb[2] - bb[0])) * max(0.0, (bb[3] - bb[1]))
+                if child.get("children"):
+                    walk(child)
+
+        walk(page)
+        if page_area > 0:
+            frac = visual_area / page_area
+        else:
+            frac = 1.0 if visual_blocks else 0.0  # no geometry: count fallback
+        classes[pno] = (
+            "visual"
+            if frac >= VISUAL_PAGE_THRESHOLD
+            else "mixed"
+            if frac >= MIXED_PAGE_THRESHOLD
+            else "prose"
+        )
+    return classes
+
+
+def count_equation_regions(tree: dict) -> int:
+    count = 0
+
+    def walk(node):
+        nonlocal count
+        if node.get("block_type") == "Equation":
+            count += 1
+        for c in node.get("children") or []:
+            walk(c)
+
+    walk(tree)
+    return count
+
+
+def count_md_math_spans(md_text: str) -> int:
+    display = len(re.findall(r"\$\$[\s\S]+?\$\$", md_text))
+    inline = len(re.findall(r"(?<!\$)\$[^$\n]+\$(?!\$)", md_text))
+    return display + inline
 
 
 def build_manifest(title: str, md_text: str, page_texts: list[str], tree: dict) -> dict:
@@ -234,6 +315,11 @@ def build_manifest(title: str, md_text: str, page_texts: list[str], tree: dict) 
         if hierarchy:
             p["section_hierarchy"] = {k: v for k, v in hierarchy.items()}
 
+    # Amendment A2: per-page class for the gate and the narration layer.
+    classes = classify_pages(tree)
+    for p in pages:
+        p["page_class"] = classes.get(p["page"], "prose")
+
     return {
         "format": "hpub/0.1",
         "title": title,
@@ -247,6 +333,8 @@ def build_manifest(title: str, md_text: str, page_texts: list[str], tree: dict) 
 # ─── 4. quality gate: token containment ──────────────────────────────────────
 
 def containment_check(md_text: str, page_texts: list[str], alignment: list[dict]) -> dict:
+    """Per-page token containment, then the class-aware gate (amendment A2).
+    Returns stats; `verdicts` carries per-page pass/fail/None(excluded)."""
     from collections import Counter
 
     scores = []
@@ -265,9 +353,124 @@ def containment_check(md_text: str, page_texts: list[str], alignment: list[dict]
                 contained += 1
         scores.append(contained / max(len(page_tokens), 1))
 
-    mean = sum(scores) / max(len(scores), 1)
-    worst = min(scores) if scores else 0.0
-    return {"mean": round(mean, 3), "min": round(worst, 3), "per_page": [round(s, 3) for s in scores]}
+    verdicts: list[bool | None] = []
+    for p, score in zip(alignment, scores):
+        cls = p.get("page_class", "prose")
+        if cls == "visual":
+            verdicts.append(None)  # excluded: diagram/TOC pages have no tokens to contain
+        elif cls == "mixed":
+            verdicts.append(score >= MIN_MIXED_CONTAINMENT)
+        else:
+            verdicts.append(score >= MIN_PROSE_CONTAINMENT)
+
+    prose_scores = [s for s, p in zip(scores, alignment) if p.get("page_class", "prose") == "prose"]
+    prose_mean = sum(prose_scores) / max(len(prose_scores), 1)
+
+    # Drift signal: a run of consecutive failing prose/mixed pages means the
+    # extraction wandered, not that a chapter has diagrams.
+    longest_run = 0
+    run = 0
+    for v in verdicts:
+        if v is False:
+            run += 1
+            longest_run = max(longest_run, run)
+        else:
+            run = 0
+
+    return {
+        "mean": round(sum(scores) / max(len(scores), 1), 3),
+        "min": round(min(scores) if scores else 0.0, 3),
+        "prose_mean": round(prose_mean, 3),
+        "per_page": [round(s, 3) for s in scores],
+        "verdicts": verdicts,
+        "longest_failing_run": longest_run,
+        "page_classes": {
+            cls: sum(1 for p in alignment if p.get("page_class") == cls)
+            for cls in ("prose", "mixed", "visual")
+        },
+    }
+
+
+def gate_book(manifest: dict, md_text: str, tree: dict, containment: dict) -> None:
+    """The full import gate (constraint #2 + amendment A2). Emits a rejection
+    and exits on failure; returns silently on pass."""
+    alignment = manifest["alignment"]
+    anchored = sum(1 for p in alignment if p["method"] == "anchored")
+    anchored_fraction = anchored / max(len(alignment), 1)
+
+    # Backstop: under 50% anchored = failed extraction, reject outright.
+    if anchored_fraction < MIN_ANCHORED_FRACTION:
+        emit(
+            {
+                "status": "rejected",
+                "reason": "alignment_backstop",
+                "detail": (
+                    f"Only {anchored}/{len(alignment)} pages could be anchored "
+                    f"to the text layer ({anchored_fraction:.0%} < "
+                    f"{MIN_ANCHORED_FRACTION:.0%}). Extraction failed."
+                ),
+            },
+            3,
+        )
+
+    # Constraint #2, direct: math-dense source, math-less text layer.
+    equation_regions = count_equation_regions(tree)
+    md_math_spans = count_md_math_spans(md_text)
+    if (
+        equation_regions >= MIN_EQUATION_REGIONS_FOR_CHECK
+        and md_math_spans < MIN_MD_MATH_FRACTION * equation_regions
+    ):
+        emit(
+            {
+                "status": "rejected",
+                "reason": "math_not_preserved",
+                "detail": (
+                    f"Marker found {equation_regions} equation regions but the "
+                    f"text layer kept only {md_math_spans} LaTeX spans. This "
+                    "book's math did not survive extraction."
+                ),
+                "equation_regions": equation_regions,
+                "md_math_spans": md_math_spans,
+            },
+            3,
+        )
+
+    # Class-aware containment.
+    failing = [i + 1 for i, v in enumerate(containment["verdicts"]) if v is False]
+    if (
+        containment["prose_mean"] < MIN_PROSE_MEAN_CONTAINMENT
+        or containment["longest_failing_run"] >= MAX_FAILING_RUN
+    ):
+        emit(
+            {
+                "status": "rejected",
+                "reason": "quality_gate",
+                "detail": (
+                    f"Prose containment mean={containment['prose_mean']} "
+                    f"(need >= {MIN_PROSE_MEAN_CONTAINMENT}); longest failing "
+                    f"run={containment['longest_failing_run']} pages "
+                    f"(limit {MAX_FAILING_RUN}). Extraction quality is too low "
+                    "to bind the text layer to the pages."
+                ),
+                "failing_pages": failing,
+                "containment": containment,
+            },
+            3,
+        )
+
+    manifest["gate"] = {
+        "anchored": anchored,
+        "anchored_fraction": round(anchored_fraction, 3),
+        "equation_regions": equation_regions,
+        "md_math_spans": md_math_spans,
+        "containment": {
+            "prose_mean": containment["prose_mean"],
+            "mean_all_pages": containment["mean"],
+            "longest_failing_run": containment["longest_failing_run"],
+            "failing_pages": failing,
+            "page_classes": containment["page_classes"],
+        },
+    }
 
 
 # ─── main ────────────────────────────────────────────────────────────────────
@@ -322,32 +525,15 @@ def main() -> None:
     log("3/5 page alignment + manifest")
     manifest = build_manifest(title, md_text, page_texts, tree)
 
-    log("4/5 containment quality gate")
+    log("4/5 class-aware quality gate (A2)")
     containment = containment_check(md_text, page_texts, manifest["alignment"])
-    manifest["containment"] = {"mean": containment["mean"], "min": containment["min"]}
-    log(f"containment: mean={containment['mean']} min={containment['min']}")
-    if containment["mean"] < MIN_MEAN_CONTAINMENT or containment["min"] < MIN_PAGE_CONTAINMENT:
-        # Dump the artifacts for post-mortem analysis before failing.
-        if args.workdir:
-            debug_dir = Path(args.workdir) / "rejected"
-            debug_dir.mkdir(parents=True, exist_ok=True)
-            (debug_dir / "content.md").write_text(md_text, encoding="utf-8")
-            (debug_dir / "manifest.json").write_text(json.dumps(manifest, indent=2), encoding="utf-8")
-            log(f"debug artifacts written to {debug_dir}")
-        emit(
-            {
-                "status": "rejected",
-                "reason": "quality_gate",
-                "detail": (
-                    f"Alignment containment mean={containment['mean']} "
-                    f"min={containment['min']} (need >={MIN_MEAN_CONTAINMENT}/"
-                    f">={MIN_PAGE_CONTAINMENT}). Extraction quality is too low "
-                    "to bind the text layer to the pages."
-                ),
-                "containment": containment,
-            },
-            3,
-        )
+    log(
+        f"containment: prose_mean={containment['prose_mean']} "
+        f"classes={containment['page_classes']} "
+        f"longest_failing_run={containment['longest_failing_run']}"
+    )
+    gate_book(manifest, md_text, tree, containment)
+    log(f"gate passed: {manifest.get('gate')}")
 
     log("5/5 writing artifacts")
     if args.out_dir:
@@ -366,8 +552,8 @@ def main() -> None:
                 "mode": "dir",
                 "out_dir": str(out_dir),
                 "page_count": manifest["page_count"],
-                "anchored": sum(1 for p in manifest["alignment"] if p["method"] == "anchored"),
-                "containment": {"mean": containment["mean"], "min": containment["min"]},
+                "anchored": manifest["gate"]["anchored"],
+                "gate": manifest["gate"],
             },
             0,
         )
@@ -391,8 +577,8 @@ def main() -> None:
                 "out_hpub": str(out_hpub),
                 "size_bytes": out_hpub.stat().st_size,
                 "page_count": manifest["page_count"],
-                "anchored": sum(1 for p in manifest["alignment"] if p["method"] == "anchored"),
-                "containment": {"mean": containment["mean"], "min": containment["min"]},
+                "anchored": manifest["gate"]["anchored"],
+                "gate": manifest["gate"],
             },
             0,
         )

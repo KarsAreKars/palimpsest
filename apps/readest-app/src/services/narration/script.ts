@@ -24,7 +24,9 @@ export interface NarrationUnit {
   md_end: number;
   page: number | null;
   kind: NarrationKind;
-  /** Exact string sent to the TTS engine. Absent for 'skip' units. */
+  /** Exact string sent to the TTS engine. 'skip' units normally omit it,
+   *  but may carry a short announcement ("Diagram on this page.") when the
+   *  page class says the listener is missing a visual (amendment A2). */
   speak?: string;
 }
 
@@ -35,6 +37,8 @@ export interface HpubManifest {
     page: number;
     md_char_start: number | null;
     md_char_end: number | null;
+    /** Amendment A2: prose / mixed / visual, from the extraction gate. */
+    page_class?: 'prose' | 'mixed' | 'visual';
   }>;
 }
 
@@ -279,6 +283,16 @@ export const buildPageMapper = (manifest: HpubManifest): ((offset: number) => nu
   };
 };
 
+/** Page → class lookup (amendment A2). Missing classes default to 'prose'. */
+export const buildPageClassMapper = (
+  manifest: HpubManifest,
+): ((page: number | null) => 'prose' | 'mixed' | 'visual') => {
+  const classes = new Map(
+    manifest.alignment.map((p) => [p.page, p.page_class ?? ('prose' as const)]),
+  );
+  return (page) => (page === null ? 'prose' : (classes.get(page) ?? 'prose'));
+};
+
 // ─── script assembly ────────────────────────────────────────────────────────
 
 export interface BuildScriptOptions {
@@ -298,6 +312,7 @@ export const buildNarrationScript = async (
   await initVerbalizer();
   const { equationVerbosity = 'full' } = opts;
   const pageFor = buildPageMapper(manifest);
+  const classFor = buildPageClassMapper(manifest);
   const units: NarrationUnit[] = [];
   let n = 0;
 
@@ -332,11 +347,21 @@ export const buildNarrationScript = async (
         break;
       }
       case 'image':
-      case 'table':
-        // Visual blocks: never spoken. Kept as skip units so follow-along
-        // knows these MD spans have no audio.
-        pushUnit(block.start, block.end, 'skip');
+      case 'table': {
+        // Visual blocks: never read aloud as text. On mixed/visual pages
+        // (A2 page classes) the listener is told what they're missing —
+        // "diagram on this page" — instead of a silent skip. On prose pages
+        // an inline figure is not worth interrupting the flow for.
+        const cls = classFor(pageFor(block.start));
+        const announcement =
+          cls === 'prose'
+            ? undefined
+            : block.kind === 'image'
+              ? 'Diagram on this page.'
+              : 'Table on this page.';
+        pushUnit(block.start, block.end, 'skip', announcement);
         break;
+      }
       case 'prose': {
         if (isTocClutter(block.text) || isCitationClutter(block.text)) {
           pushUnit(block.start, block.end, 'skip');

@@ -139,6 +139,27 @@ describe('buildNarrationScript', () => {
     expect(skip.find((u) => u.kind === 'display_eq')).toBeUndefined();
   });
 
+  it('announces visual blocks on mixed/visual pages (amendment A2)', async () => {
+    const visualManifest: HpubManifest = {
+      format: 'hpub/0.1',
+      page_count: 2,
+      alignment: [
+        { page: 1, md_char_start: 0, md_char_end: 60, page_class: 'prose' },
+        { page: 2, md_char_start: 60, md_char_end: MD.length, page_class: 'visual' },
+      ],
+    };
+    const units = await buildNarrationScript(MD, visualManifest);
+    const imageUnit = units.find((u) => MD.slice(u.md_start, u.md_end).includes('!['));
+    expect(imageUnit).toBeDefined();
+    expect(imageUnit!.kind).toBe('skip');
+    expect(imageUnit!.speak).toBe('Diagram on this page.');
+
+    // On prose pages the same image stays silent.
+    const proseUnits = await buildNarrationScript(MD, manifest);
+    const proseImage = proseUnits.find((u) => MD.slice(u.md_start, u.md_end).includes('!['));
+    expect(proseImage!.speak).toBeUndefined();
+  });
+
   it('serializes to JSONL, one unit per line', async () => {
     const units = await buildNarrationScript(MD, manifest);
     const jsonl = toNarrationJsonl(units);
