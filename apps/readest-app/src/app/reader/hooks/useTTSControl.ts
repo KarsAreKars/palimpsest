@@ -35,6 +35,8 @@ import {
   TTS_STOP_AT_CHAPTER_END,
 } from '@/services/tts/TTSSessionManager';
 import { getAnnotationOverlayColor } from '../utils/annotatorUtil';
+import { getBookProgress } from '@/store/readerProgressStore';
+import { getNarration, setNarrationSpeakMode } from '@/services/narration/speakMode';
 
 interface UseTTSControlProps {
   bookKey: string;
@@ -110,6 +112,11 @@ export const useTTSControl = ({ bookKey, onRequestHidePanel }: UseTTSControlProp
   const handleTTSForward = async (event: CustomEvent) => {
     const detail = event.detail as { bookKey: string; byMark?: boolean } | undefined;
     if (detail?.bookKey !== bookKey) return;
+    const narration = getNarration(bookKey);
+    if (narration?.controller.active) {
+      await narration.controller.next();
+      return;
+    }
     const ttsController = ttsControllerRef.current;
     if (ttsController) {
       await ttsController.forward(detail?.byMark ?? false);
@@ -119,6 +126,11 @@ export const useTTSControl = ({ bookKey, onRequestHidePanel }: UseTTSControlProp
   const handleTTSBackward = async (event: CustomEvent) => {
     const detail = event.detail as { bookKey: string; byMark?: boolean } | undefined;
     if (detail?.bookKey !== bookKey) return;
+    const narration = getNarration(bookKey);
+    if (narration?.controller.active) {
+      await narration.controller.prev();
+      return;
+    }
     const ttsController = ttsControllerRef.current;
     if (ttsController) {
       await ttsController.backward(detail?.byMark ?? false);
@@ -136,6 +148,20 @@ export const useTTSControl = ({ bookKey, onRequestHidePanel }: UseTTSControlProp
   const handleTTSTogglePlay = async (event: CustomEvent) => {
     const detail = event.detail as { bookKey: string } | undefined;
     if (detail?.bookKey !== bookKey) return;
+    const narration = getNarration(bookKey);
+    if (narration?.controller.active) {
+      if (narration.controller.playing) {
+        setIsPlaying(false);
+        setIsPaused(true);
+        emitPlaybackState('paused');
+      } else {
+        setIsPlaying(true);
+        setIsPaused(false);
+        emitPlaybackState('playing');
+      }
+      await narration.controller.togglePlay();
+      return;
+    }
     const ttsController = ttsControllerRef.current;
     if (!ttsController) return;
     if (ttsController.state === 'playing') {
@@ -764,6 +790,12 @@ export const useTTSControl = ({ bookKey, onRequestHidePanel }: UseTTSControlProp
   const handleStop = useCallback(
     async (bookKey: string) => {
       const ttsController = ttsControllerRef.current;
+      // Palimpsest: stop the narration session (if any) and leave speak mode.
+      const narration = getNarration(bookKey);
+      if (narration) {
+        narration.controller.stop();
+        setNarrationSpeakMode(bookKey, false);
+      }
       // Reset all UI/session state up front — including the TTS toggle
       // (ttsEnabled) and indicator that color the TTS icon — so disabling TTS
       // always takes effect immediately. The teardown below is best-effort and
@@ -798,6 +830,23 @@ export const useTTSControl = ({ bookKey, onRequestHidePanel }: UseTTSControlProp
   const handleTTSSpeak = async (event: CustomEvent) => {
     const { bookKey: ttsBookKey, range, index, oneTime = false } = event.detail;
     if (bookKey !== ttsBookKey) return;
+
+    // Palimpsest: a book carrying its text layer + spoken script narrates
+    // from narration.jsonl — the whole point of the dual layer. The upstream
+    // TTSController path stays as the fallback for books without artifacts.
+    const narration = getNarration(bookKey);
+    if (narration) {
+      unblockAudio();
+      setShowIndicator(true);
+      setIsPlaying(true);
+      setIsPaused(false);
+      emitPlaybackState('playing');
+      setTTSEnabled(bookKey, true);
+      setNarrationSpeakMode(bookKey, true);
+      const page = (getBookProgress(bookKey)?.index ?? 0) + 1;
+      void narration.controller.startFromPage(page);
+      return;
+    }
     // Guard against concurrent starts (e.g. rapid double-clicks on the TTS
     // icon). Without this, both invocations race past the `await`s below and
     // end up creating two TTSController instances that speak simultaneously.

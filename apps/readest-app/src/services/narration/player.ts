@@ -93,7 +93,15 @@ export class NarrationPlayer extends EventTarget {
     this.#audioCache.clear();
   }
 
-  #synthesize(index: number): Promise<SpeechSynthesisResult> {
+  #synthesize(index: number, overrideText?: string): Promise<SpeechSynthesisResult> {
+    // Click-to-speak entry utterances are one-offs (a sentence fragment from
+    // the clicked word onward): never cached, keyed to nothing.
+    if (overrideText !== undefined) {
+      return this.#provider.synthesize(
+        { lang: this.#lang, text: overrideText, voice: this.#voice, pitch: this.#pitch },
+        new AbortController().signal,
+      );
+    }
     let cached = this.#audioCache.get(index);
     if (!cached) {
       const unit = this.#units[index]!;
@@ -136,8 +144,10 @@ export class NarrationPlayer extends EventTarget {
   /**
    * Play starting at (or just after) unit `index`. Lands on the first
    * speakable unit at/after index; streams forward from there.
+   * `opts.firstSpeakText` replaces the first unit's speak text (the
+   * click-to-speak entry fragment starting at the clicked word).
    */
-  async playFrom(index: number): Promise<void> {
+  async playFrom(index: number, opts?: { firstSpeakText?: string }): Promise<void> {
     const token = ++this.#playToken;
     this.#sink.stop();
     this.dispatchEvent(new CustomEvent('resume')); // unblock any paused wait loop
@@ -159,7 +169,7 @@ export class NarrationPlayer extends EventTarget {
       this.#prefetch(i);
       let result: SpeechSynthesisResult;
       try {
-        result = await this.#synthesize(i);
+        result = await this.#synthesize(i, i === start ? opts?.firstSpeakText : undefined);
       } catch (e) {
         console.warn(`narration unit ${i} synthesis failed, skipping`, e);
         i++;

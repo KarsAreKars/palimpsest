@@ -4,6 +4,7 @@ import { useThemeStore } from '@/store/themeStore';
 import { useReaderStore } from '@/store/readerStore';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useTTSControl } from '@/app/reader/hooks/useTTSControl';
+import { useNarration } from '@/app/reader/hooks/useNarration';
 import { useTTSDownloads } from '@/app/reader/hooks/useTTSDownloads';
 import { useBookProgress } from '@/store/readerProgressStore';
 import { Insets } from '@/types/misc';
@@ -31,6 +32,9 @@ const TTSControl: React.FC<TTSControlProps> = ({ bookKey, gridInsets }) => {
     bookKey,
     onRequestHidePanel: () => setShowPlayerSheet(false),
   });
+  // Palimpsest: loads the book's narration session (when its text layer
+  // exists) and registers it for the speak/click/keyboard wiring above.
+  useNarration({ bookKey });
 
   const downloads = useTTSDownloads(bookKey, tts.getController, showPlayerSheet);
   const activeSectionIndex = useBookProgress(bookKey)?.index ?? null;

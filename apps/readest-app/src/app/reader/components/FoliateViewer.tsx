@@ -64,6 +64,7 @@ import {
   handleTouchEnd,
   handleTouchCancel,
 } from '../utils/iframeEventHandlers';
+import { handleNarrationSpeakClick } from '@/services/narration/speakMode';
 import { getMaxInlineSize } from '@/utils/config';
 import { getDirFromUILanguage } from '@/utils/rtl';
 import { isTauriAppPlatform } from '@/services/environment';
@@ -440,6 +441,13 @@ const FoliateViewer: React.FC<{
         // and then used by useMouseEvent and useTouchEvent
         // and more gesture events can be detected in the iframeEventHandlers
         detail.doc.isEventListenersAdded = true;
+        // Palimpsest speak mode: clicks on the PDF text layer mean "read from
+        // this word" and must be captured before tap-zone page-turn handling.
+        detail.doc.addEventListener(
+          'click',
+          (e: MouseEvent) => handleNarrationSpeakClick(bookKey, (detail.index ?? 0) + 1, e),
+          { capture: true },
+        );
         detail.doc.addEventListener('keydown', handleKeydown.bind(null, bookKey));
         detail.doc.addEventListener('keyup', handleKeyup.bind(null, bookKey));
         detail.doc.addEventListener('mousedown', handleMousedown.bind(null, bookKey));
