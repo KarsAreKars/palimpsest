@@ -38,6 +38,7 @@ import { isContentURI, isValidURL, makeSafeFilename } from '@/utils/misc';
 import { deserializeConfig, serializeConfig, serializeRawConfig } from '@/utils/serializer';
 import { ClosableFile } from '@/utils/file';
 import { TxtToEpubConverter } from '@/utils/txt';
+import { extractHpubPackage, HpubSidecar } from '@/utils/hpub';
 import { svg2png } from '@/utils/svg';
 import { normalizeMetadataIsbn } from '@/utils/isbn';
 import { BookFileNotFoundError } from './errors';
@@ -459,6 +460,10 @@ export async function importBook(
 
   let loadedBook: BookDoc | undefined;
   let fileobj: File | undefined;
+  // .hpub packages are unzipped on import: book.pdf becomes the book file,
+  // the remaining artifacts (content.md / manifest.json / narration.jsonl /
+  // assets/) are written next to it in Books/<hash>/ once it exists.
+  let hpubSidecars: HpubSidecar[] | undefined;
   // TXT conversion replaces `fileobj` with a plain in-memory EPUB File. Track
   // the opened RemoteFile/NativeFile so we can close it right after convert
   // (and still in outer `finally` for non-TXT ClosableFile paths).
@@ -499,7 +504,19 @@ export async function importBook(
         if (typeof maybeClosable.close === 'function') {
           openedSource = maybeClosable;
         }
-        if (/\.txt$/i.test(filename)) {
+        if (/\.hpub$/i.test(filename)) {
+          // Unpack the dual-layer package: the extracted book.pdf is imported
+          // as the (only) view layer; sidecars are persisted below.
+          const pkg = await extractHpubPackage(fileobj);
+          fileobj = pkg.pdfFile;
+          hpubSidecars = pkg.sidecars;
+          if (openedSource?.close) {
+            try {
+              await openedSource.close();
+            } catch {}
+            openedSource = undefined;
+          }
+        } else if (/\.txt$/i.test(filename)) {
           const txt2epub = new TxtToEpubConverter();
           try {
             ({ file: fileobj } = await txt2epub.convert({ file: fileobj }));
@@ -537,7 +554,9 @@ export async function importBook(
         // tests.
         let nativeBookDoc: BookDoc | undefined;
         let nativeFormat: BookFormat | undefined;
-        if (typeof file === 'string' && !/\.txt$/i.test(filename)) {
+        // .hpub was already unpacked above (fileobj is the extracted PDF);
+        // never let the native parsers re-read the source package as EPUB.
+        if (typeof file === 'string' && !/\.txt$/i.test(filename) && !hpubSidecars) {
           const nativeEpub = await tryNativeParseEpub(file);
           if (nativeEpub) {
             nativeBookDoc = nativeEpub.bookDoc;
@@ -690,11 +709,15 @@ export async function importBook(
     const willWriteBookFile =
       saveBook &&
       !transient &&
-      !inPlace &&
+      // .hpub always copies: the book file is the extracted PDF, which only
+      // exists inside the package — there is nothing to read in place.
+      (!inPlace || !!hpubSidecars) &&
       !!fileobj &&
       (!(await fs.exists(bookFilename, 'Books')) || overwrite);
     if (willWriteBookFile && fileobj) {
-      if (/\.txt$/i.test(filename)) {
+      if (hpubSidecars) {
+        await fs.writeFile(bookFilename, 'Books', fileobj);
+      } else if (/\.txt$/i.test(filename)) {
         await fs.writeFile(bookFilename, 'Books', fileobj);
       } else if (typeof file === 'string' && isContentURI(file)) {
         await fs.copyFile(file, 'None', bookFilename, 'Books');
@@ -709,6 +732,18 @@ export async function importBook(
         }
       } else {
         await fs.writeFile(bookFilename, 'Books', fileobj);
+      }
+    }
+    // Persist the .hpub text layer + manifest + other artifacts next to the
+    // book file. Runs even when the PDF itself was already on disk (re-import
+    // of a regenerated package refreshes the artifacts in place).
+    if (hpubSidecars && !transient) {
+      const bookDir = getDir(book);
+      if (hpubSidecars.some((s) => s.path.includes('/'))) {
+        await fs.createDir(`${bookDir}/assets`, 'Books', true);
+      }
+      for (const sidecar of hpubSidecars) {
+        await fs.writeFile(`${bookDir}/${sidecar.path}`, 'Books', sidecar.data);
       }
     }
     if (saveCover && (!(await fs.exists(getCoverFilename(book), 'Books')) || overwrite)) {

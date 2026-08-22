@@ -50,18 +50,9 @@ export const LOCAL_DICTIONARIES_SUBDIR = `${DATA_SUBDIR}/Dictionaries`;
 
 export const SETTINGS_FILENAME = 'settings.json';
 
-export const SUPPORTED_BOOK_EXTS = [
-  'epub',
-  'mobi',
-  'azw',
-  'azw3',
-  'fb2',
-  'zip',
-  'cbz',
-  'pdf',
-  'txt',
-  'md',
-];
+// Palimpsest hard constraint #1: digital-born PDFs (and their packaged
+// dual-layer form, .hpub) are the only accepted book formats.
+export const SUPPORTED_BOOK_EXTS = ['pdf', 'hpub'];
 export const BOOK_ACCEPT_FORMATS = SUPPORTED_BOOK_EXTS.map((ext) => `.${ext}`).join(', ');
 export const BOOK_UNGROUPED_NAME = '';
 export const BOOK_UNGROUPED_ID = '';
