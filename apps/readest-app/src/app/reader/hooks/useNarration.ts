@@ -61,6 +61,7 @@ export const useNarration = ({ bookKey }: { bookKey: string }) => {
     const onUnitChange = (e: Event) => {
       const unit = (e as CustomEvent<{ unit: NarrationUnit | null }>).detail?.unit;
       if (!unit?.page) return;
+      console.info('narration: unit', unit.unit, 'page', unit.page, unit.kind);
       const view = getView(bookKey);
       const currentIndex = getBookProgress(bookKey)?.index;
       if (view && currentIndex !== undefined && currentIndex !== unit.page - 1) {
@@ -111,6 +112,7 @@ export const useNarration = ({ bookKey }: { bookKey: string }) => {
       const controller = controllerRef.current;
       if (!controller || !data.page || !data.word) return;
       setNarrationSpeakMode(bookKey, true);
+      console.info('narration: click-to-speak — page', data.page, JSON.stringify(data.word));
       void controller.startFromWord(data.page, data.word);
     };
     window.addEventListener('message', onMessage);
