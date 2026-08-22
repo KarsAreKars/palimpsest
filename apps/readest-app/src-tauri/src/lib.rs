@@ -28,6 +28,7 @@ mod dir_scanner;
 #[cfg(any(target_os = "macos", target_os = "windows", target_os = "linux"))]
 mod discord_rpc;
 mod epub_parser;
+mod hpub;
 mod localsend;
 #[cfg(target_os = "macos")]
 mod macos;
@@ -331,6 +332,7 @@ pub fn run() {
             epub_parser::parse_epub_full,
             mobi_parser::parse_mobi_metadata,
             mobi_parser::extract_mobi_cover_full,
+            hpub::hpub_extract,
             #[cfg(target_os = "macos")]
             macos::safari_auth::auth_with_safari,
             #[cfg(target_os = "macos")]

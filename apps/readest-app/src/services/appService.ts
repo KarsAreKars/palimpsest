@@ -30,6 +30,7 @@ import type { ImportedDictionary } from './dictionaries/types';
 import type { SelectedFile } from '@/hooks/useFileSelector';
 
 import * as BookSvc from './bookService';
+import { enqueueTextLayerExtraction } from './hpub/extractService';
 import * as CloudSvc from './cloudService';
 import * as DictSvc from './dictionaries/dictionaryService';
 import * as FontSvc from './fontService';
@@ -402,7 +403,7 @@ export abstract class BaseAppService implements AppService {
     books: Book[],
     options: ImportBookOptions = {},
   ): Promise<Book | null> {
-    return BookSvc.importBook(this.fs, file, books, {
+    const book = await BookSvc.importBook(this.fs, file, books, {
       saveBookConfig: this.saveBookConfig.bind(this),
       generateCoverImageUrl: this.generateCoverImageUrl.bind(this),
       // Pass the host platform through so the in-place fast path and the
@@ -411,6 +412,14 @@ export abstract class BaseAppService implements AppService {
       osPlatform: this.osPlatform,
       ...options,
     });
+    // Palimpsest: a freshly imported digital-born PDF gets its text layer
+    // (content.md + manifest.json) built in the background by the Marker
+    // sidecar. The book is readable immediately; machines read the layer
+    // when it arrives.
+    if (book && !options.transient) {
+      enqueueTextLayerExtraction(this, book);
+    }
+    return book;
   }
 
   async deleteBook(book: Book, deleteAction: DeleteAction): Promise<void> {

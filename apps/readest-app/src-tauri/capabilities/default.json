@@ -224,6 +224,7 @@
     "allow-parse-epub-full",
     "allow-parse-mobi-metadata",
     "allow-extract-mobi-cover-full",
+    "allow-hpub-extract",
     "allow-auth-with-safari",
     "allow-start-apple-sign-in",
     "allow-set-traffic-lights",
