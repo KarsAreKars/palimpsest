@@ -37,6 +37,11 @@ export const useNarration = ({ bookKey }: { bookKey: string }) => {
   const getBookData = useBookDataStore((s) => s.getBookData);
   const getView = useReaderStore((s) => s.getView);
   const controllerRef = useRef<NarrationController | null>(null);
+  // Last narration page we positioned the view on. In two-page spread mode a
+  // goTo into the visible spread emits no relocate, so the progress store's
+  // index never catches up to the spoken page — without this ref the turn
+  // guard would re-navigate on every unit of the same page (history spam).
+  const lastTurnedPageRef = useRef<number | null>(null);
   const [available, setAvailable] = useState(false);
 
   // ── session lifecycle ─────────────────────────────────────────────────────
@@ -62,10 +67,21 @@ export const useNarration = ({ bookKey }: { bookKey: string }) => {
       const unit = (e as CustomEvent<{ unit: NarrationUnit | null }>).detail?.unit;
       if (!unit?.page) return;
       console.info('narration: unit', unit.unit, 'page', unit.page, unit.kind);
+      if (unit.page === lastTurnedPageRef.current) {
+        highlightUnit(unit);
+        return;
+      }
+      lastTurnedPageRef.current = unit.page;
       const view = getView(bookKey);
       const currentIndex = getBookProgress(bookKey)?.index;
       if (view && currentIndex !== undefined && currentIndex !== unit.page - 1) {
-        void view.renderer?.goTo?.({ index: unit.page - 1 });
+        // Canonical fixed-layout navigation (same call PageJumpInput makes):
+        // view-level goTo resolves the index, pushes history, and emits the
+        // relocate event that updates the progress store.
+        console.info('narration: page-turn follow —', currentIndex + 1, '→', unit.page);
+        Promise.resolve(view.goTo(unit.page - 1)).catch((err) =>
+          console.warn('narration: page-turn follow failed', err),
+        );
         // Let the target page render before highlighting into its text layer.
         setTimeout(() => highlightUnit(unit), 350);
       } else {
@@ -95,6 +111,8 @@ export const useNarration = ({ bookKey }: { bookKey: string }) => {
       console.info('narration: session ready —', controller.units.length, 'units');
       // Test/demo hook: lets the e2e harness await narration readiness.
       (window as unknown as Record<string, unknown>)['__palimpsestNarrationReady'] = bookKey;
+      // Test/demo hook: direct controller access for acceptance probes.
+      (window as unknown as Record<string, unknown>)['__palimpsestNarration'] = controller;
     })();
 
     return () => {

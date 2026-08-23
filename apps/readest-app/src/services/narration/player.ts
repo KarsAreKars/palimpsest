@@ -18,6 +18,7 @@
  */
 import type { NarrationUnit } from './index';
 import type { SpeechProvider, SpeechSynthesisResult } from '@/services/tts/providers/types';
+import { SpeechSynthesisPermanentError } from '@/services/tts/providers/types';
 
 export interface AudioSink {
   /** Play a buffer to completion; resolves when playback ends naturally. */
@@ -93,22 +94,32 @@ export class NarrationPlayer extends EventTarget {
     this.#audioCache.clear();
   }
 
+  /** A wedged provider connection must not stall playback forever. */
+  static SYNTH_TIMEOUT_MS = 30_000;
+
+  #request(text: string): Promise<SpeechSynthesisResult> {
+    const controller = new AbortController();
+    const timer = setTimeout(
+      () => controller.abort(new DOMException('synthesis timeout', 'TimeoutError')),
+      NarrationPlayer.SYNTH_TIMEOUT_MS,
+    );
+    return this.#provider
+      .synthesize(
+        { lang: this.#lang, text, voice: this.#voice, pitch: this.#pitch },
+        controller.signal,
+      )
+      .finally(() => clearTimeout(timer));
+  }
+
   #synthesize(index: number, overrideText?: string): Promise<SpeechSynthesisResult> {
     // Click-to-speak entry utterances are one-offs (a sentence fragment from
     // the clicked word onward): never cached, keyed to nothing.
     if (overrideText !== undefined) {
-      return this.#provider.synthesize(
-        { lang: this.#lang, text: overrideText, voice: this.#voice, pitch: this.#pitch },
-        new AbortController().signal,
-      );
+      return this.#request(overrideText);
     }
     let cached = this.#audioCache.get(index);
     if (!cached) {
-      const unit = this.#units[index]!;
-      cached = this.#provider.synthesize(
-        { lang: this.#lang, text: unit.speak!, voice: this.#voice, pitch: this.#pitch },
-        new AbortController().signal,
-      );
+      cached = this.#request(this.#units[index]!.speak!);
       this.#audioCache.set(index, cached);
       cached.catch(() => this.#audioCache.delete(index)); // failures aren't sticky
     }
@@ -168,14 +179,30 @@ export class NarrationPlayer extends EventTarget {
       this.#emitUnitChange();
       this.#prefetch(i);
       let result: SpeechSynthesisResult;
+      const synthesize = () => this.#synthesize(i, i === start ? opts?.firstSpeakText : undefined);
       try {
-        result = await this.#synthesize(i, i === start ? opts?.firstSpeakText : undefined);
-      } catch (e) {
-        console.warn(`narration unit ${i} synthesis failed, skipping`, e);
-        i++;
-        continue;
+        result = await synthesize();
+      } catch (firstError) {
+        // One immediate retry absorbs a transient provider wedge (e.g. a
+        // relay connection that hung until the timeout aborted it); cache
+        // eviction in #synthesize guarantees the retry is a fresh request.
+        // Permanent errors and stale tokens skip the unit at once.
+        if (firstError instanceof SpeechSynthesisPermanentError || token !== this.#playToken) {
+          console.warn(`narration unit ${i} synthesis failed, skipping`, firstError);
+          i++;
+          continue;
+        }
+        console.warn(`narration unit ${i} synthesis failed, retrying once`, firstError);
+        try {
+          result = await synthesize();
+        } catch (secondError) {
+          console.warn(`narration unit ${i} synthesis failed twice, skipping`, secondError);
+          i++;
+          continue;
+        }
       }
       if (token !== this.#playToken) return; // jumped or stopped mid-synthesis
+      console.info(`narration: audio unit ${i} — ${result.audio.byteLength} bytes`);
       if (this.state === 'paused') {
         // Pause arrived while synthesizing: wait for resume via play loop.
         await new Promise<void>((resolve) => {
@@ -192,6 +219,9 @@ export class NarrationPlayer extends EventTarget {
         if (token !== this.#playToken) return;
       }
       await this.#sink.play(result.audio, this.#rate);
+      if (token === this.#playToken) {
+        console.info(`narration: played unit ${i} to completion`);
+      }
       if (token !== this.#playToken) return; // stopped or jumped during playback
       i++;
     }
