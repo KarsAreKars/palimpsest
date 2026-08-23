@@ -81,7 +81,10 @@ export const useNarration = ({ bookKey }: { bookKey: string }) => {
     };
 
     (async () => {
-      const controller = await NarrationController.load(appService, book).catch(() => null);
+      const controller = await NarrationController.load(appService, book).catch((e) => {
+        console.warn('narration: session load failed', e);
+        return null;
+      });
       if (cancelled || !controller) return;
       controllerRef.current = controller;
       controller.addEventListener('unit-change', onUnitChange);

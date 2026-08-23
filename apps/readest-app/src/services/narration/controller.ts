@@ -13,8 +13,11 @@
 import type { AppService } from '@/types/system';
 import type { Book } from '@/types/book';
 import { getDir } from '@/utils/book';
+import { isTauriAppPlatform } from '@/services/environment';
 import { EdgeSpeechProvider } from '@/services/tts/providers/edge';
+import type { SpeechProvider } from '@/services/tts/providers/types';
 import { NarrationPlayer, type AudioSink } from './player';
+import { NarrationEdgeProvider } from './narrationEdgeProvider';
 import { WebAudioSink } from './webAudioSink';
 import {
   loadNarration,
@@ -25,7 +28,7 @@ import {
 import { resolveClickToUnit } from './locate';
 
 export interface NarrationControllerDeps {
-  provider?: EdgeSpeechProvider;
+  provider?: SpeechProvider;
   sink?: AudioSink;
 }
 
@@ -95,6 +98,7 @@ export class NarrationController extends EventTarget {
       }
     }
     if (!units || units.length === 0) return null;
+    console.info('narration: loaded', units.length, 'units');
     const dir = getDir(book);
     const toText = (c: string | ArrayBuffer): string =>
       typeof c === 'string' ? c : new TextDecoder().decode(c);
@@ -103,10 +107,18 @@ export class NarrationController extends EventTarget {
       toText(await appService.readFile(`${dir}/manifest.json`, 'Books', 'text')),
     ) as HpubManifest;
 
-    const provider = deps.provider ?? new EdgeSpeechProvider();
+    // The Tauri WebSocket plugin can send the headers Microsoft's endpoint
+    // requires; a plain browser cannot, so the web lane relays synthesis
+    // through the local /api/tts/narration route.
+    const provider: SpeechProvider =
+      deps.provider ??
+      (isTauriAppPlatform() ? new EdgeSpeechProvider() : new NarrationEdgeProvider());
     if (!deps.provider) {
       const ok = await provider.init().catch(() => false);
-      if (!ok) return null; // engine unavailable — caller falls back
+      if (!ok) {
+        console.warn('narration: speech engine unavailable');
+        return null; // engine unavailable — caller falls back
+      }
     }
     const voices = await provider.getAllVoices().catch(() => []);
     const lang = (book.primaryLanguage || 'en').split('-')[0]!;
