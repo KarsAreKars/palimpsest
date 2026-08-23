@@ -79,6 +79,11 @@ export const latexToSpeech = (latex: string, display: boolean): string => {
 export const verbalizeInlineMath = (text: string): string =>
   text.replace(/\$([^$]+)\$/g, (_, latex: string) => latexToSpeech(latex, false));
 
+/** True once SRE + temml are loaded — latexToSpeech returns '' before that,
+ * which would silently delete math spans from spoken text. Callers on
+ * best-effort paths (professor voice) must check this first. */
+export const isVerbalizerReady = (): boolean => sre !== null && temml !== null;
+
 /** Display-equation announcement per the plan's default verbosity policy. */
 export const verbalizeDisplayEquation = (latex: string): string =>
   `Equation: ${latexToSpeech(latex, true)}.`;

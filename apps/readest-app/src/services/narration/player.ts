@@ -71,6 +71,20 @@ export class NarrationPlayer extends EventTarget {
     return this.#state;
   }
 
+  /** Engine identity for the professor voice loop (HP-3): the professor
+   * speaks through the same provider/voice the book reads with. */
+  get provider(): SpeechProvider {
+    return this.#provider;
+  }
+
+  get voice(): string {
+    return this.#voice;
+  }
+
+  get lang(): string {
+    return this.#lang;
+  }
+
   get currentUnit(): NarrationUnit | null {
     return this.#units[this.#index] ?? null;
   }

@@ -94,6 +94,16 @@ export function parseAnnotations(text: string): ProfessorAnnotation[] {
 }
 
 /**
+ * Remove DSL tags only — no whitespace normalization. The streaming speech
+ * path (professor/voice.ts) consumes token deltas and tracks offsets into
+ * the stripped text, which a trim/collapse would invalidate. Display keeps
+ * using stripAnnotations below.
+ */
+export function stripAnnotationTags(text: string): string {
+  return text.replace(TAG_RE, '');
+}
+
+/**
  * Remove all DSL tags from an answer, returning clean prose. This is the
  * ONLY text that may reach the speech path or the overlay bubble.
  */

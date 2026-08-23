@@ -26,6 +26,7 @@ import {
   clearProfessorAnnotations,
   setProfessorAnnotations,
 } from '@/services/professor/annotationBus';
+import { ProfessorVoice } from '@/services/professor/voice';
 
 export type ProfessorPhase = 'idle' | 'thinking' | 'answering';
 
@@ -48,7 +49,20 @@ export const useProfessor = ({ bookKey }: { bookKey: string }) => {
   const [answer, setAnswer] = useState('');
   const [error, setError] = useState<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
+  const voiceRef = useRef<ProfessorVoice | null>(null);
   const getView = useReaderStore((s) => s.getView);
+
+  /** Lazily create the professor's voice, bound to the LIVE narration
+   * controller lookup so voice hot-swaps and rebuilt sessions are picked
+   * up on the next spoken sentence. */
+  const getVoice = useCallback((): ProfessorVoice => {
+    if (!voiceRef.current) {
+      voiceRef.current = new ProfessorVoice({
+        getSpeech: () => getNarration(bookKey)?.controller?.speech ?? null,
+      });
+    }
+    return voiceRef.current;
+  }, [bookKey]);
 
   // ⌥Space toggles the overlay (PTT shell; wake word comes in HP-4).
   useEffect(() => {
@@ -73,6 +87,7 @@ export const useProfessor = ({ bookKey }: { bookKey: string }) => {
   const close = useCallback(() => {
     abortRef.current?.abort();
     abortRef.current = null;
+    voiceRef.current?.stop();
     clearProfessorAnnotations(bookKey);
     setOpen(false);
     setPhase('idle');
@@ -103,6 +118,9 @@ export const useProfessor = ({ bookKey }: { bookKey: string }) => {
       abortRef.current?.abort();
       const aborter = new AbortController();
       abortRef.current = aborter;
+      // Barge-in (plan §5): a new question silences the previous answer.
+      const voice = getVoice();
+      voice.stop();
       setPhase('thinking');
       setAnswer('');
       setError(null);
@@ -117,8 +135,10 @@ export const useProfessor = ({ bookKey }: { bookKey: string }) => {
           onToken: (t) => {
             setPhase('answering');
             setAnswer((prev) => prev + t);
+            voice.push(t); // speaks at the first complete sentence
           },
           onDone: (full) => {
+            voice.finish();
             setPhase('idle');
             // The speech/display contract: the bubble and any future spoken
             // answer see ONLY stripped prose. The raw stream carries the
@@ -143,13 +163,14 @@ export const useProfessor = ({ bookKey }: { bookKey: string }) => {
             setProfessorAnnotations(bookKey, { page: targetPage, annotations });
           },
           onError: (message) => {
+            voice.stop();
             setPhase('idle');
             setError(message);
           },
         },
       });
     },
-    [bookKey],
+    [bookKey, getVoice, getView],
   );
 
   return { open, phase, answer, error, ask, close };

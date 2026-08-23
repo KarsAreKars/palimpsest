@@ -188,6 +188,18 @@ export class NarrationController extends EventTarget {
     return this.#player;
   }
 
+  /** Speech identity for the professor voice loop (HP-3): same provider,
+   * voice, language, and rate the book reads with — read live so a Settings
+   * hot-swap applies to the professor's next sentence. */
+  get speech(): { provider: SpeechProvider; voice: string; lang: string; rate: number } {
+    return {
+      provider: this.#player.provider,
+      voice: this.#player.voice,
+      lang: this.#player.lang,
+      rate: this.#player.rate,
+    };
+  }
+
   get playing(): boolean {
     return this.#player.state === 'playing';
   }
