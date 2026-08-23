@@ -37,6 +37,7 @@ import {
 import { getAnnotationOverlayColor } from '../utils/annotatorUtil';
 import { getBookProgress } from '@/store/readerProgressStore';
 import { getNarration, setNarrationSpeakMode } from '@/services/narration/speakMode';
+import { nlog } from '@/services/narration/log';
 
 interface UseTTSControlProps {
   bookKey: string;
@@ -113,6 +114,9 @@ export const useTTSControl = ({ bookKey, onRequestHidePanel }: UseTTSControlProp
     const detail = event.detail as { bookKey: string; byMark?: boolean } | undefined;
     if (detail?.bookKey !== bookKey) return;
     const narration = getNarration(bookKey);
+    nlog(
+      `tts-control: forward — narration=${narration ? `active:${narration.controller.active}` : 'none'}`,
+    );
     if (narration?.controller.active) {
       await narration.controller.next();
       return;
@@ -127,6 +131,9 @@ export const useTTSControl = ({ bookKey, onRequestHidePanel }: UseTTSControlProp
     const detail = event.detail as { bookKey: string; byMark?: boolean } | undefined;
     if (detail?.bookKey !== bookKey) return;
     const narration = getNarration(bookKey);
+    nlog(
+      `tts-control: backward — narration=${narration ? `active:${narration.controller.active}` : 'none'}`,
+    );
     if (narration?.controller.active) {
       await narration.controller.prev();
       return;
@@ -149,6 +156,9 @@ export const useTTSControl = ({ bookKey, onRequestHidePanel }: UseTTSControlProp
     const detail = event.detail as { bookKey: string } | undefined;
     if (detail?.bookKey !== bookKey) return;
     const narration = getNarration(bookKey);
+    nlog(
+      `tts-control: toggle-play — narration=${narration ? `active:${narration.controller.active} playing:${narration.controller.playing}` : 'none'}`,
+    );
     if (narration?.controller.active) {
       if (narration.controller.playing) {
         setIsPlaying(false);

@@ -15,6 +15,7 @@ import type { Book } from '@/types/book';
 import { getDir } from '@/utils/book';
 import { isTauriAppPlatform } from '@/services/environment';
 import { getAIFetch } from '@/services/ai/utils/httpFetch';
+import { nlog, nwarn } from './log';
 import { EdgeSpeechProvider } from '@/services/tts/providers/edge';
 import { ElevenLabsProvider } from '@/services/tts/providers/elevenlabs';
 import type { SpeechProvider } from '@/services/tts/providers/types';
@@ -135,12 +136,13 @@ export class NarrationController extends EventTarget {
       if (ok) {
         provider = el;
       } else {
-        console.warn('narration: ElevenLabs unavailable, falling back to Edge');
+        nwarn('narration: ElevenLabs unavailable, falling back to Edge');
         provider = edgeProvider();
       }
     } else {
       provider = edgeProvider();
     }
+    nlog(`narration: provider=${provider.id}`);
     if (!deps.provider && provider.id !== 'elevenlabs') {
       const ok = await provider.init().catch(() => false);
       if (!ok) {
@@ -176,6 +178,7 @@ export class NarrationController extends EventTarget {
       voice,
       lang,
     });
+    nlog(`narration: voice=${voice} provider=${provider.id}`);
     player.setRate(settings.rate); // remembered listening speed (plan §5)
     player.load(units);
     return new NarrationController(md, manifest, units, player);

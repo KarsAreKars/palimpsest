@@ -19,6 +19,7 @@
 import type { NarrationUnit } from './index';
 import type { SpeechProvider, SpeechSynthesisResult } from '@/services/tts/providers/types';
 import { SpeechSynthesisPermanentError } from '@/services/tts/providers/types';
+import { nlog, nwarn } from './log';
 
 export interface AudioSink {
   /** Play a buffer to completion; resolves when playback ends naturally. */
@@ -188,21 +189,21 @@ export class NarrationPlayer extends EventTarget {
         // eviction in #synthesize guarantees the retry is a fresh request.
         // Permanent errors and stale tokens skip the unit at once.
         if (firstError instanceof SpeechSynthesisPermanentError || token !== this.#playToken) {
-          console.warn(`narration unit ${i} synthesis failed, skipping`, firstError);
+          nwarn(`narration unit ${i} synthesis failed, skipping`, firstError);
           i++;
           continue;
         }
-        console.warn(`narration unit ${i} synthesis failed, retrying once`, firstError);
+        nwarn(`narration unit ${i} synthesis failed, retrying once`, firstError);
         try {
           result = await synthesize();
         } catch (secondError) {
-          console.warn(`narration unit ${i} synthesis failed twice, skipping`, secondError);
+          nwarn(`narration unit ${i} synthesis failed twice, skipping`, secondError);
           i++;
           continue;
         }
       }
       if (token !== this.#playToken) return; // jumped or stopped mid-synthesis
-      console.info(`narration: audio unit ${i} — ${result.audio.byteLength} bytes`);
+      nlog(`narration: audio unit ${i} — ${result.audio.byteLength} bytes`);
       if (this.state === 'paused') {
         // Pause arrived while synthesizing: wait for resume via play loop.
         await new Promise<void>((resolve) => {
@@ -220,7 +221,7 @@ export class NarrationPlayer extends EventTarget {
       }
       await this.#sink.play(result.audio, this.#rate);
       if (token === this.#playToken) {
-        console.info(`narration: played unit ${i} to completion`);
+        nlog(`narration: played unit ${i} to completion`);
       }
       if (token !== this.#playToken) return; // stopped or jumped during playback
       i++;
@@ -232,12 +233,14 @@ export class NarrationPlayer extends EventTarget {
   }
 
   pause(): void {
+    nlog(`narration: control pause() — state=${this.#state} unit=${this.#index}`);
     if (this.#state !== 'playing') return;
     this.#state = 'paused';
     this.#sink.pause();
   }
 
   resume(): void {
+    nlog(`narration: control resume() — state=${this.#state} unit=${this.#index}`);
     if (this.#state !== 'paused') return;
     this.#state = 'playing';
     this.#sink.resume();
@@ -245,6 +248,7 @@ export class NarrationPlayer extends EventTarget {
   }
 
   stop(): void {
+    nlog(`narration: control stop() — state=${this.#state} unit=${this.#index}`);
     this.#playToken++;
     this.#state = 'stopped';
     this.#sink.stop();
@@ -253,12 +257,14 @@ export class NarrationPlayer extends EventTarget {
 
   /** Skip to the next speakable unit (plan §5: → next sentence). */
   async next(): Promise<void> {
+    nlog(`narration: control next() — state=${this.#state} unit=${this.#index}`);
     const target = this.#nextSpeakable(this.#index + 1, 1);
     if (target !== null) await this.playFrom(target);
   }
 
   /** Back to the previous speakable unit (plan §5: ← previous sentence). */
   async prev(): Promise<void> {
+    nlog(`narration: control prev() — state=${this.#state} unit=${this.#index}`);
     const target = this.#nextSpeakable(this.#index - 1, -1);
     if (target !== null) await this.playFrom(target);
   }
