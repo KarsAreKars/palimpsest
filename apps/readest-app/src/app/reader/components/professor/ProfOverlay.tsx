@@ -9,6 +9,7 @@
 import clsx from 'clsx';
 import React, { useEffect, useRef, useState } from 'react';
 import { useProfessor } from '@/app/reader/hooks/useProfessor';
+import { stripAnnotations } from '@/services/professor/annotations';
 
 interface ProfOverlayProps {
   bookKey: string;
@@ -139,7 +140,7 @@ const ProfOverlay: React.FC<ProfOverlayProps> = ({ bookKey }) => {
               <p className='text-sm text-error'>{error}</p>
             ) : (
               <p className='whitespace-pre-wrap text-sm leading-relaxed' data-testid='prof-answer'>
-                {answer}
+                {stripAnnotations(answer)}
               </p>
             )}
           </div>

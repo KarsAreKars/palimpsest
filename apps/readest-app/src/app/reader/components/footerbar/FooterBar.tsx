@@ -17,6 +17,7 @@ import DesktopFooterBar from './DesktopFooterBar';
 import { getFooterBarPosition } from './position';
 import TTSControl from '../tts/TTSControl';
 import ProfOverlay from '../professor/ProfOverlay';
+import ProfAnnotations from '../professor/ProfAnnotations';
 
 const FooterBar: React.FC<FooterBarProps> = ({
   bookKey,
@@ -270,6 +271,8 @@ const FooterBar: React.FC<FooterBarProps> = ({
       <TTSControl bookKey={bookKey} gridInsets={gridInsets} />
       {/* Palimpsest: the "Hey Prof" overlay (⌥Space) — HP-1 bubble. */}
       <ProfOverlay bookKey={bookKey} />
+      {/* Palimpsest: the professor's pen — HP-2 page annotations. */}
+      <ProfAnnotations bookKey={bookKey} />
     </>
   );
 };

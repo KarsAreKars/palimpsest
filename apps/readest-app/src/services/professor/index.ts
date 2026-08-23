@@ -1,3 +1,4 @@
+export * from './annotationBus';
 export * from './annotations';
 export * from './contextPack';
 export * from './prompt';

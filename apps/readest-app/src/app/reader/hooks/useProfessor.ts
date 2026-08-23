@@ -10,10 +10,22 @@
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { getNarration } from '@/services/narration/speakMode';
+import { getPageBlocks } from '@/services/narration';
 import { getBookProgress } from '@/store/readerProgressStore';
 import { useSettingsStore } from '@/store/settingsStore';
+import { useReaderStore } from '@/store/readerStore';
 import { buildContextPack, type ProfessorExchange } from '@/services/professor/contextPack';
 import { askProfessor } from '@/services/professor/tutor';
+import {
+  parseAnnotations,
+  stripAnnotations,
+  validateAnnotations,
+  type ProfessorAnnotation,
+} from '@/services/professor/annotations';
+import {
+  clearProfessorAnnotations,
+  setProfessorAnnotations,
+} from '@/services/professor/annotationBus';
 
 export type ProfessorPhase = 'idle' | 'thinking' | 'answering';
 
@@ -36,6 +48,7 @@ export const useProfessor = ({ bookKey }: { bookKey: string }) => {
   const [answer, setAnswer] = useState('');
   const [error, setError] = useState<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
+  const getView = useReaderStore((s) => s.getView);
 
   // ⌥Space toggles the overlay (PTT shell; wake word comes in HP-4).
   useEffect(() => {
@@ -60,11 +73,12 @@ export const useProfessor = ({ bookKey }: { bookKey: string }) => {
   const close = useCallback(() => {
     abortRef.current?.abort();
     abortRef.current = null;
+    clearProfessorAnnotations(bookKey);
     setOpen(false);
     setPhase('idle');
     setAnswer('');
     setError(null);
-  }, []);
+  }, [bookKey]);
 
   const ask = useCallback(
     async (question: string) => {
@@ -106,7 +120,27 @@ export const useProfessor = ({ bookKey }: { bookKey: string }) => {
           },
           onDone: (full) => {
             setPhase('idle');
-            pushExchange(bookKey, { q, a: full });
+            // The speech/display contract: the bubble and any future spoken
+            // answer see ONLY stripped prose. The raw stream carries the
+            // annotation tags; they are parsed here, validated against the
+            // page's real blocks, and handed to the pen (ProfAnnotations).
+            const cleaned = stripAnnotations(full);
+            setAnswer(cleaned);
+            pushExchange(bookKey, { q, a: cleaned });
+
+            const jump = parseAnnotations(full).find(
+              (a): a is Extract<ProfessorAnnotation, { kind: 'page' }> => a.kind === 'page',
+            );
+            const targetPage =
+              jump && jump.page <= controller.manifest.page_count ? jump.page : page;
+            if (jump && targetPage === jump.page && jump.page !== page) {
+              Promise.resolve(getView(bookKey)?.goTo?.(jump.page - 1)).catch(() => undefined);
+            }
+            const blocks = getPageBlocks(controller.manifest, targetPage);
+            const annotations = validateAnnotations(parseAnnotations(full), blocks).filter(
+              (a) => a.kind !== 'page',
+            );
+            setProfessorAnnotations(bookKey, { page: targetPage, annotations });
           },
           onError: (message) => {
             setPhase('idle');
