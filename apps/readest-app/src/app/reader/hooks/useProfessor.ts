@@ -29,6 +29,7 @@ import {
   setProfessorAnnotations,
 } from '@/services/professor/annotationBus';
 import { ProfessorVoice } from '@/services/professor/voice';
+import { PROF_ASK_EVENT } from '@/app/reader/components/notebook/StudyTab';
 import {
   appendExchange,
   appendNote,
@@ -65,6 +66,7 @@ export const useProfessor = ({ bookKey }: { bookKey: string }) => {
   const [error, setError] = useState<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
   const voiceRef = useRef<ProfessorVoice | null>(null);
+  const askRef = useRef<(q: string) => Promise<void>>(async () => {});
   const getView = useReaderStore((s) => s.getView);
   const { appService } = useEnv();
   const getBookData = useBookDataStore((s) => s.getBookData);
@@ -106,6 +108,19 @@ export const useProfessor = ({ bookKey }: { bookKey: string }) => {
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, []);
+
+  // Cross-surface asks (HP-5): the Study tab's Feynman review button fires
+  // a question through the normal loop — voice, pen, and logging included.
+  useEffect(() => {
+    const onAsk = (e: Event) => {
+      const detail = (e as CustomEvent<{ bookKey?: string; question?: string }>).detail;
+      if (detail?.bookKey !== bookKey || !detail.question) return;
+      setOpen(true);
+      void askRef.current(detail.question);
+    };
+    window.addEventListener(PROF_ASK_EVENT, onAsk);
+    return () => window.removeEventListener(PROF_ASK_EVENT, onAsk);
+  }, [bookKey]);
 
   // Narration coordination (plan §5): the book pauses while you talk to the
   // professor. Resume is manual in HP-1 — Space or the Speak button.
@@ -246,6 +261,8 @@ export const useProfessor = ({ bookKey }: { bookKey: string }) => {
     },
     [bookKey, getVoice, getView, getLearner, appService, getBookData],
   );
+
+  askRef.current = ask;
 
   return { open, phase, answer, error, ask, close };
 };
