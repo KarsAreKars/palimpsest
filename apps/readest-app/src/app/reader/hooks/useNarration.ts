@@ -19,6 +19,7 @@ import { useBookDataStore } from '@/store/bookDataStore';
 import { useReaderStore } from '@/store/readerStore';
 import { getBookProgress } from '@/store/readerProgressStore';
 import { NarrationController } from '@/services/narration/controller';
+import { useNarrationSettings } from '@/services/narration/settings';
 import {
   registerNarration,
   unregisterNarration,
@@ -42,6 +43,9 @@ export const useNarration = ({ bookKey }: { bookKey: string }) => {
   // index never catches up to the spoken page — without this ref the turn
   // guard would re-navigate on every unit of the same page (history spam).
   const lastTurnedPageRef = useRef<number | null>(null);
+  // Set by the session-lifecycle effect; invoked by the settings effect to
+  // hot-swap provider/voice mid-session without losing the reader's place.
+  const rebuildRef = useRef<(() => Promise<void>) | null>(null);
   const [available, setAvailable] = useState(false);
 
   // ── session lifecycle ─────────────────────────────────────────────────────
@@ -115,14 +119,67 @@ export const useNarration = ({ bookKey }: { bookKey: string }) => {
       (window as unknown as Record<string, unknown>)['__palimpsestNarration'] = controller;
     })();
 
+    // Hot-swap the voice/provider mid-session (settings → Narration). The
+    // provider is baked in at load time, so a change means tear down +
+    // reload — but the reader's place and play state carry over.
+    rebuildRef.current = async () => {
+      const old = controllerRef.current;
+      if (!old) return;
+      const currentUnit = old.player.currentUnit;
+      const unitIdx = currentUnit ? old.units.findIndex((u) => u.unit === currentUnit.unit) : -1;
+      const wasPlaying = old.playing;
+      const wasPaused = old.paused;
+      old.stop();
+      unregisterNarration(bookKey);
+      controllerRef.current = null;
+      const controller = await NarrationController.load(appService, book).catch((e) => {
+        console.warn('narration: session reload failed', e);
+        return null;
+      });
+      if (cancelled || !controller) {
+        setAvailable(false);
+        return;
+      }
+      controllerRef.current = controller;
+      controller.addEventListener('unit-change', onUnitChange);
+      controller.addEventListener('book-ended', onEnded);
+      controller.addEventListener('stopped', onEnded);
+      registerNarration(bookKey, { controller, speakMode: false });
+      (window as unknown as Record<string, unknown>)['__palimpsestNarration'] = controller;
+      console.info('narration: session rebuilt with new voice settings');
+      if (unitIdx >= 0 && (wasPlaying || wasPaused)) {
+        setNarrationSpeakMode(bookKey, true);
+        await controller.player.playFrom(unitIdx).catch(() => undefined);
+        if (wasPaused) controller.player.pause();
+      }
+    };
+
     return () => {
       cancelled = true;
+      rebuildRef.current = null;
       unregisterNarration(bookKey);
       controllerRef.current?.stop();
       controllerRef.current = null;
       setAvailable(false);
     };
   }, [bookKey, appService, getBookData, getView]);
+
+  // ── live settings: voice/provider changes rebuild the session ─────────────
+  useEffect(() => {
+    if (!available) return undefined;
+    return useNarrationSettings.subscribe((state, prev) => {
+      const controller = controllerRef.current;
+      if (!controller) return;
+      if (state.rate !== prev.rate) controller.player.setRate(state.rate);
+      const voiceFieldsChanged =
+        state.provider !== prev.provider ||
+        state.elevenlabsApiKey !== prev.elevenlabsApiKey ||
+        state.elevenlabsVoiceId !== prev.elevenlabsVoiceId ||
+        state.elevenlabsTier !== prev.elevenlabsTier ||
+        state.edgeVoiceId !== prev.edgeVoiceId;
+      if (voiceFieldsChanged) void rebuildRef.current?.();
+    });
+  }, [available]);
 
   // ── click-to-speak ────────────────────────────────────────────────────────
   useEffect(() => {

@@ -75,7 +75,7 @@ const NarrationPanel: React.FC<SettingsPanelPanelProp> = ({ onRegisterReset }) =
       <div>
         <h3 className='mb-2 text-sm font-semibold'>Narrator</h3>
         <p className='mb-3 text-xs text-base-content/60'>
-          The voice that reads your books aloud. Changes apply to the next narration session.
+          The voice that reads your books aloud. Changes apply on the fly — your place is kept.
         </p>
         <div className='flex flex-col gap-2'>
           <label className='flex cursor-pointer items-center gap-2'>
