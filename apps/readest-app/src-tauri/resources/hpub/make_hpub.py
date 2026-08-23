@@ -28,6 +28,16 @@ from pathlib import Path
 SHINGLE = 6
 MAX_SHINGLE_OCCURRENCES = 25  # shingles too common to anchor a page
 
+# A page whose vote matched this fraction of its shingles (or more) is a
+# confident anchor: it may advance the monotonic cursor. Below it, the vote
+# is distrusted and the page is demoted to unmatched (healed later by
+# interpolation between confident neighbors). One shaky anchor must never
+# drag the cursor across a chapter — the Almanack failure mode: a 14-token
+# divider page (conf 0.14) carried a quote that reappears later in the book,
+# voted the WRONG occurrence ~1900 tokens ahead, and the cursor clamp then
+# zeroed pages 157-166's windows even though their own votes were correct.
+MIN_ANCHOR_CONFIDENCE = 0.5
+
 # Coverage gate: a page with fewer extractable alnum chars than this has no
 # usable text layer. If more than MAX_NOTEXT_FRACTION of pages are no-text,
 # the book is a scan.
@@ -234,7 +244,8 @@ def build_manifest(title: str, md_text: str, page_texts: list[str], tree: dict) 
                     votes[key] = votes.get(key, 0) + 1
                 matched += 1
         total_sh = max(len(shs), 1)
-        if votes:
+        confidence = matched / total_sh
+        if votes and confidence >= MIN_ANCHOR_CONFIDENCE:
             best_key = max(votes.items(), key=lambda kv: kv[1])[0]
             near = [
                 mdpos
@@ -267,7 +278,9 @@ def build_manifest(title: str, md_text: str, page_texts: list[str], tree: dict) 
                     "page": pno + 1,
                     "md_char_start": None,
                     "md_char_end": None,
-                    "confidence": 0.0,
+                    # Demoted low-confidence votes keep their score for
+                    # observability (was a vote, just not a trusted one).
+                    "confidence": round(confidence, 3),
                     "method": "unmatched",
                 }
             )
