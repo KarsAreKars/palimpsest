@@ -14,8 +14,10 @@ import { getPageBlocks } from '@/services/narration';
 import { getBookProgress } from '@/store/readerProgressStore';
 import { useSettingsStore } from '@/store/settingsStore';
 import { useReaderStore } from '@/store/readerStore';
+import { useEnv } from '@/context/EnvContext';
+import { useBookDataStore } from '@/store/bookDataStore';
 import { buildContextPack, type ProfessorExchange } from '@/services/professor/contextPack';
-import { askProfessor } from '@/services/professor/tutor';
+import { askProfessor, distillNote } from '@/services/professor/tutor';
 import {
   parseAnnotations,
   stripAnnotations,
@@ -27,14 +29,27 @@ import {
   setProfessorAnnotations,
 } from '@/services/professor/annotationBus';
 import { ProfessorVoice } from '@/services/professor/voice';
+import {
+  appendExchange,
+  appendNote,
+  emptyLearner,
+  loadLearner,
+  normalizeQKind,
+  UNCATEGORIZED_CONCEPT,
+  type LearnerState,
+} from '@/services/professor/learner';
 
 export type ProfessorPhase = 'idle' | 'thinking' | 'answering';
 
 // Recent exchanges per book — continuity for follow-up questions ("why does
-// THAT matter?"). Cap keeps the context pack small; distillation into
-// notes.md (HP-4) replaces this with durable memory.
+// THAT matter?"). Cap keeps the context pack small; learner.json (HP-4) is
+// the durable memory across sessions.
 const exchangesByBook = new Map<string, ProfessorExchange[]>();
 const EXCHANGE_CAP = 4;
+
+// Learner state per book, loaded lazily on the first ask and refreshed by
+// every logged exchange. Feeds the context pack's concept history.
+const learnerByBook = new Map<string, LearnerState>();
 
 const getExchanges = (bookKey: string): ProfessorExchange[] => exchangesByBook.get(bookKey) ?? [];
 
@@ -51,6 +66,8 @@ export const useProfessor = ({ bookKey }: { bookKey: string }) => {
   const abortRef = useRef<AbortController | null>(null);
   const voiceRef = useRef<ProfessorVoice | null>(null);
   const getView = useReaderStore((s) => s.getView);
+  const { appService } = useEnv();
+  const getBookData = useBookDataStore((s) => s.getBookData);
 
   /** Lazily create the professor's voice, bound to the LIVE narration
    * controller lookup so voice hot-swaps and rebuilt sessions are picked
@@ -63,6 +80,20 @@ export const useProfessor = ({ bookKey }: { bookKey: string }) => {
     }
     return voiceRef.current;
   }, [bookKey]);
+
+  /** Learner state for the context pack: cached per book, loaded once. */
+  const getLearner = useCallback((): LearnerState => {
+    const cached = learnerByBook.get(bookKey);
+    if (cached) return cached;
+    learnerByBook.set(bookKey, emptyLearner());
+    const book = getBookData(bookKey)?.book;
+    if (appService && book) {
+      void loadLearner(appService, book)
+        .then((state) => learnerByBook.set(bookKey, state))
+        .catch(() => undefined);
+    }
+    return learnerByBook.get(bookKey)!;
+  }, [bookKey, appService, getBookData]);
 
   // ⌥Space toggles the overlay (PTT shell; wake word comes in HP-4).
   useEffect(() => {
@@ -113,6 +144,7 @@ export const useProfessor = ({ bookKey }: { bookKey: string }) => {
         page,
         currentUnit: controller.player.currentUnit,
         recentExchanges: getExchanges(bookKey),
+        conceptStates: getLearner().concept_states,
       });
 
       abortRef.current?.abort();
@@ -137,7 +169,7 @@ export const useProfessor = ({ bookKey }: { bookKey: string }) => {
             setAnswer((prev) => prev + t);
             voice.push(t); // speaks at the first complete sentence
           },
-          onDone: (full) => {
+          onDone: (full, meta) => {
             voice.finish();
             setPhase('idle');
             // The speech/display contract: the bubble and any future spoken
@@ -148,7 +180,8 @@ export const useProfessor = ({ bookKey }: { bookKey: string }) => {
             setAnswer(cleaned);
             pushExchange(bookKey, { q, a: cleaned });
 
-            const jump = parseAnnotations(full).find(
+            const parsed = parseAnnotations(full);
+            const jump = parsed.find(
               (a): a is Extract<ProfessorAnnotation, { kind: 'page' }> => a.kind === 'page',
             );
             const targetPage =
@@ -157,10 +190,51 @@ export const useProfessor = ({ bookKey }: { bookKey: string }) => {
               Promise.resolve(getView(bookKey)?.goTo?.(jump.page - 1)).catch(() => undefined);
             }
             const blocks = getPageBlocks(controller.manifest, targetPage);
-            const annotations = validateAnnotations(parseAnnotations(full), blocks).filter(
-              (a) => a.kind !== 'page',
+            const annotations = validateAnnotations(parsed, blocks).filter(
+              (a) => a.kind !== 'page' && a.kind !== 'concept' && a.kind !== 'qkind',
             );
             setProfessorAnnotations(bookKey, { page: targetPage, annotations });
+
+            // HP-4 question log (plan §6): fold the exchange into
+            // learner.json, refresh the cached concept history, then distill
+            // the study note (plan §7). All fire-and-forget — the overlay
+            // never waits on the log.
+            const concept =
+              parsed.find(
+                (a): a is Extract<ProfessorAnnotation, { kind: 'concept' }> => a.kind === 'concept',
+              )?.name ?? UNCATEGORIZED_CONCEPT;
+            const qkind = normalizeQKind(
+              parsed.find(
+                (a): a is Extract<ProfessorAnnotation, { kind: 'qkind' }> => a.kind === 'qkind',
+              )?.qkind,
+            );
+            const book = getBookData(bookKey)?.book;
+            if (appService && book) {
+              const ts = new Date();
+              void appendExchange(appService, book, {
+                ts: ts.toISOString(),
+                concept,
+                page: targetPage,
+                question_kind: qkind,
+                question: q,
+                resolved: true, // settled by the NEXT exchange (learner.ts)
+              })
+                .then((state) => learnerByBook.set(bookKey, state))
+                .catch((e) => console.warn('[professor] learner log failed', e));
+              if (!meta.echo) {
+                const date = ts.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                void distillNote({
+                  question: q,
+                  answer: cleaned,
+                  page: targetPage,
+                  concept,
+                  date,
+                  aiSettings,
+                })
+                  .then((note) => (note ? appendNote(appService, book, note) : undefined))
+                  .catch((e) => console.warn('[professor] note distillation failed', e));
+              }
+            }
           },
           onError: (message) => {
             voice.stop();
@@ -170,7 +244,7 @@ export const useProfessor = ({ bookKey }: { bookKey: string }) => {
         },
       });
     },
-    [bookKey, getVoice, getView],
+    [bookKey, getVoice, getView, getLearner, appService, getBookData],
   );
 
   return { open, phase, answer, error, ask, close };

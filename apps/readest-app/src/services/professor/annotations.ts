@@ -14,6 +14,13 @@
  *   [CAPTION:text]              one-line takeaway at the foot of the page
  *   [PAGE:n]                    jump the reader to page n before annotating
  *
+ * Meta tags (HP-4, plan §6 — the question log). Never drawn and never
+ * spoken; parsed for learner.json, stripped like everything else:
+ *
+ *   [CONCEPT:associated primes] the concept this exchange is about
+ *   [QKIND:why]                 question kind: define / why / how-connects /
+ *                               example / check-me
+ *
  * Hard rules (contract-tested):
  *  - Tags are stripped before display AND before speech. Audio must never
  *    contain DSL syntax.
@@ -30,11 +37,23 @@ export type ProfessorAnnotation =
   | { kind: 'arrow'; fromBlockId: string; toBlockId: string }
   | { kind: 'write'; anchorBlockId: string; latex: string }
   | { kind: 'caption'; text: string }
-  | { kind: 'page'; page: number };
+  | { kind: 'page'; page: number }
+  | { kind: 'concept'; name: string }
+  | { kind: 'qkind'; qkind: string };
 
-const TAG_RE = /\[(POINT|HIGHLIGHT|BOX|ARROW|WRITE|CAPTION|PAGE):([^\]\n]*)\]/g;
+const TAG_RE = /\[(POINT|HIGHLIGHT|BOX|ARROW|WRITE|CAPTION|PAGE|CONCEPT|QKIND):([^\]\n]*)\]/g;
 
 const BLOCK_PREFIX = 'block:';
+
+/** "Associated Primes!" → "associated_primes" — stable learner.json keys. */
+export function slugifyConcept(text: string): string {
+  return text
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '')
+    .slice(0, 60);
+}
 
 /** Parse every DSL tag in `text` into structured annotations (unvalidated). */
 export function parseAnnotations(text: string): ProfessorAnnotation[] {
@@ -86,6 +105,15 @@ export function parseAnnotations(text: string): ProfessorAnnotation[] {
       case 'PAGE': {
         const n = Number.parseInt(body, 10);
         if (Number.isFinite(n) && n > 0) out.push({ kind: 'page', page: n });
+        break;
+      }
+      case 'CONCEPT': {
+        const name = slugifyConcept(body);
+        if (name) out.push({ kind: 'concept', name });
+        break;
+      }
+      case 'QKIND': {
+        if (body) out.push({ kind: 'qkind', qkind: body.toLowerCase().trim() });
         break;
       }
     }

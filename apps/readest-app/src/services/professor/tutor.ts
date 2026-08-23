@@ -11,7 +11,7 @@
  *     This keeps the whole loop (PTT → context pack → streaming answer)
  *     exercisable with zero keys, in dev and in CI.
  */
-import { streamText } from 'ai';
+import { streamText, generateText } from 'ai';
 import type { AISettings } from '@/services/ai/types';
 import { getAIProvider } from '@/services/ai/providers';
 import type { ProfessorContextPack } from './contextPack';
@@ -169,5 +169,63 @@ export async function askProfessor(req: TutorRequest): Promise<void> {
   } catch (e) {
     if (signal?.aborted) return; // user closed the overlay mid-answer
     cb.onError(e instanceof Error ? e.message : String(e));
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Notebook distillation (HP-4, plan §7) — exchange → study note in notes.md
+// ---------------------------------------------------------------------------
+
+export interface DistillRequest {
+  question: string;
+  /** The professor's stripped answer (no DSL tags). */
+  answer: string;
+  page: number;
+  concept: string; // slug
+  /** Pre-formatted short date, e.g. "Aug 23". */
+  date: string;
+  aiSettings?: AISettings | null;
+  signal?: AbortSignal;
+}
+
+const DISTILL_SYSTEM = `You turn a tutoring exchange into one study note, written as the reader's OWN notes — first person, plain sentences, the way a good student writes things down for future-them.
+
+Humanizer rules (hard): no AI-isms. No "delve", no "furthermore", no "it's not just X, it's Y", no "in summary", no rule-of-three padding, no hedging chains, no em-dash habit, no bullet-point lecture voice. Short plain sentences. If the reader's question contained a wrong assumption, name it as "my wrong turn" — that is the most valuable part of the note.
+
+Output ONLY the note, exactly this shape:
+### p.{page} — {short title, lowercase} (hey-prof, {date})
+**Q:** {the question, lightly trimmed}
+**The idea:** {the explanation in 1-3 plain sentences, first person where natural}
+**My wrong turn:** {the misconception, or omit this line entirely if there was none}
+**Worth remembering:** {the one sentence to reread before an exam}`;
+
+/**
+ * Distill one exchange into a notes.md entry. Returns null when AI is
+ * disabled or the call fails — a missing note beats a fake one; the
+ * exchange is still in learner.json either way.
+ */
+export async function distillNote(req: DistillRequest): Promise<string | null> {
+  const { question, answer, page, concept, date, aiSettings, signal } = req;
+  if (!aiSettings?.enabled) return null;
+  let model;
+  try {
+    model = getAIProvider(aiSettings).getModel();
+  } catch {
+    return null;
+  }
+  try {
+    const { text } = await generateText({
+      model,
+      system: DISTILL_SYSTEM,
+      prompt:
+        `Page: ${page}\nConcept: ${concept.replace(/_/g, ' ')}\nDate: ${date}\n\n` +
+        `The reader asked: ${question}\n\nYou (the professor) answered: ${answer}`,
+      abortSignal: signal,
+    });
+    const note = text.trim();
+    // Sanity: refuse output that lost the required skeleton.
+    return note.startsWith('###') && note.includes('**Q:**') ? note : null;
+  } catch {
+    return null;
   }
 }

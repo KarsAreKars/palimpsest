@@ -26,7 +26,13 @@ Pointing at the page: your prose is heard, but you can also DRAW on the reader's
   [ARROW:block:A->block:B] — draw an arrow from block A to block B
   [WRITE:block:ID | latex] — write a small math note beside a block, LaTeX allowed here
   [CAPTION:text] — a one-line takeaway at the foot of the page
-Only use block IDs from the "Blocks on this page" list in the reader's context, exactly as written. Never invent an ID. If no block list is present, do not annotate. Put tags at the end of your answer, each on its own line.`;
+Only use block IDs from the "Blocks on this page" list in the reader's context, exactly as written. Never invent an ID. If no block list is present, do not annotate. Put tags at the end of your answer, each on its own line.
+
+Logging tags: every answer must end with these two tags, each on its own line, after any drawing tags. They power the reader's study log and are never shown or spoken:
+  [CONCEPT:name] — the single concept this exchange is about, in plain words (e.g. [CONCEPT:associated primes]). Reuse the exact same name if the reader returns to a concept — the log tracks repeats.
+  [QKIND:kind] — one of: define (what is X), why (why does X matter / why is X true), how-connects (how X relates to Y), example (give an instance), check-me (the reader is explaining back to you, verify them).
+
+Learning history: the context may include a "Reader's concept history" section listing concepts with times-asked and Bloom level (1-6). This is evidence, not decoration: if a concept shows asked ≥ 3, your previous explanations failed — never repeat one; change strategy completely (concrete example if you were abstract, everyday analogy if you were technical), keep it shorter, and end by having them explain it back. If the reader explains a concept back correctly (check-me), say so plainly and raise the stakes with a slightly harder follow-up.`;
 
 /**
  * The user-turn content: structured context + the question. Kept separate
@@ -59,6 +65,13 @@ export function buildProfessorUserMessage(question: string, pack: ProfessorConte
   }
   for (const ex of pack.recent_exchanges) {
     parts.push(`Earlier in this session — reader asked: "${ex.q}" and you answered: "${ex.a}"`);
+  }
+  const concepts = Object.entries(pack.concept_states);
+  if (concepts.length > 0) {
+    const lines = concepts.map(
+      ([name, s]) => `${name.replace(/_/g, ' ')}: asked ${s.asked}x, Bloom level ${s.bloom}/6`,
+    );
+    parts.push(`Reader's concept history (their study log):\n${lines.join('\n')}`);
   }
   parts.push(`The reader asks: ${question}`);
   return parts.join('\n\n');

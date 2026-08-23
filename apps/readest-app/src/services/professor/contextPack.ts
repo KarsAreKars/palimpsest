@@ -9,6 +9,7 @@
  */
 import type { HpubManifest, NarrationUnit } from '@/services/narration';
 import { getPageBlocks } from '@/services/narration';
+import type { ConceptState } from './learner';
 
 export interface ProfessorExchange {
   q: string;
@@ -43,6 +44,10 @@ export interface ProfessorContextPack {
   /** Tail of the previous page, for "this follows from…" continuity. */
   chapter_context: string;
   recent_exchanges: ProfessorExchange[];
+  /** HP-4 evidence base (plan §4/§6): what the reader has asked about, how
+   *  often, and the tracked Bloom level. Empty until their first logged
+   *  exchange. Capped to the most-asked concepts to keep the pack small. */
+  concept_states: Record<string, ConceptState>;
 }
 
 export const DEFAULT_MAX_EXCERPT_CHARS = 6000;
@@ -55,6 +60,7 @@ export function buildContextPack(args: {
   page: number;
   currentUnit?: NarrationUnit | null;
   recentExchanges?: ProfessorExchange[];
+  conceptStates?: Record<string, ConceptState>;
   maxExcerptChars?: number;
 }): ProfessorContextPack {
   const {
@@ -63,6 +69,7 @@ export function buildContextPack(args: {
     page,
     currentUnit,
     recentExchanges = [],
+    conceptStates = {},
     maxExcerptChars = DEFAULT_MAX_EXCERPT_CHARS,
   } = args;
 
@@ -106,5 +113,10 @@ export function buildContextPack(args: {
     })),
     chapter_context: chapterContext,
     recent_exchanges: recentExchanges.slice(-2),
+    concept_states: Object.fromEntries(
+      Object.entries(conceptStates)
+        .sort((a, b) => b[1].asked - a[1].asked)
+        .slice(0, 10),
+    ),
   };
 }
