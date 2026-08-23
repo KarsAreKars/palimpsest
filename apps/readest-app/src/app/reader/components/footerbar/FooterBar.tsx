@@ -16,6 +16,7 @@ import MobileFooterBar from './MobileFooterBar';
 import DesktopFooterBar from './DesktopFooterBar';
 import { getFooterBarPosition } from './position';
 import TTSControl from '../tts/TTSControl';
+import ProfOverlay from '../professor/ProfOverlay';
 
 const FooterBar: React.FC<FooterBarProps> = ({
   bookKey,
@@ -267,6 +268,8 @@ const FooterBar: React.FC<FooterBarProps> = ({
       )}
 
       <TTSControl bookKey={bookKey} gridInsets={gridInsets} />
+      {/* Palimpsest: the "Hey Prof" overlay (⌥Space) — HP-1 bubble. */}
+      <ProfOverlay bookKey={bookKey} />
     </>
   );
 };
