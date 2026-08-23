@@ -9,19 +9,48 @@
 //!
 //! Interpreter resolution order:
 //!   1. `PALIMPSEST_PYTHON` env var (dev: point at a marker-pdf venv)
-//!   2. `python3` on PATH
-//! Script resolution order:
-//!   1. `PALIMPSEST_HPUB_SCRIPT` env var
-//!   2. bundled resource `resources/hpub/make_hpub.py`
-//!   3. dev path relative to CARGO_MANIFEST_DIR
+//!   2. Palimpsest-managed venv in the app data dir (`hpub-venv`)
+//!   3. dev-machine phase-0 venv (exists-check only; harmless elsewhere)
+//!   4. `python3` on PATH (last resort — usually lacks marker-pdf)
 
 use serde_json::Value;
 use std::path::PathBuf;
 use std::process::Stdio;
 use tauri::{AppHandle, Manager};
 
+fn python_candidates() -> Vec<PathBuf> {
+    let mut out = Vec::new();
+    if let Ok(p) = std::env::var("PALIMPSEST_PYTHON") {
+        out.push(PathBuf::from(p));
+    }
+    if let Ok(home) = std::env::var("HOME") {
+        out.push(
+            PathBuf::from(&home)
+                .join("Library/Application Support/com.bilingify.readest/hpub-venv/bin/python"),
+        );
+        // Dev machine: the phase-0 venv that already carries marker-pdf and
+        // the cached model weights. Probed with an exists-check, so this is a
+        // silent no-op on any other machine.
+        out.push(PathBuf::from(&home).join(
+            "Documents/kimi/workspace/hpub-phase0/.venv/bin/python",
+        ));
+    }
+    out.push(PathBuf::from("python3"));
+    out
+}
+
 fn resolve_python() -> String {
-    std::env::var("PALIMPSEST_PYTHON").unwrap_or_else(|_| "python3".to_string())
+    let candidates = python_candidates();
+    for c in &candidates {
+        // A bare command name (no separators) is always "valid" — the spawn
+        // will resolve it via PATH. Paths must exist.
+        let is_command = c.components().count() == 1;
+        if is_command || c.is_file() {
+            log::info!("hpub sidecar interpreter: {}", c.display());
+            return c.to_string_lossy().into_owned();
+        }
+    }
+    "python3".to_string()
 }
 
 fn resolve_script(app: &AppHandle) -> Result<PathBuf, String> {
