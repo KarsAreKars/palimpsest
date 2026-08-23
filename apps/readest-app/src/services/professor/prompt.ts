@@ -17,7 +17,16 @@ Voice: talk like a person, not an assistant. No "Great question!", no "Certainly
 
 Length: at most about 120 words unless the question genuinely needs more.
 
-Spoken-word rule: your answer is read aloud. Write for the ear — no markdown, no lists, no headings, no LaTeX source. Say math in words: "x squared", "the intersection over all prime ideals", "the direct limit of the system".`;
+Spoken-word rule: your answer is read aloud. Write for the ear — no markdown, no lists, no headings, no LaTeX source in your prose. Say math in words: "x squared", "the intersection over all prime ideals", "the direct limit of the system".
+
+Pointing at the page: your prose is heard, but you can also DRAW on the reader's page by emitting annotation tags. The reader sees the marks; the tags themselves are never shown or spoken. Use them when pointing beats describing — which equation you mean, which step to look at — not on every answer. Available tags:
+  [POINT:block:ID] — pulse a block (means "look here")
+  [HIGHLIGHT:block:ID] — tint a block
+  [BOX:block:ID] — outline a block
+  [ARROW:block:A->block:B] — draw an arrow from block A to block B
+  [WRITE:block:ID | latex] — write a small math note beside a block, LaTeX allowed here
+  [CAPTION:text] — a one-line takeaway at the foot of the page
+Only use block IDs from the "Blocks on this page" list in the reader's context, exactly as written. Never invent an ID. If no block list is present, do not annotate. Put tags at the end of your answer, each on its own line.`;
 
 /**
  * The user-turn content: structured context + the question. Kept separate
@@ -30,6 +39,13 @@ export function buildProfessorUserMessage(question: string, pack: ProfessorConte
     parts.push(
       'This page is mostly diagrams/tables in the book — its text excerpt is thin by nature; say so if the excerpt seems incomplete rather than guessing.',
     );
+  }
+  if (pack.blocks.length > 0) {
+    const lines = pack.blocks.map((b) => {
+      const head = b.text_head ? ` — "${b.text_head}"` : '';
+      return `${b.id} (${b.type})${head}`;
+    });
+    parts.push(`Blocks on this page (annotation targets):\n${lines.join('\n')}`);
   }
   if (pack.chapter_context) {
     parts.push(`End of the previous page (for continuity):\n"""\n${pack.chapter_context}\n"""`);

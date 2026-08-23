@@ -30,6 +30,19 @@ export interface NarrationUnit {
   speak?: string;
 }
 
+/**
+ * A positioned content block on a PDF page (HP-2). Comes from the extractor
+ * (marker) via manifest.json. `bbox` is [x0, y0, x1, y1] in PDF points with
+ * a TOP-LEFT origin — i.e. pdf.js viewport coordinates at scale 1 — so the
+ * on-screen position is bbox × the page's current total scale factor.
+ */
+export interface HpubBlock {
+  id: string;
+  type: string;
+  bbox: [number, number, number, number];
+  text_head?: string;
+}
+
 export interface HpubManifest {
   format: string;
   page_count: number;
@@ -39,8 +52,16 @@ export interface HpubManifest {
     md_char_end: number | null;
     /** Amendment A2: prose / mixed / visual, from the extraction gate. */
     page_class?: 'prose' | 'mixed' | 'visual';
+    /** Positioned blocks for professor annotations (HP-2). Optional: older
+     *  hpub builds may not carry them; annotation drawing degrades to
+     *  text-only answers when absent. */
+    blocks?: HpubBlock[];
   }>;
 }
+
+/** Look up the positioned blocks for a 1-based page (empty when unknown). */
+export const getPageBlocks = (manifest: HpubManifest, page: number): HpubBlock[] =>
+  manifest.alignment.find((a) => a.page === page)?.blocks ?? [];
 
 // ─── block segmentation ─────────────────────────────────────────────────────
 

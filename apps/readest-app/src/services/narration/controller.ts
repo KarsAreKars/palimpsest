@@ -14,6 +14,7 @@ import type { AppService } from '@/types/system';
 import type { Book } from '@/types/book';
 import { getDir } from '@/utils/book';
 import { isTauriAppPlatform } from '@/services/environment';
+import { getAIFetch } from '@/services/ai/utils/httpFetch';
 import { EdgeSpeechProvider } from '@/services/tts/providers/edge';
 import { ElevenLabsProvider } from '@/services/tts/providers/elevenlabs';
 import type { SpeechProvider } from '@/services/tts/providers/types';
@@ -112,8 +113,10 @@ export class NarrationController extends EventTarget {
     // Provider + voice come from Settings → Narration (plan §5). The Tauri
     // WebSocket plugin can send the headers Microsoft's endpoint requires; a
     // plain browser cannot, so the web lane relays Edge synthesis through
-    // the local /api/tts/narration route. ElevenLabs is CORS-friendly and
-    // works directly in both lanes.
+    // the local /api/tts/narration route. ElevenLabs answers plain curl, but
+    // the webview's preflight (custom xi-api-key header from a tauri://
+    // origin) is rejected — so it rides the same native reqwest transport
+    // as the AI providers via getAIFetch().
     const settings = useNarrationSettings.getState();
     const edgeProvider = (): SpeechProvider =>
       isTauriAppPlatform() ? new EdgeSpeechProvider() : new NarrationEdgeProvider();
@@ -124,6 +127,7 @@ export class NarrationController extends EventTarget {
       const el = new ElevenLabsProvider({
         apiKey: settings.elevenlabsApiKey,
         tier: settings.elevenlabsTier,
+        fetchImpl: getAIFetch(),
       });
       // Fall back to the free tier when the key is bad or the API is down —
       // a book that reads in a worse voice beats a book that doesn't read.

@@ -8,10 +8,19 @@
  * page image is attached only for visual focus blocks (HP-2+).
  */
 import type { HpubManifest, NarrationUnit } from '@/services/narration';
+import { getPageBlocks } from '@/services/narration';
 
 export interface ProfessorExchange {
   q: string;
   a: string;
+}
+
+/** A block reference the professor may annotate (HP-2). Bbox stays
+ *  render-side; the model only needs identity + a hint of the content. */
+export interface ProfessorBlockRef {
+  id: string;
+  type: string;
+  text_head: string;
 }
 
 export interface ProfessorContextPack {
@@ -28,6 +37,9 @@ export interface ProfessorContextPack {
   /** The page's text from the book's machine layer (the grounding source). */
   excerpt: string;
   excerpt_truncated: boolean;
+  /** Annotatable blocks on this page (HP-2). Empty when the book's manifest
+   *  carries no block geometry — the professor then answers text-only. */
+  blocks: ProfessorBlockRef[];
   /** Tail of the previous page, for "this follows from…" continuity. */
   chapter_context: string;
   recent_exchanges: ProfessorExchange[];
@@ -87,6 +99,11 @@ export function buildContextPack(args: {
     page_class: entry?.page_class ?? null,
     excerpt,
     excerpt_truncated: truncated,
+    blocks: getPageBlocks(manifest, page).map((b) => ({
+      id: b.id,
+      type: b.type,
+      text_head: (b.text_head ?? '').slice(0, 80),
+    })),
     chapter_context: chapterContext,
     recent_exchanges: recentExchanges.slice(-2),
   };

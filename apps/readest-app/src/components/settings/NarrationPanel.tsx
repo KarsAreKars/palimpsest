@@ -14,6 +14,7 @@ import {
   MAX_NARRATION_RATE,
 } from '@/services/narration/settings';
 import { ElevenLabsProvider, type ElevenLabsQuota } from '@/services/tts/providers/elevenlabs';
+import { getAIFetch } from '@/services/ai/utils/httpFetch';
 import { EdgeSpeechTTS } from '@/libs/edgeTTS';
 import type { TTSVoice } from '@/services/tts/types';
 import type { SettingsPanelPanelProp } from './SettingsDialog';
@@ -45,7 +46,11 @@ const NarrationPanel: React.FC<SettingsPanelPanelProp> = ({ onRegisterReset }) =
     const key = keyDraft.trim();
     if (!key) return;
     setKeyStatus('checking');
-    const provider = new ElevenLabsProvider({ apiKey: key, tier: settings.elevenlabsTier });
+    const provider = new ElevenLabsProvider({
+      apiKey: key,
+      tier: settings.elevenlabsTier,
+      fetchImpl: getAIFetch(),
+    });
     const ok = await provider.init();
     if (!ok) {
       setKeyStatus('bad');

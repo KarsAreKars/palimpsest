@@ -13,6 +13,7 @@ import { getDir } from '@/utils/book';
 import {
   buildNarrationScript,
   toNarrationJsonl,
+  type HpubBlock,
   type HpubManifest,
   type NarrationUnit,
 } from './script';
@@ -20,7 +21,8 @@ import {
 export const NARRATION_FILENAME = 'narration.jsonl';
 export const NARRATION_FORMAT_VERSION = 1;
 
-export type { HpubManifest, NarrationUnit };
+export type { HpubBlock, HpubManifest, NarrationUnit };
+export { getPageBlocks } from './script';
 
 /** Load a book's narration script if its text layer has been narrated. */
 /**
