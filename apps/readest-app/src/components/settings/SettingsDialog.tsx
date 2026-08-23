@@ -8,7 +8,7 @@ import { useCommandPalette } from '@/components/command-palette';
 import { RiFontSize, RiShareLine } from 'react-icons/ri';
 import { RiDashboardLine, RiTranslate } from 'react-icons/ri';
 import { VscSymbolColor } from 'react-icons/vsc';
-import { PiDotsThreeVerticalBold, PiRobot, PiSpeakerHigh } from 'react-icons/pi';
+import { PiDotsThreeVerticalBold, PiRobot, PiSpeakerHigh, PiWaveform } from 'react-icons/pi';
 import { LiaHandPointerSolid } from 'react-icons/lia';
 import { IoAccessibilityOutline } from 'react-icons/io5';
 import {
@@ -33,6 +33,7 @@ import LangPanel from './LangPanel';
 import MiscPanel from './MiscPanel';
 import AIPanel from './AIPanel';
 import TTSPanel from './TTSPanel';
+import NarrationPanel from './NarrationPanel';
 
 export type SettingsPanelType =
   | 'Font'
@@ -40,6 +41,7 @@ export type SettingsPanelType =
   | 'Theme'
   | 'Control'
   | 'TTS'
+  | 'Narration'
   | 'Language'
   | 'AI'
   | 'Integrations'
@@ -123,6 +125,11 @@ const SettingsDialog: React.FC<{ bookKey: string }> = ({ bookKey }) => {
       label: _('TTS'),
     },
     {
+      tab: 'Narration',
+      icon: PiWaveform,
+      label: _('Narration'),
+    },
+    {
       tab: 'Custom',
       icon: IoAccessibilityOutline,
       label: _('Custom'),
@@ -177,6 +184,7 @@ const SettingsDialog: React.FC<{ bookKey: string }> = ({ bookKey }) => {
     Theme: null,
     Control: null,
     TTS: null,
+    Narration: null,
     Language: null,
     AI: null,
     Integrations: null,
@@ -211,6 +219,7 @@ const SettingsDialog: React.FC<{ bookKey: string }> = ({ bookKey }) => {
         theme: 'Theme',
         control: 'Control',
         tts: 'TTS',
+        narration: 'Narration',
         language: 'Language',
         ai: 'AI',
         integrations: 'Integrations',
@@ -465,6 +474,12 @@ const SettingsDialog: React.FC<{ bookKey: string }> = ({ bookKey }) => {
         )}
         {activePanel === 'TTS' && (
           <TTSPanel bookKey={bookKey} onRegisterReset={(fn) => registerResetFunction('TTS', fn)} />
+        )}
+        {activePanel === 'Narration' && (
+          <NarrationPanel
+            bookKey={bookKey}
+            onRegisterReset={(fn) => registerResetFunction('Narration', fn)}
+          />
         )}
         {activePanel === 'Language' && (
           <LangPanel

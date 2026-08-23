@@ -15,9 +15,11 @@ import type { Book } from '@/types/book';
 import { getDir } from '@/utils/book';
 import { isTauriAppPlatform } from '@/services/environment';
 import { EdgeSpeechProvider } from '@/services/tts/providers/edge';
+import { ElevenLabsProvider } from '@/services/tts/providers/elevenlabs';
 import type { SpeechProvider } from '@/services/tts/providers/types';
 import { NarrationPlayer, type AudioSink } from './player';
 import { NarrationEdgeProvider } from './narrationEdgeProvider';
+import { useNarrationSettings } from './settings';
 import { WebAudioSink } from './webAudioSink';
 import {
   loadNarration,
@@ -107,13 +109,35 @@ export class NarrationController extends EventTarget {
       toText(await appService.readFile(`${dir}/manifest.json`, 'Books', 'text')),
     ) as HpubManifest;
 
-    // The Tauri WebSocket plugin can send the headers Microsoft's endpoint
-    // requires; a plain browser cannot, so the web lane relays synthesis
-    // through the local /api/tts/narration route.
-    const provider: SpeechProvider =
-      deps.provider ??
-      (isTauriAppPlatform() ? new EdgeSpeechProvider() : new NarrationEdgeProvider());
-    if (!deps.provider) {
+    // Provider + voice come from Settings → Narration (plan §5). The Tauri
+    // WebSocket plugin can send the headers Microsoft's endpoint requires; a
+    // plain browser cannot, so the web lane relays Edge synthesis through
+    // the local /api/tts/narration route. ElevenLabs is CORS-friendly and
+    // works directly in both lanes.
+    const settings = useNarrationSettings.getState();
+    const edgeProvider = (): SpeechProvider =>
+      isTauriAppPlatform() ? new EdgeSpeechProvider() : new NarrationEdgeProvider();
+    let provider: SpeechProvider;
+    if (deps.provider) {
+      provider = deps.provider;
+    } else if (settings.provider === 'elevenlabs' && settings.elevenlabsApiKey) {
+      const el = new ElevenLabsProvider({
+        apiKey: settings.elevenlabsApiKey,
+        tier: settings.elevenlabsTier,
+      });
+      // Fall back to the free tier when the key is bad or the API is down —
+      // a book that reads in a worse voice beats a book that doesn't read.
+      const ok = await el.init().catch(() => false);
+      if (ok) {
+        provider = el;
+      } else {
+        console.warn('narration: ElevenLabs unavailable, falling back to Edge');
+        provider = edgeProvider();
+      }
+    } else {
+      provider = edgeProvider();
+    }
+    if (!deps.provider && provider.id !== 'elevenlabs') {
       const ok = await provider.init().catch(() => false);
       if (!ok) {
         console.warn('narration: speech engine unavailable');
@@ -122,13 +146,25 @@ export class NarrationController extends EventTarget {
     }
     const voices = await provider.getAllVoices().catch(() => []);
     const lang = (book.primaryLanguage || 'en').split('-')[0]!;
-    const langVoices = voices.filter((v) => v.id.startsWith(lang));
-    const voice =
-      provider.pickDefaultVoice?.(langVoices) ??
-      langVoices[0]?.id ??
-      provider.fallbackVoiceId ??
-      voices[0]?.id ??
-      'en-US-AriaNeural';
+    const langVoices = voices.filter((v) => (v.lang || v.id).startsWith(lang));
+    let voice: string;
+    if (provider.id === 'elevenlabs') {
+      voice = settings.elevenlabsVoiceId ?? langVoices[0]?.id ?? voices[0]?.id ?? '';
+      if (!voice) {
+        console.warn('narration: ElevenLabs returned no voices');
+        return null;
+      }
+    } else {
+      voice =
+        (settings.edgeVoiceId && voices.some((v) => v.id === settings.edgeVoiceId)
+          ? settings.edgeVoiceId
+          : undefined) ??
+        provider.pickDefaultVoice?.(langVoices) ??
+        langVoices[0]?.id ??
+        provider.fallbackVoiceId ??
+        voices[0]?.id ??
+        'en-US-AriaNeural';
+    }
 
     const player = new NarrationPlayer({
       provider,
@@ -136,6 +172,7 @@ export class NarrationController extends EventTarget {
       voice,
       lang,
     });
+    player.setRate(settings.rate); // remembered listening speed (plan §5)
     player.load(units);
     return new NarrationController(md, manifest, units, player);
   }
