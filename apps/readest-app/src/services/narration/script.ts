@@ -15,8 +15,20 @@
  */
 import { sanitizeHeading, sanitizeProse, isCitationClutter, isTocClutter } from './sanitize';
 import { initVerbalizer, verbalizeDisplayEquation, verbalizeInlineMath } from './verbalize';
+import { applyNarrativePass } from './narrative';
 
 export type NarrationKind = 'prose' | 'inline_math' | 'display_eq' | 'heading' | 'skip';
+
+/**
+ * Narrative-pass prosody hints (NARRATIVE_PASS_PLAN §4): player-rendered
+ * pauses between units — provider-independent, rate-independent, never
+ * baked into audio. Attached by applyNarrativePass (narrative.ts).
+ */
+export interface NarrationProsody {
+  pause_before_ms?: number;
+  pause_after_ms?: number;
+  energy?: 'normal' | 'lowered';
+}
 
 export interface NarrationUnit {
   unit: number;
@@ -28,6 +40,7 @@ export interface NarrationUnit {
    *  but may carry a short announcement ("Diagram on this page.") when the
    *  page class says the listener is missing a visual (amendment A2). */
   speak?: string;
+  prosody?: NarrationProsody;
 }
 
 /**
@@ -401,7 +414,7 @@ export const buildNarrationScript = async (
       }
     }
   }
-  return units;
+  return applyNarrativePass(units);
 };
 
 export const toNarrationJsonl = (units: NarrationUnit[]): string =>

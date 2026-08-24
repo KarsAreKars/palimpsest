@@ -233,7 +233,17 @@ export class NarrationPlayer extends EventTarget {
         });
         if (token !== this.#playToken) return;
       }
+      // Narrative-pass prosody (plan §4): player-side silence around the
+      // unit — provider-independent, rate-independent, free.
+      const prosody = this.#units[i]!.prosody;
+      if (prosody?.pause_before_ms) {
+        await new Promise((r) => setTimeout(r, prosody.pause_before_ms));
+        if (token !== this.#playToken) return;
+      }
       await this.#sink.play(result.audio, this.#rate);
+      if (prosody?.pause_after_ms && token === this.#playToken) {
+        await new Promise((r) => setTimeout(r, prosody.pause_after_ms));
+      }
       if (token === this.#playToken) {
         nlog(`narration: played unit ${i} to completion`);
       }

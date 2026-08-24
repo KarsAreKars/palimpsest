@@ -24,6 +24,7 @@ import { SpeechSynthesisPermanentError } from '@/services/tts/providers/types';
 import type { AudioSink } from '@/services/narration/player';
 import { WebAudioSink } from '@/services/narration/webAudioSink';
 import { isVerbalizerReady, verbalizeInlineMath } from '@/services/narration/verbalize';
+import { doctorSpeakText } from '@/services/narration/narrative';
 import { stripAnnotationTags } from './annotations';
 import { nlog, nwarn } from '@/services/narration/log';
 
@@ -135,9 +136,12 @@ export class SpeechFeeder {
     // property that keeps #spokenUpTo valid).
     const s = sentence.replace(/\s{2,}/g, ' ').trim();
     if (!s) return '';
-    // Inline math → spoken English when the verbalizer is live; otherwise
-    // keep the raw text (professor answers are mostly prose).
-    return isVerbalizerReady() ? verbalizeInlineMath(s) : s;
+    // The narrative-pass doctor (plan §7: the professor's prose is spoken
+    // text too) — applied to prose segments only; math spans stay raw for
+    // the verbalizer.
+    const parts = s.split(/(\$[^$]+\$)/g);
+    const doctored = parts.map((p) => (p.startsWith('$') ? p : doctorSpeakText(p))).join('');
+    return isVerbalizerReady() ? verbalizeInlineMath(doctored) : doctored;
   }
 }
 

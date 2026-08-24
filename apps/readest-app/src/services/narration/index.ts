@@ -19,7 +19,12 @@ import {
 } from './script';
 
 export const NARRATION_FILENAME = 'narration.jsonl';
-export const NARRATION_FORMAT_VERSION = 1;
+export const NARRATION_FORMAT_VERSION = 2;
+
+/** First JSONL line: format marker. loadNarration treats a missing or older
+ *  version as stale → returns null → the controller rebuilds the script
+ *  from content.md in place (never re-runs marker — plan A5). */
+const FORMAT_HEADER = JSON.stringify({ meta: { format: NARRATION_FORMAT_VERSION } });
 
 export type { HpubBlock, HpubManifest, NarrationUnit };
 export { getPageBlocks } from './script';
@@ -40,10 +45,21 @@ export const loadNarration = async (
   const path = `${getDir(book)}/${NARRATION_FILENAME}`;
   if (!(await appService.exists(path, 'Books'))) return null;
   const raw = toText(await appService.readFile(path, 'Books', 'text'));
-  return raw
-    .split('\n')
-    .filter((line) => line.trim().length > 0)
-    .map((line) => JSON.parse(line) as NarrationUnit);
+  const lines = raw.split('\n').filter((line) => line.trim().length > 0);
+  if (lines.length === 0) return null;
+  let start = 0;
+  try {
+    const first = JSON.parse(lines[0]!) as { meta?: { format?: number } };
+    if (first.meta && typeof first.meta.format === 'number') {
+      if (first.meta.format < NARRATION_FORMAT_VERSION) return null; // stale script
+      start = 1;
+    } else {
+      return null; // pre-header (v1) script — rebuild
+    }
+  } catch {
+    return null;
+  }
+  return lines.slice(start).map((line) => JSON.parse(line) as NarrationUnit);
 };
 
 /**
@@ -72,6 +88,10 @@ export const buildNarrationForBook = async (
   // TODO(settings): read equationVerbosity from the user's narration settings
   // once the setting ships (plan §4 — default full/announce+speak).
   const units = await buildNarrationScript(md, manifest);
-  await appService.writeFile(`${dir}/${NARRATION_FILENAME}`, 'Books', toNarrationJsonl(units));
+  await appService.writeFile(
+    `${dir}/${NARRATION_FILENAME}`,
+    'Books',
+    FORMAT_HEADER + '\n' + toNarrationJsonl(units),
+  );
   return units.length;
 };
