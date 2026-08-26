@@ -178,3 +178,45 @@ describe('buildPageMapper', () => {
     expect(pageFor(MD.length)).toBe(2);
   });
 });
+
+describe('rewrapSubSupMath adjacency (Attention paper regressions)', () => {
+  it('does not swallow prose between two distant sup tags', () => {
+    const src =
+      'While for small values of d<sup>k</sup> the two mechanisms perform similarly, additive attention outperforms dot product attention without scaling for larger values of d<sup>k</sup>.';
+    expect(sanitizeProse(src)).toBe(
+      'While for small values of d$k$ the two mechanisms perform similarly, additive attention outperforms dot product attention without scaling for larger values of d$k$.',
+    );
+  });
+
+  it('keeps adjacent tag chains as one math span', () => {
+    expect(sanitizeProse('the sum P<sup>d</sup><sup>k</sup> <sup>i</sup>=1 qiki converges')).toBe(
+      'the sum P$dk i$=1 qiki converges',
+    );
+  });
+
+  it('drops footnote markers instead of verbalizing them', () => {
+    expect(sanitizeProse('Ashish Vaswani<sup>∗</sup> Google Brain')).toBe(
+      'Ashish Vaswani Google Brain',
+    );
+    expect(sanitizeProse('<sup>4</sup>To illustrate why')).toBe('To illustrate why');
+  });
+
+  it('strips page-anchor spans from speech', () => {
+    expect(sanitizeProse('<span id="page-3-1"></span>Assume that the components of q and k.')).toBe(
+      'Assume that the components of q and k.',
+    );
+  });
+});
+
+describe('citation link residue (Attention paper regression)', () => {
+  it('drops escaped-bracket citation links from speech', () => {
+    expect(sanitizeProse('attention without scaling [\\[3\\]](#page-9-3). Next')).toBe(
+      'attention without scaling. Next',
+    );
+  });
+  it('drops plain bracket citations inline', () => {
+    expect(sanitizeProse('as shown by Vaswani [3] in their work')).toBe(
+      'as shown by Vaswani in their work',
+    );
+  });
+});

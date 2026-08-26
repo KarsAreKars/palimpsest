@@ -43,16 +43,31 @@ const ABBREVIATIONS: Array<[RegExp, string]> = [
  * `<sup>p</sup>∈AssA(M)` (sub/sup runs). Rewrap contiguous sub/sup-tagged
  * runs (plus their immediate symbol neighbors) as inline math so the
  * verbalizer gets a shot at them.
+ *
+ * Two failure modes taught by the Attention paper (contract-tested below):
+ *  - The tag-run must be ADJACENT: tags with plain prose between them
+ *    (`d<sup>k</sup> … 100 chars of sentence … d<sup>k</sup>`) are two
+ *    separate math spans. A run only extends across a gap of ≤3 math-connector
+ *    chars (operators, digits, punctuation, single letters, space).
+ *  - Footnote markers (`<sup>∗</sup>`, `<sup>4</sup>` in author lists and
+ *    paragraph starts) are furniture, not math: dropped entirely.
  */
-const rewrapSubSupMath = (text: string): string => {
-  // <sup>x</sup> / <sub>x</sub> runs, optionally chained: unwrap tags and
-  // wrap the run in $…$. Chained runs like <sup>a</sup><sub>b</sub> collapse
-  // into a single math span.
-  return text.replace(
-    /(?:<\/?(?:sup|sub)>[^$<]*?)+(?:<\/(?:sup|sub)>)/g,
-    (match) => `$${match.replace(/<\/?(?:sup|sub)>/g, '')}$`,
-  );
-};
+const FOOTNOTE_MARKERS = /^[\d*∗†‡§⁂]+$/;
+const SUBSUP_RUN =
+  /<su[bp]>[^$<]*?<\/su[bp]>(?:[0-9a-zA-Z=+^{}(),.\- ]{0,3}<su[bp]>[^$<]*?<\/su[bp]>)*/g;
+
+const rewrapSubSupMath = (text: string): string =>
+  text.replace(SUBSUP_RUN, (match) => {
+    const inner = match.replace(/<\/?su[bp]>/g, '').trim();
+    // Footnote/affiliation markers: visual furniture, never spoken.
+    if (FOOTNOTE_MARKERS.test(inner.replace(/\s+/g, ''))) return ' ';
+    return `$${inner}$`;
+  });
+
+/** Strip HTML page anchors and other stray inline tags Marker leaves behind
+ *  (`<span id="page-3-1"></span>`) — they are never speech. Runs a second
+ *  time after rewrapSubSupMath so spans freed by math rewrapping go too. */
+const stripHtmlTags = (text: string): string => text.replace(/<\/?(?:span|a|div|br|p)[^>]*>/g, '');
 
 /** Drop QED glyph swaps (¥, ■, ∎) — visual punctuation, not speech. */
 const dropQedGlyphs = (text: string): string => text.replace(/[¥■∎]/g, '');
@@ -65,9 +80,17 @@ const normalizeTypography = (text: string): string =>
     .replace(/\.\.\./g, '…')
     .replace(/\s+—\s+/g, ' — ');
 
-/** Strip leftover HTML comments and stray empty emphasis markers. */
+/** Strip leftover HTML comments, stray empty emphasis markers, and inline
+ *  citation links — `[\[3\]](#page-9-3)` defeats the markdown-link stripper
+ *  with its escaped brackets, and a bracketed number is reference furniture,
+ *  not speech. */
 const stripResidualMarkup = (text: string): string =>
-  text.replace(/<!--[\s\S]*?-->/g, '').replace(/(\*\*|__)(?=\s|$)/g, '');
+  text
+    .replace(/<!--[\s\S]*?-->/g, '')
+    .replace(/(\*\*|__)(?=\s|$)/g, '')
+    .replace(/\s*\[?\\?\[(\d+)\\?\]\]?\([^)]*\)/g, ' ')
+    .replace(/\s+\[(\d+)\](?!\()/g, ' ')
+    .replace(/ +([.,;:!?])/g, '$1'); // removals must not strand a space before punctuation
 
 /** True when a block is pure citation clutter: "[12] [13] p. 44" etc.,
  *  or a bibliography entry: "[12] Atiyah, MacDonald (1969) pp. 44". */
@@ -92,6 +115,7 @@ export const sanitizeProse = (text: string): string => {
   let out = text;
   out = stripResidualMarkup(out);
   out = rewrapSubSupMath(out);
+  out = stripHtmlTags(out);
   out = dropQedGlyphs(out);
   out = normalizeTypography(out);
   for (const [pattern, replacement] of ABBREVIATIONS) {
