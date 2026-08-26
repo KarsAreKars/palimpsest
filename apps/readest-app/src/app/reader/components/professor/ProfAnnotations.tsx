@@ -2,28 +2,28 @@
  * ProfAnnotations — the professor's pen (HP-2, hey_prof_integration_plan §2).
  *
  * Draws the annotation set from the professor bus onto the foliate
- * Overlayer SVG of the relevant PDF page. Integration path (mirrors
- * Annotator/globalAnnotations, the established pattern):
+ * Overlayer SVG of the relevant PDF page.
  *
- *   view.renderer.getContents() → { index, doc, overlayer } per rendered
- *   section (= PDF page). The overlayer is the foliate Overlayer the VIEW
- *   attached; its `element` is an SVG in the page's DISPLAY coordinate
- *   space. Marker bboxes are PDF points (top-left origin) at scale 1, so
- *   on-screen position = bbox × the iframe document's --total-scale-factor.
- *
- *   foliate's Overlayer.redraw() only re-renders its own registered
- *   annotations, so our marks survive it — but their coordinates would go
- *   stale after zoom. We therefore wrap redraw once per overlayer instance
- *   and re-derive positions from the manifest bboxes after every foliate
- *   redraw. Content-anchored, never pixels.
+ * Geometry (A5, DOM-anchored): marks anchor to LIVE DOM rects, not
+ * bbox × scale-factor math. Blocks with text are located in the PDF.js
+ * text layer (normalized substring search — the same machinery as the
+ * narration highlight), and an affine map bbox → svg-space is fitted from
+ * those anchors per page. Text-less blocks (equations-as-images,
+ * diagrams) go through the calibrated map; a page with zero anchors falls
+ * back to raw bbox × --total-scale-factor. Positions re-derive after
+ * every foliate redraw, so ink survives zoom and page turns.
  *
  * The svg stays pointer-events:none throughout: click-to-speak owns the page.
  */
 import React, { useCallback, useEffect, useRef, useSyncExternalStore } from 'react';
 import katex from 'katex';
 import { useReaderStore } from '@/store/readerStore';
+import { useBookDataStore } from '@/store/bookDataStore';
+import { useEnv } from '@/context/EnvContext';
 import { getNarration } from '@/services/narration/speakMode';
-import { getPageBlocks, type HpubBlock } from '@/services/narration';
+import { getPageBlocks, type HpubBlock, type HpubManifest } from '@/services/narration';
+import { getDir } from '@/utils/book';
+import { findSpanRange } from '@/services/narration/highlight';
 import type { ProfessorAnnotation } from '@/services/professor/annotations';
 import {
   clearProfessorAnnotations,
@@ -46,6 +46,7 @@ interface SectionContent {
   overlayer?: OverlayerLike;
 }
 
+/** Fallback scale when a page has no text anchors at all. */
 const scaleFor = (doc: Document): number => {
   const v = Number.parseFloat(doc.documentElement.style.getPropertyValue('--total-scale-factor'));
   return Number.isFinite(v) && v > 0 ? v : 1;
@@ -61,27 +62,130 @@ const el = <K extends keyof SVGElementTagNameMap>(
   return node;
 };
 
-const rectOf = (b: HpubBlock, s: number) => ({
-  x: b.bbox[0] * s,
-  y: b.bbox[1] * s,
-  w: (b.bbox[2] - b.bbox[0]) * s,
-  h: (b.bbox[3] - b.bbox[1]) * s,
-  cx: ((b.bbox[0] + b.bbox[2]) / 2) * s,
-  cy: ((b.bbox[1] + b.bbox[3]) / 2) * s,
-});
+interface Rect {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  cx: number;
+  cy: number;
+}
+
+/** svg-space = iframeRect + iframeViewRect − svgRect: span/canvas rects are
+ *  iframe-viewport space; the SVG lives in the TOP document (shadow-DOM
+ *  frame wrapper). The iframe element's own rect bridges the two. */
+const svgSpace = (doc: Document, svg: SVGSVGElement) => {
+  const frameEl = doc.defaultView?.frameElement as HTMLElement | null;
+  if (!frameEl) return null;
+  const fb = frameEl.getBoundingClientRect();
+  const sb = svg.getBoundingClientRect();
+  return { dx: fb.left - sb.left, dy: fb.top - sb.top };
+};
+
+/** Exact top-left + first-line extent of a block's text in the PDF.js text
+ *  layer, converted into the overlayer SVG's coordinate space. */
+const findDomAnchor = (doc: Document, svg: SVGSVGElement, textHead: string) => {
+  const spans = Array.from(doc.querySelectorAll('.textLayer span')) as HTMLElement[];
+  if (spans.length === 0) return null;
+  const conv = svgSpace(doc, svg);
+  if (!conv) return null;
+  const range = findSpanRange(
+    spans.map((s) => s.textContent ?? ''),
+    textHead,
+  );
+  if (!range) return null;
+  let l = Infinity;
+  let t = Infinity;
+  let r = -Infinity;
+  let b = -Infinity;
+  for (let i = range.start; i <= range.end; i++) {
+    const br = spans[i]!.getBoundingClientRect();
+    l = Math.min(l, br.left);
+    t = Math.min(t, br.top);
+    r = Math.max(r, br.right);
+    b = Math.max(b, br.bottom);
+  }
+  if (!Number.isFinite(l) || r - l < 1 || b - t < 1) return null;
+  return {
+    x: conv.dx + l,
+    y: conv.dy + t,
+    w: r - l,
+    h: b - t,
+  };
+};
+
+/**
+ * Page geometry: exact DOM anchors where text exists + median-offset map
+ * for everything else.
+ *
+ * The naive bbox × scale math breaks two ways: the page sits at an unknown
+ * offset inside the frame wrapper (centering margins), and duplicate text
+ * heads (two "Definition — Given two ideals…" blocks on one page) poison a
+ * least-squares fit. The median offset is immune to both: scale comes from
+ * --total-scale-factor, and the offset is the MEDIAN of
+ * (domTopLeft − scale × bboxTopLeft) across anchored blocks — a few wrong
+ * anchors don't move it. Blocks with a DOM anchor use its exact x/y.
+ */
+interface PageGeometry {
+  s: number;
+  bx: number;
+  by: number;
+  anchors: Map<string, { x: number; y: number }>;
+}
+
+const median = (xs: number[]): number => {
+  const sorted = [...xs].sort((a, b) => a - b);
+  const mid = Math.floor(sorted.length / 2);
+  return sorted.length % 2 ? sorted[mid]! : (sorted[mid - 1]! + sorted[mid]!) / 2;
+};
+
+const buildPageGeometry = (
+  doc: Document,
+  svg: SVGSVGElement,
+  blocks: Map<string, HpubBlock>,
+): PageGeometry => {
+  const s = scaleFor(doc);
+  const anchors = new Map<string, { x: number; y: number }>();
+  const offX: number[] = [];
+  const offY: number[] = [];
+  for (const b of blocks.values()) {
+    const head = b.text_head ?? '';
+    if (head.length < 15) continue;
+    const anchor = findDomAnchor(doc, svg, head);
+    if (!anchor) continue;
+    anchors.set(b.id, { x: anchor.x, y: anchor.y });
+    offX.push(anchor.x - s * b.bbox[0]);
+    offY.push(anchor.y - s * b.bbox[1]);
+  }
+  return {
+    s,
+    bx: offX.length ? median(offX) : 0,
+    by: offY.length ? median(offY) : 0,
+    anchors,
+  };
+};
+
+const rectOf = (b: HpubBlock, g: PageGeometry): Rect => {
+  const anchor = g.anchors.get(b.id);
+  const x = anchor ? anchor.x : g.s * b.bbox[0] + g.bx;
+  const y = anchor ? anchor.y : g.s * b.bbox[1] + g.by;
+  const w = g.s * (b.bbox[2] - b.bbox[0]);
+  const h = g.s * (b.bbox[3] - b.bbox[1]);
+  return { x, y, w, h, cx: x + w / 2, cy: y + h / 2 };
+};
 
 const drawOne = (
   svg: SVGSVGElement,
   a: ProfessorAnnotation,
   blocks: Map<string, HpubBlock>,
-  s: number,
+  g: PageGeometry,
   page: { w: number; h: number },
 ): void => {
   switch (a.kind) {
     case 'highlight': {
       const b = blocks.get(a.blockId);
       if (!b) return;
-      const r = rectOf(b, s);
+      const r = rectOf(b, g);
       svg.append(
         el('rect', {
           x: String(r.x - 2),
@@ -97,7 +201,7 @@ const drawOne = (
     case 'box': {
       const b = blocks.get(a.blockId);
       if (!b) return;
-      const r = rectOf(b, s);
+      const r = rectOf(b, g);
       svg.append(
         el('rect', {
           x: String(r.x - 4),
@@ -115,7 +219,7 @@ const drawOne = (
     case 'point': {
       const b = blocks.get(a.blockId);
       if (!b) return;
-      const r = rectOf(b, s);
+      const r = rectOf(b, g);
       const dot = el('circle', {
         cx: String(r.cx),
         cy: String(r.cy),
@@ -144,8 +248,8 @@ const drawOne = (
       const from = blocks.get(a.fromBlockId);
       const to = blocks.get(a.toBlockId);
       if (!from || !to) return;
-      const f = rectOf(from, s);
-      const t = rectOf(to, s);
+      const f = rectOf(from, g);
+      const t = rectOf(to, g);
       // Edge-to-edge: start/end on the block borders along the center line,
       // so the stroke never crosses the ink it's connecting.
       const edge = (r: ReturnType<typeof rectOf>, towardX: number, towardY: number) => {
@@ -206,7 +310,7 @@ const drawOne = (
     case 'write': {
       const b = blocks.get(a.anchorBlockId);
       if (!b) return;
-      const r = rectOf(b, s);
+      const r = rectOf(b, g);
       let mathml = '';
       try {
         mathml = katex.renderToString(a.latex, { output: 'mathml', throwOnError: false });
@@ -283,7 +387,38 @@ const drawOne = (
 
 const ProfAnnotations: React.FC<{ bookKey: string }> = ({ bookKey }) => {
   const getView = useReaderStore((s) => s.getView);
+  const { appService } = useEnv();
+  const getBookData = useBookDataStore((s) => s.getBookData);
   const patchedRef = useRef(new WeakSet<OverlayerLike>());
+  const redrawRef = useRef<() => void>(() => {});
+  // The pen must not depend on a live narration session: load the manifest
+  // straight from the book directory when the controller hasn't built one.
+  const manifestRef = useRef<HpubManifest | null>(null);
+  const manifestLoadingRef = useRef(false);
+
+  const ensureManifest = useCallback((): void => {
+    if (manifestRef.current || manifestLoadingRef.current) return;
+    const narrationManifest = getNarration(bookKey)?.controller?.manifest;
+    if (narrationManifest) {
+      manifestRef.current = narrationManifest;
+      return;
+    }
+    const book = getBookData(bookKey)?.book;
+    if (!appService || !book) return;
+    manifestLoadingRef.current = true;
+    void (async () => {
+      try {
+        const raw = await appService.readFile(`${getDir(book)}/manifest.json`, 'Books', 'text');
+        const text = typeof raw === 'string' ? raw : new TextDecoder().decode(raw);
+        manifestRef.current = JSON.parse(text) as HpubManifest;
+      } catch {
+        manifestRef.current = null;
+      } finally {
+        manifestLoadingRef.current = false;
+        redrawRef.current();
+      }
+    })();
+  }, [appService, bookKey, getBookData]);
 
   const annotationSet = useSyncExternalStore(subscribeProfessorAnnotations, () =>
     getProfessorAnnotations(bookKey),
@@ -296,7 +431,8 @@ const ProfAnnotations: React.FC<{ bookKey: string }> = ({ bookKey }) => {
 
   const drawInto = useCallback(
     (index: number) => {
-      const hit = sections().find((c) => c.index === index && c.doc && c.overlayer?.element);
+      const all = sections();
+      const hit = all.find((c) => c.index === index && c.doc && c.overlayer?.element);
       if (!hit?.overlayer || !hit.doc) return false;
       const svg = hit.overlayer.element;
       svg.style.pointerEvents = 'none';
@@ -305,15 +441,24 @@ const ProfAnnotations: React.FC<{ bookKey: string }> = ({ bookKey }) => {
 
       const set = getProfessorAnnotations(bookKey);
       if (!set || set.page !== index + 1) return true;
-      const controller = getNarration(bookKey)?.controller;
-      if (!controller) return true;
-      const blocks = new Map(getPageBlocks(controller.manifest, set.page).map((b) => [b.id, b]));
-      const s = scaleFor(hit.doc);
-      const page = {
-        w: hit.doc.documentElement.clientWidth || hit.doc.body?.clientWidth || 0,
-        h: hit.doc.documentElement.clientHeight || hit.doc.body?.clientHeight || 0,
-      };
-      for (const a of set.annotations) drawOne(svg, a, blocks, s, page);
+      const manifest = getNarration(bookKey)?.controller?.manifest ?? manifestRef.current;
+      if (!manifest) {
+        ensureManifest();
+        return true;
+      }
+      const blocks = new Map(getPageBlocks(manifest, set.page).map((b) => [b.id, b]));
+      const g = buildPageGeometry(hit.doc, svg, blocks);
+      const sb = svg.getBoundingClientRect();
+      // Caption baseline: the bottom of the page SHEET (canvas), not the
+      // wrapper — the iframe centers the sheet with margins, and a caption
+      // below the sheet floats over reader chrome.
+      const conv = svgSpace(hit.doc, svg);
+      const canvas = hit.doc.querySelector('canvas');
+      const sheetBottom = canvas
+        ? canvas.getBoundingClientRect().bottom + (conv?.dy ?? 0)
+        : sb.height;
+      const page = { w: sb.width, h: Math.min(sheetBottom, sb.height) };
+      for (const a of set.annotations) drawOne(svg, a, blocks, g, page);
       return true;
     },
     [bookKey, sections],
@@ -347,8 +492,9 @@ const ProfAnnotations: React.FC<{ bookKey: string }> = ({ bookKey }) => {
 
   // React to new annotation sets and to foliate (re)rendering sections.
   useEffect(() => {
+    ensureManifest();
     redrawAll();
-  }, [annotationSet, redrawAll]);
+  }, [annotationSet, redrawAll, ensureManifest]);
 
   useEffect(() => {
     // Test/probe hook (same pattern as __palimpsestNarration): lets the e2e
@@ -359,8 +505,15 @@ const ProfAnnotations: React.FC<{ bookKey: string }> = ({ bookKey }) => {
       clear: () => clearProfessorAnnotations(bookKey),
     };
 
-    const view = getView(bookKey) as unknown as EventTarget | null;
+    const view = getView(bookKey) as unknown as (EventTarget & { renderer?: EventTarget }) | null;
     const onRelocate = () => redrawAll();
+    // NB: 'create-overlayer' is dispatched on the RENDERER and the view does
+    // NOT re-dispatch it — listen on view.renderer directly. After a
+    // text-layer rebuild (zoom/font load) foliate REMOVES the old overlayer
+    // element and re-emits, so our marks must re-draw into the fresh element
+    // every time. The view's own attach listener was registered at open()
+    // (before this one), so the fresh overlayer is already live in
+    // getContents() when this handler runs.
     const onCreateOverlay = (e: Event) => {
       const index = (e as CustomEvent<{ index?: number }>).detail?.index;
       if (typeof index === 'number') {
@@ -369,12 +522,13 @@ const ProfAnnotations: React.FC<{ bookKey: string }> = ({ bookKey }) => {
       }
     };
     view?.addEventListener('relocate', onRelocate);
-    view?.addEventListener('create-overlay', onCreateOverlay);
+    view?.renderer?.addEventListener('create-overlayer', onCreateOverlay);
     // Sections may already be live before this component mounted.
+    ensureManifest();
     redrawAll();
     return () => {
       view?.removeEventListener('relocate', onRelocate);
-      view?.removeEventListener('create-overlay', onCreateOverlay);
+      view?.renderer?.removeEventListener('create-overlayer', onCreateOverlay);
     };
   }, [bookKey, getView, redrawAll, ensurePatched, drawInto]);
 
