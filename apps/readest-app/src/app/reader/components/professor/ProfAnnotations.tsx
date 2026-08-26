@@ -21,7 +21,7 @@ import { useReaderStore } from '@/store/readerStore';
 import { useBookDataStore } from '@/store/bookDataStore';
 import { useEnv } from '@/context/EnvContext';
 import { getNarration } from '@/services/narration/speakMode';
-import { getPageBlocks, type HpubBlock, type HpubManifest } from '@/services/narration';
+import { type HpubBlock, type HpubManifest } from '@/services/narration';
 import { getDir } from '@/utils/book';
 import { findSpanRange } from '@/services/narration/highlight';
 import type { ProfessorAnnotation } from '@/services/professor/annotations';
@@ -452,7 +452,13 @@ const ProfAnnotations: React.FC<{ bookKey: string }> = ({ bookKey }) => {
       for (const node of Array.from(svg.querySelectorAll(`[${MARK_ATTR}]`))) node.remove();
 
       const set = getProfessorAnnotations(bookKey);
-      if (!set || set.page !== index + 1) return true;
+      if (!set) return true;
+      // Per-annotation pages (self-describing block ids) beat the set's
+      // primary page: in a spread the model may mark both leaves.
+      const mine = set.annotations.filter(
+        (a) => (('page' in a ? a.page : undefined) ?? set.page) === index + 1,
+      );
+      if (mine.length === 0) return true;
       // Pre-lap (A5): a pending set (answer still streaming) draws faint
       // with a slow pulse; the completed set snaps to full ink. The
       // transition makes the snap visible rather than a hard cut.
@@ -463,7 +469,9 @@ const ProfAnnotations: React.FC<{ bookKey: string }> = ({ bookKey }) => {
         ensureManifest();
         return true;
       }
-      const blocks = new Map(getPageBlocks(manifest, set.page).map((b) => [b.id, b]));
+      const blocks = new Map(
+        (manifest.alignment ?? []).flatMap((al) => al.blocks ?? []).map((b) => [b.id, b]),
+      );
       const g = buildPageGeometry(hit.doc, svg, blocks);
       const sb = svg.getBoundingClientRect();
       // Caption baseline: the bottom of the page SHEET (canvas), not the
@@ -475,7 +483,7 @@ const ProfAnnotations: React.FC<{ bookKey: string }> = ({ bookKey }) => {
         ? canvas.getBoundingClientRect().bottom + (conv?.dy ?? 0)
         : sb.height;
       const page = { w: sb.width, h: Math.min(sheetBottom, sb.height) };
-      for (const a of set.annotations) drawOne(svg, a, blocks, g, page);
+      for (const a of mine) drawOne(svg, a, blocks, g, page);
       return true;
     },
     [bookKey, sections],

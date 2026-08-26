@@ -10,7 +10,6 @@
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { getNarration } from '@/services/narration/speakMode';
-import { getPageBlocks } from '@/services/narration';
 import { getBookProgress } from '@/store/readerProgressStore';
 import { useSettingsStore } from '@/store/settingsStore';
 import { useReaderStore } from '@/store/readerStore';
@@ -22,6 +21,7 @@ import {
   parseAnnotations,
   stripAnnotations,
   validateAnnotations,
+  withAnnotationPages,
   type ProfessorAnnotation,
 } from '@/services/professor/annotations';
 import { setProfessorAnnotations } from '@/services/professor/annotationBus';
@@ -174,15 +174,29 @@ export const useProfessor = ({ bookKey }: { bookKey: string }) => {
         );
         return;
       }
-      const page = (getBookProgress(bookKey)?.index ?? 0) + 1;
+      // Which pages are actually on screen? In two-page spread mode the
+      // progress index points at one leaf while the user is often reading
+      // the other — the professor must see (and draw on) BOTH.
+      const view = getView(bookKey);
+      const visiblePages = ((view?.renderer?.getContents?.() ?? []) as { index?: number }[])
+        .map((c) => (c.index ?? -1) + 1)
+        .filter((p) => p > 0)
+        .sort((a, b) => a - b);
+      const page = visiblePages[0] ?? (getBookProgress(bookKey)?.index ?? 0) + 1;
+      const extraPages = visiblePages.slice(1);
       const pack = buildContextPack({
         md: controller.md,
         manifest: controller.manifest,
         page,
+        extraPages,
         currentUnit: controller.player.currentUnit,
         recentExchanges: getExchanges(bookKey),
         conceptStates: getLearner().concept_states,
       });
+      // Ink validation runs against the WHOLE manifest, not one page —
+      // block ids are self-describing ("/page/N/…") and the pen honors
+      // the id's own page, so a mark for the other spread leaf lands.
+      const allBlocks = (controller.manifest.alignment ?? []).flatMap((a) => a.blocks ?? []);
 
       abortRef.current?.abort();
       const aborter = new AbortController();
@@ -207,9 +221,12 @@ export const useProfessor = ({ bookKey }: { bookKey: string }) => {
           (a) => !['page', 'concept', 'qkind'].includes(a.kind),
         );
         if (parsed.length <= inkPublished) return;
-        const blocks = getPageBlocks(controller.manifest, page);
-        const valid = validateAnnotations(parsed, blocks);
-        if (valid.length === 0) return;
+        const valid = withAnnotationPages(validateAnnotations(parsed, allBlocks));
+        if (valid.length === 0) {
+          if (parsed.length > 0)
+            console.warn('[professor] streaming ink parsed but nothing validated:', parsed);
+          return;
+        }
         inkPublished = parsed.length;
         setProfessorAnnotations(bookKey, { page, annotations: valid, pending: true });
       };
@@ -248,10 +265,14 @@ export const useProfessor = ({ bookKey }: { bookKey: string }) => {
             if (jump && targetPage === jump.page && jump.page !== page) {
               Promise.resolve(getView(bookKey)?.goTo?.(jump.page - 1)).catch(() => undefined);
             }
-            const blocks = getPageBlocks(controller.manifest, targetPage);
-            const annotations = validateAnnotations(parsed, blocks).filter(
+            const annotations = withAnnotationPages(validateAnnotations(parsed, allBlocks)).filter(
               (a) => a.kind !== 'page' && a.kind !== 'concept' && a.kind !== 'qkind',
             );
+            if (
+              parsed.filter((a) => !['page', 'concept', 'qkind'].includes(a.kind)).length > 0 &&
+              annotations.length === 0
+            )
+              console.warn('[professor] answer carried ink tags but none validated:', parsed);
             // The strike: pending marks snap to full ink.
             setProfessorAnnotations(bookKey, { page: targetPage, annotations, pending: false });
 

@@ -31,15 +31,34 @@
 import type { HpubBlock } from '@/services/narration';
 
 export type ProfessorAnnotation =
-  | { kind: 'point'; blockId: string }
-  | { kind: 'highlight'; blockId: string }
-  | { kind: 'box'; blockId: string }
-  | { kind: 'arrow'; fromBlockId: string; toBlockId: string }
-  | { kind: 'write'; anchorBlockId: string; latex: string }
+  | { kind: 'point'; blockId: string; page?: number }
+  | { kind: 'highlight'; blockId: string; page?: number }
+  | { kind: 'box'; blockId: string; page?: number }
+  | { kind: 'arrow'; fromBlockId: string; toBlockId: string; page?: number }
+  | { kind: 'write'; anchorBlockId: string; latex: string; page?: number }
   | { kind: 'caption'; text: string }
   | { kind: 'page'; page: number }
   | { kind: 'concept'; name: string }
   | { kind: 'qkind'; qkind: string };
+
+/** Block ids are self-describing: "/page/3/Equation/6" → page 3. The pen
+ *  honors the id's own page, so marks land right even in a two-page spread
+ *  where the "current" page is the other leaf. */
+export const pageOfBlockId = (id: string): number | null => {
+  const m = /^\/page\/(\d+)\//.exec(id);
+  return m ? parseInt(m[1]!, 10) : null;
+};
+
+/** Attach each drawable annotation's page (from its block id) in place of
+ *  the publisher's guess. Call after validation (ids are already repaired). */
+export const withAnnotationPages = (annotations: ProfessorAnnotation[]): ProfessorAnnotation[] =>
+  annotations.map((a) => {
+    if (a.kind === 'arrow') return { ...a, page: pageOfBlockId(a.fromBlockId) ?? a.page };
+    if (a.kind === 'point' || a.kind === 'highlight' || a.kind === 'box')
+      return { ...a, page: pageOfBlockId(a.blockId) ?? a.page };
+    if (a.kind === 'write') return { ...a, page: pageOfBlockId(a.anchorBlockId) ?? a.page };
+    return a;
+  });
 
 const TAG_RE = /\[(POINT|HIGHLIGHT|BOX|ARROW|WRITE|CAPTION|PAGE|CONCEPT|QKIND):([^\]\n]*)\]/g;
 

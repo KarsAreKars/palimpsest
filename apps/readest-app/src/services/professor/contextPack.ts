@@ -58,6 +58,10 @@ export function buildContextPack(args: {
   manifest: HpubManifest;
   /** 1-based page. */
   page: number;
+  /** Other pages visible alongside the primary one (the second leaf of a
+   *  two-page spread). Their annotatable blocks are included so the model
+   *  can point at anything on screen. */
+  extraPages?: number[];
   currentUnit?: NarrationUnit | null;
   recentExchanges?: ProfessorExchange[];
   conceptStates?: Record<string, ConceptState>;
@@ -67,6 +71,7 @@ export function buildContextPack(args: {
     md,
     manifest,
     page,
+    extraPages = [],
     currentUnit,
     recentExchanges = [],
     conceptStates = {},
@@ -106,11 +111,13 @@ export function buildContextPack(args: {
     page_class: entry?.page_class ?? null,
     excerpt,
     excerpt_truncated: truncated,
-    blocks: getPageBlocks(manifest, page).map((b) => ({
-      id: b.id,
-      type: b.type,
-      text_head: (b.text_head ?? '').slice(0, 80),
-    })),
+    blocks: [page, ...extraPages].flatMap((p) =>
+      getPageBlocks(manifest, p).map((b) => ({
+        id: b.id,
+        type: b.type,
+        text_head: (b.text_head ?? '').slice(0, 80),
+      })),
+    ),
     chapter_context: chapterContext,
     recent_exchanges: recentExchanges.slice(-2),
     concept_states: Object.fromEntries(
