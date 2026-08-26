@@ -45,7 +45,7 @@ export interface ExtractionStatus {
   detail?: string;
   attempts: number;
   updatedAt: number;
-  /** Live progress for `running` jobs: 1..5 mirrors the sidecar's stage log.
+  /** Live progress for `running` jobs: 1..6 mirrors the sidecar's stage log.
    *  In-memory only (event bus), never persisted. */
   stage?: number;
   stageDetail?: string;
@@ -61,7 +61,7 @@ const MAX_ATTEMPTS = 3;
  * — repair must not start a second Marker beside it. */
 const RUNNING_STALE_MS = 30 * 60 * 1000;
 /** Sidecar stderr progress lines: `[make_hpub] N/5 stage title…` */
-const STAGE_RE = /^\[make_hpub\]\s+(\d)\/5\s+(.*)$/;
+const STAGE_RE = /^\[make_hpub\]\s+(\d)\/6\s+(.*)$/;
 
 export const isExtractionAvailable = (): boolean => isTauriAppPlatform();
 

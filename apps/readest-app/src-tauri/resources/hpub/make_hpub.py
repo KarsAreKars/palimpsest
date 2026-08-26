@@ -20,8 +20,10 @@ Requires the marker-pdf environment (marker 2.x, pypdfium2, pdftext).
 """
 import argparse
 import json
+import os
 import re
 import sys
+import urllib.request
 import zipfile
 from pathlib import Path
 
@@ -252,6 +254,116 @@ def count_md_math_spans(md_text: str) -> int:
     display = len(re.findall(r"\$\$[\s\S]+?\$\$", md_text))
     inline = len(re.findall(r"(?<!\$)\$[^$\n]+\$(?!\$)", md_text))
     return display + inline
+
+
+
+CLEANUP_CHUNK_CHARS = 4000
+
+CLEANUP_SYSTEM = """You are a precision cleanup pass for machine-extracted Markdown from a PDF book. Repair ONLY mechanical extraction damage:
+- broken LaTeX: unbalanced $ or $$ delimiters, commands split across lines (\\frac\n{x}), mangled sub/superscripts — rewrite them as correct inline $...$ or display $$...$$ math
+- line-break hyphenation: rejoin words split as "hy- phen" across lines
+- welded citation clutter: markers like [3], (12), [14,2] fused into prose — drop the marker, keep the prose
+- duplicated running headers/footers and page numbers repeated mid-text — remove them
+- broken pipe-table rows from equations — restore as display math when the content is an equation
+Hard rules: never summarize, never reorder, never delete real content, never add commentary. Keep every heading, image reference, and paragraph. Output ONLY the cleaned Markdown — no preamble, no fences."""
+
+
+def llm_config() -> dict | None:
+    key = os.environ.get("PALIMPSEST_LLM_API_KEY")
+    if not key:
+        return None
+    return {
+        "key": key,
+        "base": os.environ.get("PALIMPSEST_LLM_BASE_URL", "https://api.openai.com/v1").rstrip("/"),
+        "model": os.environ.get("PALIMPSEST_LLM_MODEL", "gpt-4o-mini"),
+    }
+
+
+def chunk_markdown(md_text: str, target: int = CLEANUP_CHUNK_CHARS) -> list[str]:
+    """Paragraph-boundary chunks that never split inside a $$ ... $$ block."""
+    paras = re.split(r"(\n\n+)", md_text)
+    units = [p for p in paras if p]
+    chunks: list[str] = []
+    cur = ""
+    in_display = False
+    for u in units:
+        if cur and len(cur) + len(u) > target and not in_display:
+            chunks.append(cur)
+            cur = ""
+        cur += u
+        if u.count("$$") % 2 == 1:
+            in_display = not in_display
+    if cur:
+        chunks.append(cur)
+    return chunks
+
+
+def cleanup_chunk_ok(original: str, cleaned: str) -> bool:
+    """A cleanup can only improve cadence/damage, never lose the book."""
+    if not cleaned or len(cleaned.strip()) < 20:
+        return False
+    ratio = len(cleaned) / max(len(original), 1)
+    if not (0.5 <= ratio <= 1.6):
+        return False
+    if cleaned.count("$$") % 2 == 1:
+        return False
+    head = cleaned.strip()[:40].lower()
+    if head.startswith(("i can't", "i cannot", "sorry", "```")):
+        return False
+    return True
+
+
+def llm_cleanup_pass(md_text: str, cfg: dict) -> tuple[str, dict]:
+    chunks = chunk_markdown(md_text)
+    repaired, kept = 0, 0
+    out: list[str] = []
+    for i, chunk in enumerate(chunks):
+        body = json.dumps(
+            {
+                "model": cfg["model"],
+                # No temperature: some models (gpt-5-mini family) 400 on it.
+                "messages": [
+                    {"role": "system", "content": CLEANUP_SYSTEM},
+                    {"role": "user", "content": chunk},
+                ],
+            }
+        ).encode("utf-8")
+        cleaned: str | None = None
+        for _attempt in range(2):
+            try:
+                req = urllib.request.Request(
+                    f"{cfg['base']}/chat/completions",
+                    data=body,
+                    headers={
+                        "Authorization": f"Bearer {cfg['key']}",
+                        "Content-Type": "application/json",
+                    },
+                )
+                with urllib.request.urlopen(req, timeout=180) as resp:
+                    payload = json.loads(resp.read().decode("utf-8"))
+                cleaned = payload["choices"][0]["message"]["content"]
+                break
+            except Exception as e:  # noqa: BLE001 — network/parse failures keep the original
+                detail = ""
+                if hasattr(e, "read"):
+                    try:
+                        detail = " — " + e.read().decode("utf-8")[:200]
+                    except Exception:
+                        pass
+                log(f"cleanup chunk {i + 1}/{len(chunks)} attempt failed: {e}{detail}")
+        if cleaned is not None:
+            cleaned = cleaned.strip()
+            if cleaned.startswith("```"):
+                cleaned = re.sub(r"^```(?:markdown|md)?\s*", "", cleaned)
+                cleaned = re.sub(r"\s*```$", "", cleaned)
+        if cleaned is not None and cleanup_chunk_ok(chunk, cleaned):
+            out.append(cleaned)
+            repaired += 1
+        else:
+            out.append(chunk)
+            kept += 1
+    stats = {"chunks": len(chunks), "repaired": repaired, "kept": kept}
+    return "".join(out), stats
 
 
 def build_manifest(title: str, md_text: str, page_texts: list[str], tree: dict) -> dict:
@@ -545,11 +657,11 @@ def main() -> None:
 
     title = args.title or pdf_path.stem
 
-    log("1/5 text-layer coverage check")
+    log("1/6 text-layer coverage check")
     page_texts = extract_page_texts(str(pdf_path))
     coverage_check(page_texts)
 
-    log(f"2/5 marker extraction ({len(page_texts)} pages — this is the slow part)")
+    log(f"2/6 marker extraction ({len(page_texts)} pages — this is the slow part)")
     try:
         md_text, tree, images = marker_extract(
             str(pdf_path),
@@ -574,10 +686,18 @@ def main() -> None:
     for name in images:
         md_text = md_text.replace(f"]({name})", f"](assets/{name})")
 
-    log("3/5 page alignment + manifest")
+    cfg = llm_config()
+    if cfg:
+        log(f"3/6 llm cleanup pass ({cfg['model']}) — repairing extraction damage")
+        md_text, stats = llm_cleanup_pass(md_text, cfg)
+        log(f"cleanup: {stats['chunks']} chunks, {stats['repaired']} repaired, {stats['kept']} kept as-is")
+    else:
+        log("3/6 llm cleanup pass skipped (no API key configured)")
+
+    log("4/6 page alignment + manifest")
     manifest = build_manifest(title, md_text, page_texts, tree)
 
-    log("4/5 class-aware quality gate (A2)")
+    log("5/6 class-aware quality gate (A2)")
     containment = containment_check(md_text, page_texts, manifest["alignment"])
     log(
         f"containment: prose_mean={containment['prose_mean']} "
@@ -587,7 +707,7 @@ def main() -> None:
     gate_book(manifest, md_text, tree, containment)
     log(f"gate passed: {manifest.get('gate')}")
 
-    log("5/5 writing artifacts")
+    log("6/6 writing artifacts")
     if args.out_dir:
         out_dir = Path(args.out_dir)
         out_dir.mkdir(parents=True, exist_ok=True)

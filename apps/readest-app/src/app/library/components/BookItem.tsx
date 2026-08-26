@@ -104,7 +104,7 @@ const BookItem: React.FC<BookItemProps> = ({
     if (book.format !== 'PDF' || !extractionStatus || extractionStatus.status === 'ok') return null;
     if (extractionStatus.status === 'running') {
       const label = extractionStatus.stage
-        ? _('Converting ({{stage}}/5): {{detail}}', {
+        ? _('Converting ({{stage}}/6): {{detail}}', {
             stage: extractionStatus.stage,
             detail: extractionStatus.stageDetail ?? '',
           })
