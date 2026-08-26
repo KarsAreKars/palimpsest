@@ -21,6 +21,7 @@ import { useReaderStore } from '@/store/readerStore';
 import { useBookDataStore } from '@/store/bookDataStore';
 import { useEnv } from '@/context/EnvContext';
 import { getNarration } from '@/services/narration/speakMode';
+import { nlog, nwarn } from '@/services/narration/log';
 import { type HpubBlock, type HpubManifest } from '@/services/narration';
 import { getDir } from '@/utils/book';
 import { findSpanRange } from '@/services/narration/highlight';
@@ -190,7 +191,8 @@ const drawOne = (
           ? a.anchorBlockId
           : null;
   if (anchorId && !blocks.get(anchorId))
-    console.warn('[PROF-DRAW] anchor block not in manifest map:', anchorId);
+    if (anchorId && !blocks.get(anchorId))
+      nwarn(`[PROF-DRAW] anchor block not in manifest map: ${anchorId}`);
   switch (a.kind) {
     case 'highlight': {
       const b = blocks.get(a.blockId);
@@ -494,8 +496,8 @@ const ProfAnnotations: React.FC<{ bookKey: string }> = ({ bookKey }) => {
         : sb.height;
       const page = { w: sb.width, h: Math.min(sheetBottom, sb.height) };
       for (const a of mine) drawOne(svg, a, blocks, g, page);
-      console.info(
-        `[PROF-DRAW] section ${index + 1}: ${mine.length} annotations → ${svg.querySelectorAll(`[${MARK_ATTR}]`).length} marks (pending=${!!set.pending})`,
+      nlog(
+        `[PROF-DRAW] section ${index + 1}: ${mine.length} annotations → ${svg.querySelectorAll(`[${MARK_ATTR}]`).length} marks pending=${!!set.pending}`,
       );
       return true;
     },
@@ -520,7 +522,11 @@ const ProfAnnotations: React.FC<{ bookKey: string }> = ({ bookKey }) => {
 
   /** Clear every mark on every rendered page, then draw the active page's. */
   const redrawAll = useCallback(() => {
-    for (const c of sections()) {
+    const cs = sections();
+    nlog(
+      `[PROF-DRAW] redrawAll: ${cs.length} sections, ${cs.filter((c) => !!c.overlayer).length} with overlayer`,
+    );
+    for (const c of cs) {
       if (typeof c.index === 'number' && c.overlayer) {
         ensurePatched(c.index);
         drawInto(c.index);
@@ -543,7 +549,6 @@ const ProfAnnotations: React.FC<{ bookKey: string }> = ({ bookKey }) => {
       clear: () => clearProfessorAnnotations(bookKey),
     };
 
-    const view = getView(bookKey) as unknown as (EventTarget & { renderer?: EventTarget }) | null;
     const onRelocate = () => {
       // Contrast settling (A5): ink ghosts while the page moves and snaps
       // back 250ms after motion stops — the eye anchors on the content,
@@ -565,18 +570,45 @@ const ProfAnnotations: React.FC<{ bookKey: string }> = ({ bookKey }) => {
     const onCreateOverlay = (e: Event) => {
       const index = (e as CustomEvent<{ index?: number }>).detail?.index;
       if (typeof index === 'number') {
+        nlog(`[PROF-TRACE] create-overlayer section ${(index ?? 0) + 1}`);
         ensurePatched(index);
         drawInto(index);
       }
     };
-    view?.addEventListener('relocate', onRelocate);
-    view?.renderer?.addEventListener('create-overlayer', onCreateOverlay);
-    // Sections may already be live before this component mounted.
-    ensureManifest();
-    redrawAll();
+    // FooterBar can mount before the foliate view registers in the store —
+    // without a retry the pen would sit listener-less until the next book
+    // open. Poll briefly; log either outcome so the trace always tells.
+    let detach: (() => void) | null = null;
+    let tries = 0;
+    let timer: ReturnType<typeof setInterval> | null = null;
+    const attach = (): boolean => {
+      const view = getView(bookKey) as unknown as (EventTarget & { renderer?: EventTarget }) | null;
+      if (!view?.renderer) return false;
+      view.addEventListener('relocate', onRelocate);
+      view.renderer.addEventListener('create-overlayer', onCreateOverlay);
+      detach = () => {
+        view.removeEventListener('relocate', onRelocate);
+        view.renderer?.removeEventListener('create-overlayer', onCreateOverlay);
+      };
+      nlog(`[PROF-TRACE] pen listeners attached (attempt ${tries + 1})`);
+      // Sections may already be live before we attached.
+      ensureManifest();
+      redrawAll();
+      return true;
+    };
+    if (!attach()) {
+      nlog('[PROF-TRACE] pen: view not ready at mount — polling');
+      timer = setInterval(() => {
+        tries += 1;
+        if (attach() || tries >= 100) {
+          if (timer) clearInterval(timer);
+          if (tries >= 100) nlog('[PROF-TRACE] pen: view never appeared — pen offline');
+        }
+      }, 300);
+    }
     return () => {
-      view?.removeEventListener('relocate', onRelocate);
-      view?.renderer?.removeEventListener('create-overlayer', onCreateOverlay);
+      if (timer) clearInterval(timer);
+      detach?.();
     };
   }, [bookKey, getView, redrawAll, ensurePatched, drawInto]);
 

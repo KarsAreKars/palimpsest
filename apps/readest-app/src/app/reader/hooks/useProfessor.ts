@@ -10,6 +10,7 @@
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { getNarration } from '@/services/narration/speakMode';
+import { nlog } from '@/services/narration/log';
 import { getBookProgress } from '@/store/readerProgressStore';
 import { useSettingsStore } from '@/store/settingsStore';
 import { useReaderStore } from '@/store/readerStore';
@@ -197,12 +198,9 @@ export const useProfessor = ({ bookKey }: { bookKey: string }) => {
       // block ids are self-describing ("/page/N/…") and the pen honors
       // the id's own page, so a mark for the other spread leaf lands.
       const allBlocks = (controller.manifest.alignment ?? []).flatMap((a) => a.blocks ?? []);
-      console.info('[PROF-TRACE] ask', {
-        q: q.slice(0, 60),
-        visiblePages,
-        packBlocks: pack.blocks.length,
-        manifestBlocks: allBlocks.length,
-      });
+      nlog(
+        `[PROF-TRACE] ask q="${q.slice(0, 60)}" visible=${JSON.stringify(visiblePages)} packBlocks=${pack.blocks.length} manifestBlocks=${allBlocks.length}`,
+      );
 
       abortRef.current?.abort();
       const aborter = new AbortController();
@@ -237,12 +235,8 @@ export const useProfessor = ({ bookKey }: { bookKey: string }) => {
           return;
         }
         inkPublished = parsed.length;
-        console.info(
-          '[PROF-TRACE] stream-ink parsed',
-          parsed.length,
-          'valid',
-          valid.length,
-          valid.map((v) => v.kind),
+        nlog(
+          `[PROF-TRACE] stream-ink parsed=${parsed.length} valid=${valid.length} kinds=${valid.map((v) => v.kind).join(',')}`,
         );
         setProfessorAnnotations(bookKey, { page, annotations: valid, pending: true });
       };
@@ -290,9 +284,8 @@ export const useProfessor = ({ bookKey }: { bookKey: string }) => {
               annotations.length === 0
             )
               console.warn('[professor] answer carried ink tags but none validated:', parsed);
-            console.info(
-              `[PROF-TRACE] onDone: ${parsed.length} tags parsed, ${annotations.length} validated, target page ${targetPage}`,
-              JSON.stringify(parsed),
+            nlog(
+              `[PROF-TRACE] onDone parsed=${parsed.length} validated=${annotations.length} targetPage=${targetPage} tags=${JSON.stringify(parsed)}`,
             );
             // The strike: pending marks snap to full ink.
             setProfessorAnnotations(bookKey, { page: targetPage, annotations, pending: false });

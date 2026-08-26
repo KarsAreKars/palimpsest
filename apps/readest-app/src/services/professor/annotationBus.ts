@@ -8,6 +8,7 @@
  * cleared on overlay close. Snapshots are referentially stable so
  * useSyncExternalStore doesn't loop.
  */
+import { nlog } from '@/services/narration/log';
 import type { ProfessorAnnotation } from './annotations';
 
 export interface ProfessorAnnotationSet {
@@ -31,11 +32,17 @@ const emit = (): void => {
 
 export const setProfessorAnnotations = (bookKey: string, set: ProfessorAnnotationSet): void => {
   stateByBook.set(bookKey, set);
+  nlog(
+    `[PROF-TRACE] bus set: page=${set.page} marks=${set.annotations.length} pending=${!!set.pending}`,
+  );
   emit();
 };
 
 export const clearProfessorAnnotations = (bookKey: string): void => {
-  if (stateByBook.delete(bookKey)) emit();
+  if (stateByBook.delete(bookKey)) {
+    nlog('[PROF-TRACE] bus cleared');
+    emit();
+  }
 };
 
 export const getProfessorAnnotations = (bookKey: string): ProfessorAnnotationSet | null =>
