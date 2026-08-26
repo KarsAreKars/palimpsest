@@ -400,8 +400,13 @@ pub fn run() {
 
     let builder = builder.plugin(tauri_plugin_deep_link::init());
 
+    // Palimpsest: no updater — the plugin's pubkey/endpoints pointed at
+    // upstream's release servers (removed with the telemetry strip), and an
+    // updater that phones home violates the local-only constraint anyway.
+    // Keeping the crate registered without config aborts startup on some
+    // tauri-plugin-updater versions, so the registration itself is gone.
     #[cfg(desktop)]
-    let builder = builder.plugin(tauri_plugin_updater::Builder::new().build());
+    let builder = builder;
 
     // Strip invalid geometry from the saved window state before the
     // window-state plugin loads it, so a bad `.window-state.json` (e.g. the
