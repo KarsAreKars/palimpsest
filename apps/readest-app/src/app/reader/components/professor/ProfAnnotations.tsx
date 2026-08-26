@@ -181,6 +181,16 @@ const drawOne = (
   g: PageGeometry,
   page: { w: number; h: number },
 ): void => {
+  const anchorId =
+    a.kind === 'arrow'
+      ? a.fromBlockId
+      : a.kind === 'point' || a.kind === 'highlight' || a.kind === 'box'
+        ? a.blockId
+        : a.kind === 'write'
+          ? a.anchorBlockId
+          : null;
+  if (anchorId && !blocks.get(anchorId))
+    console.warn('[PROF-DRAW] anchor block not in manifest map:', anchorId);
   switch (a.kind) {
     case 'highlight': {
       const b = blocks.get(a.blockId);
@@ -484,6 +494,9 @@ const ProfAnnotations: React.FC<{ bookKey: string }> = ({ bookKey }) => {
         : sb.height;
       const page = { w: sb.width, h: Math.min(sheetBottom, sb.height) };
       for (const a of mine) drawOne(svg, a, blocks, g, page);
+      console.info(
+        `[PROF-DRAW] section ${index + 1}: ${mine.length} annotations → ${svg.querySelectorAll(`[${MARK_ATTR}]`).length} marks (pending=${!!set.pending})`,
+      );
       return true;
     },
     [bookKey, sections],

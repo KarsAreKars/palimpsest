@@ -28,7 +28,7 @@
  *    answer still renders, minus that mark. Never trust, always validate
  *    against the manifest's block list for the page.
  */
-import type { HpubBlock } from '@/services/narration';
+import type { HpubBlock, HpubManifest } from '@/services/narration';
 
 export type ProfessorAnnotation =
   | { kind: 'point'; blockId: string; page?: number }
@@ -41,24 +41,27 @@ export type ProfessorAnnotation =
   | { kind: 'concept'; name: string }
   | { kind: 'qkind'; qkind: string };
 
-/** Block ids are self-describing: "/page/3/Equation/6" → page 3. The pen
- *  honors the id's own page, so marks land right even in a two-page spread
- *  where the "current" page is the other leaf. */
-export const pageOfBlockId = (id: string): number | null => {
-  const m = /^\/page\/(\d+)\//.exec(id);
-  return m ? parseInt(m[1]!, 10) : null;
-};
-
-/** Attach each drawable annotation's page (from its block id) in place of
- *  the publisher's guess. Call after validation (ids are already repaired). */
-export const withAnnotationPages = (annotations: ProfessorAnnotation[]): ProfessorAnnotation[] =>
-  annotations.map((a) => {
-    if (a.kind === 'arrow') return { ...a, page: pageOfBlockId(a.fromBlockId) ?? a.page };
+/** The pen
+ *  honors the id's own page — but the page comes from the MANIFEST, not
+ *  the id text (align.py writes 0-based page numbers inside ids: "/page/3/…"
+ *  can live in alignment page 4 — trusting the id text cost us a silent
+ *  draw-killing off-by-one). Call after validation (ids are repaired). */
+export const withAnnotationPages = (
+  annotations: ProfessorAnnotation[],
+  manifest: HpubManifest,
+): ProfessorAnnotation[] => {
+  const pageOf = new Map<string, number>();
+  for (const al of manifest.alignment ?? [])
+    for (const b of al.blocks ?? []) pageOf.set(b.id, al.page);
+  const lookup = (id: string) => pageOf.get(id);
+  return annotations.map((a) => {
+    if (a.kind === 'arrow') return { ...a, page: lookup(a.fromBlockId) ?? a.page };
     if (a.kind === 'point' || a.kind === 'highlight' || a.kind === 'box')
-      return { ...a, page: pageOfBlockId(a.blockId) ?? a.page };
-    if (a.kind === 'write') return { ...a, page: pageOfBlockId(a.anchorBlockId) ?? a.page };
+      return { ...a, page: lookup(a.blockId) ?? a.page };
+    if (a.kind === 'write') return { ...a, page: lookup(a.anchorBlockId) ?? a.page };
     return a;
   });
+};
 
 const TAG_RE = /\[(POINT|HIGHLIGHT|BOX|ARROW|WRITE|CAPTION|PAGE|CONCEPT|QKIND):([^\]\n]*)\]/g;
 
