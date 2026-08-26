@@ -319,18 +319,29 @@ const drawOne = (
       }
       const width = 260;
       const height = 84;
-      const x = Math.min(r.x + r.w + 14, Math.max(page.w - width - 8, 8));
-      const y = Math.min(Math.max(r.y - 6, 8), Math.max(page.h - height - 8, 8));
-      // Leader line: anchor edge → card edge, so the note reads as attached
-      // to its block even when pushed to the margin.
-      const cardCx = x + 10;
-      const cardCy = y + height / 2;
+      // Prefer the right margin; when the anchor block spans the full text
+      // width (equations do), drop the note below the block instead of
+      // clamping it on top of the content.
+      const rightRoom = page.w - (r.x + r.w + 14);
+      const below = rightRoom < width;
+      const x = below
+        ? Math.min(Math.max(r.x, 8), Math.max(page.w - width - 8, 8))
+        : Math.min(r.x + r.w + 14, Math.max(page.w - width - 8, 8));
+      const y = below
+        ? Math.min(r.y + r.h + 10, Math.max(page.h - height - 8, 8))
+        : Math.min(Math.max(r.y - 6, 8), Math.max(page.h - height - 8, 8));
+      // Leader line: nearest block edge midpoint → card edge midpoint, so
+      // the note reads as attached to its block.
+      const fromX = below ? r.cx : r.x + r.w + 2;
+      const fromY = below ? r.y + r.h + 2 : r.cy;
+      const toX = below ? x + width / 2 : x + 10;
+      const toY = below ? y : y + height / 2;
       svg.append(
         el('line', {
-          x1: String(r.x + r.w + 2),
-          y1: String(r.cy),
-          x2: String(cardCx),
-          y2: String(cardCy),
+          x1: String(fromX),
+          y1: String(fromY),
+          x2: String(toX),
+          y2: String(toY),
           stroke: 'rgba(180, 83, 9, 0.55)',
           'stroke-width': '1.5',
           'stroke-linecap': 'round',
@@ -391,6 +402,7 @@ const ProfAnnotations: React.FC<{ bookKey: string }> = ({ bookKey }) => {
   const getBookData = useBookDataStore((s) => s.getBookData);
   const patchedRef = useRef(new WeakSet<OverlayerLike>());
   const redrawRef = useRef<() => void>(() => {});
+  const settleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // The pen must not depend on a live narration session: load the manifest
   // straight from the book directory when the controller hasn't built one.
   const manifestRef = useRef<HpubManifest | null>(null);
@@ -441,6 +453,11 @@ const ProfAnnotations: React.FC<{ bookKey: string }> = ({ bookKey }) => {
 
       const set = getProfessorAnnotations(bookKey);
       if (!set || set.page !== index + 1) return true;
+      // Pre-lap (A5): a pending set (answer still streaming) draws faint
+      // with a slow pulse; the completed set snaps to full ink. The
+      // transition makes the snap visible rather than a hard cut.
+      svg.style.transition = 'opacity 220ms ease-out';
+      svg.style.opacity = set.pending ? '0.35' : '1';
       const manifest = getNarration(bookKey)?.controller?.manifest ?? manifestRef.current;
       if (!manifest) {
         ensureManifest();
@@ -506,7 +523,17 @@ const ProfAnnotations: React.FC<{ bookKey: string }> = ({ bookKey }) => {
     };
 
     const view = getView(bookKey) as unknown as (EventTarget & { renderer?: EventTarget }) | null;
-    const onRelocate = () => redrawAll();
+    const onRelocate = () => {
+      // Contrast settling (A5): ink ghosts while the page moves and snaps
+      // back 250ms after motion stops — the eye anchors on the content,
+      // not on floating marks. redrawAll re-applies pending/full opacity.
+      for (const c of sections()) {
+        const svg = c.overlayer?.element;
+        if (svg?.querySelector(`[${MARK_ATTR}]`)) svg.style.opacity = '0.2';
+      }
+      if (settleTimerRef.current) clearTimeout(settleTimerRef.current);
+      settleTimerRef.current = setTimeout(() => redrawAll(), 250);
+    };
     // NB: 'create-overlayer' is dispatched on the RENDERER and the view does
     // NOT re-dispatch it — listen on view.renderer directly. After a
     // text-layer rebuild (zoom/font load) foliate REMOVES the old overlayer

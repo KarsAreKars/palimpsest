@@ -14,6 +14,10 @@ export interface ProfessorAnnotationSet {
   /** 1-based PDF page the annotations belong to. */
   page: number;
   annotations: ProfessorAnnotation[];
+  /** Pre-lap: true while the answer is still streaming — the pen draws the
+   *  set faint so ink leads the voice; flipped false when the answer
+   *  completes (the "strike"). */
+  pending?: boolean;
 }
 
 type Listener = () => void;

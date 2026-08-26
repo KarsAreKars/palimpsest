@@ -10,6 +10,8 @@
 import type { AppService } from '@/types/system';
 import type { Book } from '@/types/book';
 import { getDir } from '@/utils/book';
+import { useSettingsStore } from '@/store/settingsStore';
+import { applyDirectorsPass, directorCompleterFromSettings } from './director';
 import {
   buildNarrationScript,
   toNarrationJsonl,
@@ -87,7 +89,19 @@ export const buildNarrationForBook = async (
 
   // TODO(settings): read equationVerbosity from the user's narration settings
   // once the setting ships (plan §4 — default full/announce+speak).
-  const units = await buildNarrationScript(md, manifest);
+  let units = await buildNarrationScript(md, manifest);
+  // The Director's pass (A4): LLM polish of prose cadence for audiobook
+  // feel — once per book, only when an AI provider is configured, always
+  // with per-unit fallback to the deterministic text.
+  const completer = directorCompleterFromSettings(useSettingsStore.getState().settings?.aiSettings);
+  if (completer) {
+    try {
+      units = await applyDirectorsPass(units, completer);
+      console.info('narration: director pass applied');
+    } catch (e) {
+      console.warn('narration: director pass skipped', e);
+    }
+  }
   await appService.writeFile(
     `${dir}/${NARRATION_FILENAME}`,
     'Books',

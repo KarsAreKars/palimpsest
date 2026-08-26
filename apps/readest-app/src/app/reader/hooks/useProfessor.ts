@@ -25,7 +25,7 @@ import {
   type ProfessorAnnotation,
 } from '@/services/professor/annotations';
 import { setProfessorAnnotations } from '@/services/professor/annotationBus';
-import { ProfessorVoice } from '@/services/professor/voice';
+import { ProfessorVoice, holdPartialTag } from '@/services/professor/voice';
 import { PROF_ASK_EVENT } from '@/app/reader/components/notebook/StudyTab';
 import {
   appendExchange,
@@ -156,7 +156,18 @@ export const useProfessor = ({ bookKey }: { bookKey: string }) => {
     async (question: string) => {
       const q = question.trim();
       if (!q) return;
-      const controller = getNarration(bookKey)?.controller;
+      // The narration session loads in the background when the book opens;
+      // a fast ⌥Space can beat it. Wait briefly instead of erroring — the
+      // professor, pen, and voice all hang off this controller.
+      let controller = getNarration(bookKey)?.controller;
+      if (!controller) {
+        setPhase('thinking');
+        const deadline = Date.now() + 15_000;
+        while (!controller && Date.now() < deadline) {
+          await new Promise((r) => setTimeout(r, 250));
+          controller = getNarration(bookKey)?.controller;
+        }
+      }
       if (!controller) {
         setError(
           'The professor is still preparing this book (no text layer yet). Try again once the book has finished importing.',
@@ -183,6 +194,26 @@ export const useProfessor = ({ bookKey }: { bookKey: string }) => {
       setAnswer('');
       setError(null);
 
+      // Pre-lap ink: parse drawing tags as they stream in (they land right
+      // after the sentence they belong to) and publish them pending — the
+      // mark appears while the voice is still on an earlier sentence, then
+      // snaps sharp when the answer completes. Tags held mid-token are
+      // excluded by holdPartialTag, and validation drops hallucinated ids.
+      let streamBuf = '';
+      let inkPublished = 0;
+      const publishStreamingInk = () => {
+        const { safe } = holdPartialTag(streamBuf);
+        const parsed = parseAnnotations(safe).filter(
+          (a) => !['page', 'concept', 'qkind'].includes(a.kind),
+        );
+        if (parsed.length <= inkPublished) return;
+        const blocks = getPageBlocks(controller.manifest, page);
+        const valid = validateAnnotations(parsed, blocks);
+        if (valid.length === 0) return;
+        inkPublished = parsed.length;
+        setProfessorAnnotations(bookKey, { page, annotations: valid, pending: true });
+      };
+
       const aiSettings = useSettingsStore.getState().settings.aiSettings;
       await askProfessor({
         question: q,
@@ -193,6 +224,8 @@ export const useProfessor = ({ bookKey }: { bookKey: string }) => {
           onToken: (t) => {
             setPhase('answering');
             setAnswer((prev) => prev + t);
+            streamBuf += t;
+            if (t.includes(']')) publishStreamingInk();
             voice.push(t); // speaks at the first complete sentence
           },
           onDone: (full, meta) => {
@@ -219,7 +252,8 @@ export const useProfessor = ({ bookKey }: { bookKey: string }) => {
             const annotations = validateAnnotations(parsed, blocks).filter(
               (a) => a.kind !== 'page' && a.kind !== 'concept' && a.kind !== 'qkind',
             );
-            setProfessorAnnotations(bookKey, { page: targetPage, annotations });
+            // The strike: pending marks snap to full ink.
+            setProfessorAnnotations(bookKey, { page: targetPage, annotations, pending: false });
 
             // HP-4 question log (plan §6): fold the exchange into
             // learner.json, refresh the cached concept history, then distill
