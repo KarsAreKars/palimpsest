@@ -72,6 +72,7 @@ export const loadNarration = async (
 export const buildNarrationForBook = async (
   appService: AppService,
   book: Book,
+  opts?: { director?: boolean },
 ): Promise<number | null> => {
   const dir = getDir(book);
   const manifestPath = `${dir}/manifest.json`;
@@ -91,9 +92,13 @@ export const buildNarrationForBook = async (
   // once the setting ships (plan §4 — default full/announce+speak).
   let units = await buildNarrationScript(md, manifest);
   // The Director's pass (A4): LLM polish of prose cadence for audiobook
-  // feel — once per book, only when an AI provider is configured, always
-  // with per-unit fallback to the deterministic text.
-  const completer = directorCompleterFromSettings(useSettingsStore.getState().settings?.aiSettings);
+  // feel — once per book at extraction/import time only (never on the
+  // reader's stale-rebuild path, which must stay offline and instant),
+  // only when an AI provider is configured, always with per-unit fallback
+  // to the deterministic text.
+  const completer = opts?.director
+    ? directorCompleterFromSettings(useSettingsStore.getState().settings?.aiSettings)
+    : null;
   if (completer) {
     try {
       units = await applyDirectorsPass(units, completer);

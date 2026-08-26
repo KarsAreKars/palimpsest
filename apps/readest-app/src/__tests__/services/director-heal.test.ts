@@ -47,9 +47,7 @@ describe.runIf(RUN)('director heal: polish the live Attention narration.jsonl', 
       polished
         .filter((u, i) => u.speak !== units[i]!.speak)
         .slice(0, 12)
-        .map(
-          (u, i) => `BEFORE: ${units.find((x) => x.unit === u.unit)!.speak}\nAFTER:  ${u.speak}\n`,
-        )
+        .map((u) => `BEFORE: ${units.find((x) => x.unit === u.unit)!.speak}\nAFTER:  ${u.speak}\n`)
         .join('\n'),
     );
     console.log(`polished ${changed}/${units.length} units`);

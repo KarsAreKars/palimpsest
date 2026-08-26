@@ -208,7 +208,7 @@ class ExtractionQueue {
             live.stageDetail = 'building spoken script…';
             emitStatus(book, { ...live });
             const { buildNarrationForBook } = await import('@/services/narration');
-            await buildNarrationForBook(appService, book);
+            await buildNarrationForBook(appService, book, { director: true });
           } catch (e) {
             console.warn('narration build failed after extraction', e);
           }
