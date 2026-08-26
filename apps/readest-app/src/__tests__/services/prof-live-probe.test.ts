@@ -30,10 +30,27 @@ describe.runIf(RUN)('professor live probe (gpt-4o-mini via user key)', () => {
     );
     const aiSettings = { ...settingsRaw.aiSettings, enabled: true } as AISettings;
 
-    const pack = buildContextPack({ md, manifest, page: 4 });
+    const pack = buildContextPack({
+      md,
+      manifest,
+      page: 4,
+      extraPages: [5],
+      // Reproduce the failure condition from the user's video: a session
+      // history of prose-only answers that taught the model to stop tagging.
+      recentExchanges: [
+        {
+          q: 'What is the scaling trick?',
+          a: 'The scaling trick stabilizes the gradients during attention calculations. It keeps dot products from growing too large.',
+        },
+        {
+          q: 'Can you point out where it says attention on the page?',
+          a: "The concept of attention is central to multi-head attention. It appears in the text and in the equation defining each head's output.",
+        },
+      ],
+    });
     let answer = '';
     await askProfessor({
-      question: 'Why does scaling the dot products by one over root d_k matter here?',
+      question: 'point at where the scaling by root d_k happens in equation 1',
       pack,
       aiSettings,
       cb: {
@@ -46,7 +63,7 @@ describe.runIf(RUN)('professor live probe (gpt-4o-mini via user key)', () => {
     });
 
     const annotations = parseAnnotations(answer);
-    const blocks = getPageBlocks(manifest, 4);
+    const blocks = [...getPageBlocks(manifest, 4), ...getPageBlocks(manifest, 5)];
     const valid = validateAnnotations(annotations, blocks);
     const dropped = annotations.length - valid.length;
     fs.writeFileSync(

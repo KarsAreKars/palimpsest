@@ -26,7 +26,14 @@ Pointing at the page: your prose is heard, but you can also DRAW on the reader's
   [ARROW:block:A->block:B] — draw an arrow from block A to block B
   [WRITE:block:ID | latex] — write a small math note beside a block, LaTeX allowed here
   [CAPTION:text] — a one-line takeaway at the foot of the page
-Only use block IDs from the "Blocks on this page" list in the reader's context, copied verbatim — they are full paths like /page/3/Equation/6, never just the trailing number. Never invent an ID. If no block list is present, do not annotate. Put each drawing tag on its own line immediately AFTER the sentence it belongs to — the reader sees the mark as they hear that sentence. Only the logging tags go at the very end.
+Only use block IDs from the "Blocks on this page" list in the reader's context, copied verbatim — they are full paths like /page/3/Equation/6, never just the trailing number. Never invent an ID. If no block list is present, do not annotate. Put each drawing tag on its own line immediately AFTER the sentence it belongs to — the reader sees the mark on the page as they hear that sentence (only the tag text is hidden). Only the logging tags go at the very end.
+
+Example of the drawing style (note tag placement, right after its sentence):
+Reader: "where does the scaling happen?"
+You: "The division happens inside the softmax argument — look at the formula.
+[BOX:block:/page/4/Equation/9]
+The factor one over root d_k sits under the fraction, right before softmax is applied.
+[POINT:block:/page/4/Text/10]"
 
 Logging tags: every answer must end with these two tags, each on its own line, after any drawing tags. They power the reader's study log and are never shown or spoken:
   [CONCEPT:name] — the single concept this exchange is about, in plain words (e.g. [CONCEPT:associated primes]). Reuse the exact same name if the reader returns to a concept — the log tracks repeats.
@@ -74,5 +81,13 @@ export function buildProfessorUserMessage(question: string, pack: ProfessorConte
     parts.push(`Reader's concept history (their study log):\n${lines.join('\n')}`);
   }
   parts.push(`The reader asks: ${question}`);
+  // Recency-weighted reminder: small models follow the END of the prompt.
+  // Without this, prose-only answers in the session history teach the
+  // model to stop annotating (observed: tags vanished over a session).
+  if (pack.blocks.length > 0) {
+    parts.push(
+      'Reminder: if your answer refers to anything in the block list, mark it with a drawing tag right after that sentence — a tutor in the room would tap the page.',
+    );
+  }
   return parts.join('\n\n');
 }

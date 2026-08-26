@@ -273,6 +273,9 @@ export const useProfessor = ({ bookKey }: { bookKey: string }) => {
               annotations.length === 0
             )
               console.warn('[professor] answer carried ink tags but none validated:', parsed);
+            console.info(
+              `[professor] ink: ${parsed.length} tags parsed, ${annotations.length} validated (page ${targetPage})`,
+            );
             // The strike: pending marks snap to full ink.
             setProfessorAnnotations(bookKey, { page: targetPage, annotations, pending: false });
 
