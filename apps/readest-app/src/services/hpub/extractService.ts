@@ -48,6 +48,10 @@ export interface ExtractionStatus {
 const STATUS_FILENAME = 'extraction.json';
 /** Cap on automatic repair attempts; a rejected book is never retried. */
 const MAX_ATTEMPTS = 3;
+/** A 'running' status younger than this may belong to a still-alive sidecar
+ * from a previous webview session (Tauri doesn't cancel commands on reload)
+ * — repair must not start a second Marker beside it. */
+const RUNNING_STALE_MS = 30 * 60 * 1000;
 
 export const isExtractionAvailable = (): boolean => isTauriAppPlatform();
 
@@ -234,6 +238,9 @@ export const repairMissingTextLayers = async (
       const status = await readExtractionStatus(appService, book);
       if (status?.status === 'rejected') continue; // permanent — gate decision
       if (status && status.status === 'error' && status.attempts >= MAX_ATTEMPTS) continue;
+      if (status?.status === 'running' && Date.now() - status.updatedAt < RUNNING_STALE_MS) {
+        continue; // a previous session's job may still be alive
+      }
       extractionQueue.enqueue(appService, book);
     } catch (e) {
       console.warn('text-layer repair check failed for', book.title, e);
