@@ -1,5 +1,5 @@
 import clsx from 'clsx';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { MdCheckCircle, MdCheckCircleOutline } from 'react-icons/md';
 import {
   LiaCloudUploadAltSolid,
@@ -25,6 +25,7 @@ import { formatCompactTime } from '@/utils/time';
 import { INDETERMINATE_PROGRESS } from '@/utils/transfer';
 import ReadingProgress from './ReadingProgress';
 import BookCover from '@/components/BookCover';
+import { useExtractionStatus } from '@/services/hpub/useExtractionStatus';
 
 interface BookItemProps {
   book: Book;
@@ -98,6 +99,25 @@ const BookItem: React.FC<BookItemProps> = ({
   // instead of the duration/remaining-time label audiobooks get.
   const episodeCountLabel = _('{{count}} episodes', { count: book.episodeCount ?? 0 });
 
+  const extractionStatus = useExtractionStatus(book);
+  const extractionBadge = useMemo(() => {
+    if (book.format !== 'PDF' || !extractionStatus || extractionStatus.status === 'ok') return null;
+    if (extractionStatus.status === 'running')
+      return { tone: 'running' as const, label: _('Building text layer…'), detail: '' };
+    if (extractionStatus.status === 'rejected') {
+      const label =
+        extractionStatus.reason === 'scanned'
+          ? _('No text layer: scanned PDF')
+          : _('No text layer: quality gate');
+      return { tone: 'failed' as const, label, detail: extractionStatus.detail ?? '' };
+    }
+    return {
+      tone: 'failed' as const,
+      label: _('Text layer failed'),
+      detail: extractionStatus.detail ?? '',
+    };
+  }, [book.format, extractionStatus, _]);
+
   return (
     <div
       role='none'
@@ -154,6 +174,25 @@ const BookItem: React.FC<BookItemProps> = ({
         )}
         {bookSelected && (
           <div className='absolute inset-0 bg-black opacity-30 transition-opacity duration-300'></div>
+        )}
+        {extractionBadge && (
+          // Palimpsest: the text layer is the book's machine half (plan §3).
+          // Surface its build state on the cover so a PDF import never
+          // silently lacks its content.md — running, failed, or rejected.
+          <div
+            className={clsx(
+              'absolute bottom-1 left-1 right-1 flex items-center gap-1 rounded px-1.5 py-1',
+              'text-[0.6rem] leading-tight text-white',
+              extractionBadge.tone === 'running' && 'bg-black/60',
+              extractionBadge.tone === 'failed' && 'bg-error/85',
+            )}
+            title={extractionBadge.detail}
+          >
+            {extractionBadge.tone === 'running' && (
+              <span className='loading loading-spinner loading-xs shrink-0' />
+            )}
+            <span className='line-clamp-2'>{extractionBadge.label}</span>
+          </div>
         )}
         {isSelectMode && (
           <div className='absolute bottom-1 right-1'>

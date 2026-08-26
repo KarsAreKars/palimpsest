@@ -83,6 +83,7 @@ pub async fn hpub_extract(
     pdf_path: String,
     out_dir: String,
     title: Option<String>,
+    workdir: Option<String>,
 ) -> Result<Value, String> {
     let script = resolve_script(&app)?;
     let python = resolve_python();
@@ -98,6 +99,11 @@ pub async fn hpub_extract(
         .kill_on_drop(true);
     if let Some(t) = title {
         cmd.arg("--title").arg(t);
+    }
+    if let Some(w) = workdir {
+        // Marker output cache: a retried job (previous run killed/crashed)
+        // resumes from cached model output instead of re-extracting.
+        cmd.arg("--workdir").arg(w);
     }
 
     let output = cmd
@@ -120,14 +126,26 @@ pub async fn hpub_extract(
     let result: Value = serde_json::from_str(result_line)
         .map_err(|e| format!("hpub sidecar result not JSON: {e}: {result_line}"))?;
 
+    // Log the outcome natively: the JS layer's console may be unreachable
+    // (webview reloaded mid-job) and its logs are only partially bridged.
+    log::info!(
+        "hpub sidecar result for {}: {}",
+        pdf_path,
+        serde_json::to_string(&result).unwrap_or_default()
+    );
+
     match output.status.code() {
         // 0 ok; 2 scanned rejection; 3 quality gate — all carry a JSON status
         // the JS layer turns into user-facing import feedback.
         Some(0) | Some(2) | Some(3) => Ok(result),
-        _ => Err(format!(
-            "hpub sidecar failed (status {:?}): {}",
-            output.status.code(),
-            result.get("detail").and_then(Value::as_str).unwrap_or(result_line)
-        )),
+        _ => {
+            let msg = format!(
+                "hpub sidecar failed (status {:?}): {}",
+                output.status.code(),
+                result.get("detail").and_then(Value::as_str).unwrap_or(result_line)
+            );
+            log::error!("{msg}");
+            Err(msg)
+        }
     }
 }

@@ -26,6 +26,7 @@ import { splitLibraryOpenIds } from '@/utils/audiobook';
 import { getBookWithUpdatedMetadata, listFormater } from '@/utils/book';
 import { getImportErrorMessage } from '@/services/errors';
 import { ingestFile } from '@/services/ingestService';
+import { repairMissingTextLayers } from '@/services/hpub/extractService';
 import { eventDispatcher } from '@/utils/event';
 import { transferManager } from '@/services/transferManager';
 import { isReadestCloudStorageActive } from '@/services/sync/cloudSyncProvider';
@@ -779,6 +780,10 @@ const LibraryPageContent = ({ searchParams }: { searchParams: ReadonlyURLSearchP
         setLibrary(library);
       }
       setLibraryLoaded(true);
+      // Palimpsest repair pass: any PDF whose text layer is missing (an
+      // earlier extraction died with the app, or predates the pipeline)
+      // gets re-enqueued here — the sidecar's workdir cache resumes it.
+      void repairMissingTextLayers(appService, library);
       if (loadingTimeout) clearTimeout(loadingTimeout);
       setLoading(false);
     };
