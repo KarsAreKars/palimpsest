@@ -382,6 +382,36 @@ export const buildNarrationScript = async (
       }
       case 'image':
       case 'table': {
+        // Marker (especially LLM-assisted) wraps numbered display equations
+        // in a one-row pipe table: `| Attention( $Q,K,V$ ) = … | (1) |`.
+        // Those rows ARE math — reclassify as display_eq so the equation is
+        // narrated instead of skipped (A4).
+        if (block.kind === 'table') {
+          const eqSpeaks: string[] = [];
+          let sawRealTable = false;
+          for (const line of block.text.split('\n')) {
+            const row = line.trim();
+            if (!row.startsWith('|')) continue;
+            if (/^\|[\s\-:|]+\|$/.test(row)) continue; // separator
+            const cells = row
+              .split('|')
+              .slice(1, -1)
+              .map((c) => c.trim());
+            const lastIsEqNumber =
+              cells.length >= 2 && /^\(?\d{1,3}[a-z]?\)?$/.test(cells[cells.length - 1]!);
+            const mathCells = cells.filter((c) => /\$[^$]+\$/.test(c));
+            if (lastIsEqNumber && mathCells.length > 0) {
+              const speak = verbalizeInlineMath(mathCells.join(' '));
+              if (speak.trim()) eqSpeaks.push(speak);
+            } else {
+              sawRealTable = true;
+            }
+          }
+          for (const speak of eqSpeaks) {
+            pushUnit(block.start, block.end, 'display_eq', speak);
+          }
+          if (!sawRealTable) break; // pure equation block — nothing skipped
+        }
         // Visual blocks: never read aloud as text. On mixed/visual pages
         // (A2 page classes) the listener is told what they're missing —
         // "diagram on this page" — instead of a silent skip. On prose pages

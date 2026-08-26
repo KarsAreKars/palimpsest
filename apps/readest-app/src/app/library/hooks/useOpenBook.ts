@@ -9,6 +9,11 @@ import { eventDispatcher } from '@/utils/event';
 import { navigateToReader, showReaderWindow } from '@/utils/nav';
 import { getActiveFileSyncBackends } from '@/services/sync/cloudSyncProvider';
 import { isAudiobook } from '@/utils/audiobook';
+import {
+  hasTextLayer,
+  isExtractionAvailable,
+  readExtractionStatus,
+} from '@/services/hpub/extractService';
 
 /**
  * Whether a third-party file mirror (WebDAV / Google Drive / S3 / OneDrive) is
@@ -115,6 +120,42 @@ export const useOpenBook = ({ setLoading, handleBookDownload }: UseOpenBookOptio
       }
       const available = await makeBookAvailable(book);
       if (!available) return;
+      // Palimpsest hard constraint #4, enforced as a gated import: a PDF
+      // without its text layer is not yet a readable book — block opening
+      // until conversion lands the dual layer (the cover badge shows live
+      // progress). Rejected books explain why instead of opening broken.
+      if (book.format === 'PDF' && appService && isExtractionAvailable()) {
+        const has = await hasTextLayer(appService, book).catch(() => true);
+        if (!has) {
+          const status = await readExtractionStatus(appService, book).catch(() => null);
+          let message: string;
+          if (!status || status.status === 'running') {
+            message = status?.stage
+              ? _('Still converting ({{stage}}/5): {{detail}}', {
+                  stage: status.stage,
+                  detail: status.stageDetail ?? '',
+                })
+              : _(
+                  'This book is queued for conversion — it opens automatically once its text layer is ready.',
+                );
+          } else if (status.status === 'rejected') {
+            message =
+              status.reason === 'scanned'
+                ? _(
+                    'This PDF has no embedded text (a scan). Palimpsest only supports digital-born PDFs.',
+                  )
+                : _('This PDF failed the extraction quality gate: {{detail}}', {
+                    detail: status.detail ?? '',
+                  });
+          } else {
+            message = _('Text-layer extraction failed: {{detail}}', {
+              detail: status.detail ?? 'unknown error',
+            });
+          }
+          eventDispatcher.dispatch('toast', { message, type: 'info' });
+          return;
+        }
+      }
       const params = new URLSearchParams();
       if (cfi) params.set('cfi', cfi);
       if (cfi && options?.highlightSearchResult) params.set('highlight', 'search');

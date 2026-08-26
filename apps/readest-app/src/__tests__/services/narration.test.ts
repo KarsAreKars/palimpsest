@@ -220,3 +220,30 @@ describe('citation link residue (Attention paper regression)', () => {
     );
   });
 });
+
+describe('numbered-equation table rows (A4)', () => {
+  it('narrates equation rows from LLM-Marker tables instead of skipping them', () => {
+    const md =
+      'Some prose before.\n\n' +
+      '| Attention( $Q, K, V$ ) = softmax( $\\frac{QK^T}{\\sqrt{d_k}}$ )V | (1) |\n\n' +
+      'Some prose after.\n';
+    const manifest = { alignment: [{ page: 1, md_char_start: 0, md_char_end: md.length }] };
+    return buildNarrationScript(md, manifest as never).then((units) => {
+      const eq = units.filter((u) => u.kind === 'display_eq');
+      expect(eq.length).toBe(1);
+      expect(eq[0]!.speak).toContain('Attention');
+      expect(eq[0]!.speak).toMatch(/Q.*K.*V/);
+      expect(units.some((u) => u.kind === 'skip')).toBe(false);
+    });
+  });
+
+  it('still skips genuine tables', () => {
+    const md =
+      'Prose.\n\n| Layer | Complexity |\n|---|---|\n| Self-attention | $O(n^2)$ |\n\nMore prose.\n';
+    const manifest = { alignment: [{ page: 1, md_char_start: 0, md_char_end: md.length }] };
+    return buildNarrationScript(md, manifest as never).then((units) => {
+      expect(units.filter((u) => u.kind === 'display_eq')).toHaveLength(0);
+      expect(units.some((u) => u.kind === 'skip')).toBe(true);
+    });
+  });
+});

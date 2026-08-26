@@ -102,8 +102,15 @@ const BookItem: React.FC<BookItemProps> = ({
   const extractionStatus = useExtractionStatus(book);
   const extractionBadge = useMemo(() => {
     if (book.format !== 'PDF' || !extractionStatus || extractionStatus.status === 'ok') return null;
-    if (extractionStatus.status === 'running')
-      return { tone: 'running' as const, label: _('Building text layer…'), detail: '' };
+    if (extractionStatus.status === 'running') {
+      const label = extractionStatus.stage
+        ? _('Converting ({{stage}}/5): {{detail}}', {
+            stage: extractionStatus.stage,
+            detail: extractionStatus.stageDetail ?? '',
+          })
+        : _('Queued for conversion…');
+      return { tone: 'running' as const, label, detail: '' };
+    }
     if (extractionStatus.status === 'rejected') {
       const label =
         extractionStatus.reason === 'scanned'

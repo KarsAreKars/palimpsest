@@ -20,10 +20,12 @@
  * retried job resume instead of restarting extraction.
  */
 import { invoke } from '@tauri-apps/api/core';
+import { listen } from '@tauri-apps/api/event';
 import { isTauriAppPlatform } from '@/services/environment';
 import type { AppService } from '@/types/system';
 import type { Book } from '@/types/book';
 import { getDir, getLocalBookFilename } from '@/utils/book';
+import { useSettingsStore } from '@/store/settingsStore';
 
 export type HpubRejectionReason = 'scanned' | 'quality_gate' | 'empty_extraction';
 
@@ -43,6 +45,12 @@ export interface ExtractionStatus {
   detail?: string;
   attempts: number;
   updatedAt: number;
+  /** Live progress for `running` jobs: 1..5 mirrors the sidecar's stage log.
+   *  In-memory only (event bus), never persisted. */
+  stage?: number;
+  stageDetail?: string;
+  /** Extraction ran with LLM assist (OpenRouter) — better math fidelity. */
+  llm?: boolean;
 }
 
 const STATUS_FILENAME = 'extraction.json';
@@ -52,6 +60,8 @@ const MAX_ATTEMPTS = 3;
  * from a previous webview session (Tauri doesn't cancel commands on reload)
  * — repair must not start a second Marker beside it. */
 const RUNNING_STALE_MS = 30 * 60 * 1000;
+/** Sidecar stderr progress lines: `[make_hpub] N/5 stage title…` */
+const STAGE_RE = /^\[make_hpub\]\s+(\d)\/5\s+(.*)$/;
 
 export const isExtractionAvailable = (): boolean => isTauriAppPlatform();
 
@@ -141,7 +151,33 @@ class ExtractionQueue {
       const prior = await readExtractionStatus(appService, book);
       const attempts = (prior?.attempts ?? 0) + 1;
       await writeExtractionStatus(appService, book, { status: 'running', attempts });
+      // Live, in-memory view of the job for the library badge — stage ticks
+      // ride the event bus without touching disk.
+      const live: ExtractionStatus = {
+        status: 'running',
+        attempts,
+        updatedAt: Date.now(),
+      };
+      // LLM assist: when the user configured an OpenAI-compatible key
+      // (Settings → AI — any compatible endpoint: OpenAI, OpenRouter, …),
+      // Marker routes equation/table blocks through it — the difference
+      // between display math becoming spoken LaTeX and being silently
+      // dropped from the text layer.
+      const aiSettings = useSettingsStore.getState().settings?.aiSettings;
+      const llmKey = aiSettings?.openrouterApiKey ?? '';
+      const useLlm = Boolean(llmKey);
+      live.llm = useLlm;
+      let unlisten: (() => void) | undefined;
       try {
+        unlisten = await listen<{ jobId: string; line: string }>('hpub-progress', (ev) => {
+          if (ev.payload.jobId !== book.hash) return;
+          const m = STAGE_RE.exec(ev.payload.line);
+          if (m) {
+            live.stage = parseInt(m[1]!, 10);
+            live.stageDetail = m[2]!.trim();
+            emitStatus(book, { ...live });
+          }
+        });
         const pdfPath = await appService.resolveFilePath(getLocalBookFilename(book), 'Books');
         const outDir = await appService.resolveFilePath(getDir(book), 'Books');
         const result = await invoke<HpubExtractionResult>('hpub_extract', {
@@ -149,6 +185,11 @@ class ExtractionQueue {
           outDir,
           title: book.sourceTitle || book.title,
           workdir: `${outDir}/.work`,
+          jobId: book.hash,
+          useLlm,
+          llmApiKey: llmKey,
+          llmBaseUrl: aiSettings?.openrouterBaseUrl ?? '',
+          llmModel: aiSettings?.openrouterModel ?? '',
         });
         this.emit(book, result);
         await writeExtractionStatus(appService, book, {
@@ -156,12 +197,16 @@ class ExtractionQueue {
           reason: result.reason,
           detail: result.detail,
           attempts,
+          llm: useLlm,
         });
         // Chain the narration pipeline: extraction landed the text layer,
         // now build the spoken script (plan §4). Failure here must not eat
         // the extraction result — the text layer is still valid.
         if (result.status === 'ok') {
           try {
+            live.stage = 5;
+            live.stageDetail = 'building spoken script…';
+            emitStatus(book, { ...live });
             const { buildNarrationForBook } = await import('@/services/narration');
             await buildNarrationForBook(appService, book);
           } catch (e) {
@@ -178,6 +223,7 @@ class ExtractionQueue {
           attempts,
         });
       } finally {
+        unlisten?.();
         this.inflight.delete(book.hash);
       }
     });

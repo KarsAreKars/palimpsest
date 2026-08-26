@@ -114,16 +114,22 @@ def coverage_check(page_texts: list[str]) -> None:
 
 # ─── 2. marker extraction ────────────────────────────────────────────────────
 
-def marker_extract(pdf_path: str, cache_dir: Path | None = None):
+def marker_extract(pdf_path: str, cache_dir: Path | None = None, use_llm: bool = False):
     """One build_document pass, rendered to Markdown + JSON. Returns
     (md_text, doc_tree, images{name: PIL.Image}). Caches to disk so
-    alignment/gate iteration doesn't pay the ~3.4 s/page Marker cost twice."""
+    alignment/gate iteration doesn't pay the ~3.4 s/page Marker cost twice.
+
+    use_llm=True routes blocks through an LLM service (OpenRouter when
+    OPENROUTER_API_KEY is set): display equations come back as real LaTeX
+    instead of images/silence — the difference between a math book that
+    narrates and one that skips every formula (constraint #2)."""
+    cache_key = "llm" if use_llm else "plain"
     if cache_dir:
         cache_dir.mkdir(parents=True, exist_ok=True)
-        md_cache = cache_dir / "content.md"
-        tree_cache = cache_dir / "tree.json"
+        md_cache = cache_dir / f"content.{cache_key}.md"
+        tree_cache = cache_dir / f"tree.{cache_key}.json"
         if md_cache.is_file() and tree_cache.is_file():
-            log("reusing cached marker output")
+            log(f"reusing cached marker output ({cache_key})")
             return md_cache.read_text(encoding="utf-8"), json.loads(tree_cache.read_text()), {}
 
     from marker.converters.pdf import PdfConverter
@@ -131,15 +137,41 @@ def marker_extract(pdf_path: str, cache_dir: Path | None = None):
     from marker.renderers.json import JSONRenderer
     from marker.renderers.markdown import MarkdownRenderer
 
-    converter = PdfConverter(artifact_dict=create_model_dict(), config={"output_format": "markdown"})
+    config: dict = {"output_format": "markdown"}
+    llm_service = None
+    if use_llm:
+        import os
+
+        key = os.environ.get("PALIMPSEST_LLM_API_KEY")
+        if key:
+            # Any OpenAI-compatible multimodal endpoint: OpenRouter, OpenAI,
+            # Together, vLLM, … Mirrors the app's Settings → AI fields.
+            # NB: llm_service is a PdfConverter constructor arg, not a config
+            # key — in config it is silently ignored and Gemini is used.
+            config["use_llm"] = True
+            llm_service = "marker.services.openai.OpenAIService"
+            config["openai_api_key"] = key
+            base = os.environ.get("PALIMPSEST_LLM_BASE_URL")
+            model = os.environ.get("PALIMPSEST_LLM_MODEL")
+            if base:
+                config["openai_base_url"] = base.rstrip("/")
+            if model:
+                config["openai_model"] = model
+            log(f"llm assist: {model or 'default model'} via {base or 'default endpoint'}")
+        else:
+            log("llm assist requested but PALIMPSEST_LLM_API_KEY is unset — running plain")
+
+    converter = PdfConverter(
+        artifact_dict=create_model_dict(), config=config, llm_service=llm_service
+    )
     with converter.filepath_to_str(pdf_path) as temp_path:
         document = converter.build_document(temp_path)
         md_out = converter.resolve_dependencies(MarkdownRenderer)(document)
         json_out = converter.resolve_dependencies(JSONRenderer)(document)
     tree = json_out.model_dump(mode="json", exclude={"metadata"})
     if cache_dir:
-        (cache_dir / "content.md").write_text(md_out.markdown, encoding="utf-8")
-        (cache_dir / "tree.json").write_text(json.dumps(tree), encoding="utf-8")
+        (cache_dir / f"content.{cache_key}.md").write_text(md_out.markdown, encoding="utf-8")
+        (cache_dir / f"tree.{cache_key}.json").write_text(json.dumps(tree), encoding="utf-8")
     return md_out.markdown, tree, md_out.images or {}
 
 
@@ -500,6 +532,11 @@ def main() -> None:
         default=None,
         help="cache directory for marker output (speeds up alignment iteration)",
     )
+    ap.add_argument(
+        "--use-llm",
+        action="store_true",
+        help="route extraction blocks through an LLM service (OpenRouter) for math/table fidelity",
+    )
     args = ap.parse_args()
 
     pdf_path = Path(args.pdf)
@@ -515,7 +552,9 @@ def main() -> None:
     log(f"2/5 marker extraction ({len(page_texts)} pages — this is the slow part)")
     try:
         md_text, tree, images = marker_extract(
-            str(pdf_path), Path(args.workdir) / "marker" if args.workdir else None
+            str(pdf_path),
+            Path(args.workdir) / "marker" if args.workdir else None,
+            use_llm=args.use_llm,
         )
     except Exception as e:  # noqa: BLE001 — surface marker failures as import failures
         emit({"status": "error", "stage": "marker", "detail": str(e)}, 1)

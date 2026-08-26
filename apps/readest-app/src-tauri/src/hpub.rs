@@ -16,7 +16,8 @@
 use serde_json::Value;
 use std::path::PathBuf;
 use std::process::Stdio;
-use tauri::{AppHandle, Manager};
+use tauri::{AppHandle, Emitter, Manager};
+use tokio::io::{AsyncBufReadExt, BufReader};
 
 fn python_candidates() -> Vec<PathBuf> {
     let mut out = Vec::new();
@@ -84,6 +85,11 @@ pub async fn hpub_extract(
     out_dir: String,
     title: Option<String>,
     workdir: Option<String>,
+    job_id: Option<String>,
+    use_llm: Option<bool>,
+    llm_api_key: Option<String>,
+    llm_base_url: Option<String>,
+    llm_model: Option<String>,
 ) -> Result<Value, String> {
     let script = resolve_script(&app)?;
     let python = resolve_python();
@@ -105,25 +111,79 @@ pub async fn hpub_extract(
         // resumes from cached model output instead of re-extracting.
         cmd.arg("--workdir").arg(w);
     }
+    if use_llm.unwrap_or(false) {
+        cmd.arg("--use-llm");
+    }
+    // LLM assist credentials, scoped to the child process only — the key
+    // never enters the app env. Any OpenAI-compatible multimodal endpoint.
+    if let Some(key) = llm_api_key.filter(|k| !k.is_empty()) {
+        cmd.env("PALIMPSEST_LLM_API_KEY", key);
+    }
+    if let Some(base) = llm_base_url.filter(|b| !b.is_empty()) {
+        cmd.env("PALIMPSEST_LLM_BASE_URL", base);
+    }
+    if let Some(model) = llm_model.filter(|m| !m.is_empty()) {
+        cmd.env("PALIMPSEST_LLM_MODEL", model);
+    }
 
-    let output = cmd
-        .output()
-        .await
+    let mut child = cmd
+        .spawn()
         .map_err(|e| format!("failed to spawn hpub sidecar: {e}"))?;
 
-    let stdout = String::from_utf8_lossy(&output.stdout);
-    let stderr = String::from_utf8_lossy(&output.stderr);
-    if !stderr.is_empty() {
-        log::info!("hpub sidecar progress:\n{stderr}");
-    }
+    // Stream stderr progress line-by-line to the frontend (the book card's
+    // conversion badge listens on `hpub-progress`). The sidecar protocol
+    // keeps progress on stderr and the JSON result as the last stdout line.
+    let stderr = child.stderr.take().expect("stderr piped");
+    let stdout = child.stdout.take().expect("stdout piped");
+    let progress_app = app.clone();
+    let progress_job = job_id.clone().unwrap_or_default();
+    let stderr_task = tokio::spawn(async move {
+        let mut lines = BufReader::new(stderr).lines();
+        let mut transcript: Vec<String> = Vec::new();
+        while let Ok(Some(line)) = lines.next_line().await {
+            if line.trim().is_empty() {
+                continue;
+            }
+            log::info!("hpub sidecar: {line}");
+            let _ = progress_app.emit(
+                "hpub-progress",
+                serde_json::json!({ "jobId": progress_job, "line": line }),
+            );
+            transcript.push(line);
+        }
+        transcript
+    });
+    let stdout_task = tokio::spawn(async move {
+        let mut buf = String::new();
+        let mut lines = BufReader::new(stdout).lines();
+        while let Ok(Some(line)) = lines.next_line().await {
+            buf.push_str(&line);
+            buf.push('\n');
+        }
+        buf
+    });
+
+    let status = child
+        .wait()
+        .await
+        .map_err(|e| format!("hpub sidecar wait failed: {e}"))?;
+    let stderr_lines = stderr_task.await.unwrap_or_default();
+    let stdout = stdout_task.await.unwrap_or_default();
+    let stderr = stderr_lines.join("\n");
 
     // Protocol: last non-empty stdout line is the JSON result object.
     let result_line = stdout
         .lines()
         .rev()
         .find(|l| !l.trim().is_empty())
-        .ok_or_else(|| format!("hpub sidecar produced no result (stderr tail: {})", &stderr[stderr.len().saturating_sub(500)..]))?;
-    let result: Value = serde_json::from_str(result_line)
+        .map(str::to_string)
+        .ok_or_else(|| {
+            format!(
+                "hpub sidecar produced no result (stderr tail: {})",
+                &stderr[stderr.len().saturating_sub(500)..]
+            )
+        })?;
+    let result: Value = serde_json::from_str(&result_line)
         .map_err(|e| format!("hpub sidecar result not JSON: {e}: {result_line}"))?;
 
     // Log the outcome natively: the JS layer's console may be unreachable
@@ -134,15 +194,15 @@ pub async fn hpub_extract(
         serde_json::to_string(&result).unwrap_or_default()
     );
 
-    match output.status.code() {
+    match status.code() {
         // 0 ok; 2 scanned rejection; 3 quality gate — all carry a JSON status
         // the JS layer turns into user-facing import feedback.
         Some(0) | Some(2) | Some(3) => Ok(result),
         _ => {
             let msg = format!(
                 "hpub sidecar failed (status {:?}): {}",
-                output.status.code(),
-                result.get("detail").and_then(Value::as_str).unwrap_or(result_line)
+                status.code(),
+                result.get("detail").and_then(Value::as_str).unwrap_or(&result_line)
             );
             log::error!("{msg}");
             Err(msg)
