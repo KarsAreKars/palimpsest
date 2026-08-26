@@ -109,6 +109,19 @@ export const useProfessor = ({ bookKey }: { bookKey: string }) => {
     return () => window.removeEventListener('keydown', onKey);
   }, []);
 
+  // App-wide summon (A5): ⌥Space from the library navigates here with
+  // ?prof=open — open the overlay once, then strip the param so a later
+  // remount doesn't reopen it.
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('prof') !== 'open') return;
+    params.delete('prof');
+    const search = params.size ? `?${params.toString()}` : '';
+    window.history.replaceState(null, '', `${window.location.pathname}${search}`);
+    setOpen(true);
+  }, []);
+
   // Cross-surface asks (HP-5): the Study tab's Feynman review button fires
   // a question through the normal loop — voice, pen, and logging included.
   useEffect(() => {

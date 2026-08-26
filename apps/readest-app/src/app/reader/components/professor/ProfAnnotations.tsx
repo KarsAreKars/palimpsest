@@ -146,6 +146,30 @@ const drawOne = (
       if (!from || !to) return;
       const f = rectOf(from, s);
       const t = rectOf(to, s);
+      // Edge-to-edge: start/end on the block borders along the center line,
+      // so the stroke never crosses the ink it's connecting.
+      const edge = (r: ReturnType<typeof rectOf>, towardX: number, towardY: number) => {
+        const dx = towardX - r.cx;
+        const dy = towardY - r.cy;
+        const scaleX = dx !== 0 ? r.w / 2 / Math.abs(dx) : Infinity;
+        const scaleY = dy !== 0 ? r.h / 2 / Math.abs(dy) : Infinity;
+        const k = Math.min(scaleX, scaleY, 1);
+        return { x: r.cx + dx * k, y: r.cy + dy * k };
+      };
+      const p1 = edge(f, t.cx, t.cy);
+      const p2 = edge(t, f.cx, f.cy);
+      // Gentle cubic arc: control points pushed perpendicular to the chord,
+      // like a hand-drawn swoop rather than a ruler line.
+      const mx = (p1.x + p2.x) / 2;
+      const my = (p1.y + p2.y) / 2;
+      const nx = -(p2.y - p1.y);
+      const ny = p2.x - p1.x;
+      const len = Math.hypot(nx, ny) || 1;
+      const bend = Math.min(28, Math.hypot(p2.x - p1.x, p2.y - p1.y) * 0.18);
+      const c1x = mx + (nx / len) * bend + (p1.x - mx) * 0.5;
+      const c1y = my + (ny / len) * bend + (p1.y - my) * 0.5;
+      const c2x = mx + (nx / len) * bend + (p2.x - mx) * 0.5;
+      const c2y = my + (ny / len) * bend + (p2.y - my) * 0.5;
       let defs = svg.querySelector('defs[data-prof-mark]') as SVGDefsElement | null;
       if (!defs) {
         defs = el('defs', {});
@@ -161,20 +185,19 @@ const drawOne = (
           marker.setAttribute(k, v);
         const head = document.createElementNS(SVG_NS, 'path');
         head.setAttribute('d', 'M0,0 L10,4 L0,8 z');
-        head.setAttribute('fill', '#3b82f6');
+        head.setAttribute('fill', '#2563eb');
         marker.append(head);
         defs.append(marker);
         svg.append(defs);
       }
       svg.append(
-        el('line', {
-          x1: String(f.cx),
-          y1: String(f.cy),
-          x2: String(t.cx),
-          y2: String(t.cy),
-          stroke: '#3b82f6',
+        el('path', {
+          d: `M ${p1.x} ${p1.y} C ${c1x} ${c1y}, ${c2x} ${c2y}, ${p2.x} ${p2.y}`,
+          fill: 'none',
+          stroke: '#2563eb',
           'stroke-width': '2.5',
-          'stroke-dasharray': '6 4',
+          'stroke-linecap': 'round',
+          opacity: '0.9',
           'marker-end': 'url(#prof-arrowhead)',
         }),
       );
@@ -192,8 +215,23 @@ const drawOne = (
       }
       const width = 260;
       const height = 84;
-      const x = Math.min(r.x + r.w + 12, Math.max(page.w - width - 8, 8));
+      const x = Math.min(r.x + r.w + 14, Math.max(page.w - width - 8, 8));
       const y = Math.min(Math.max(r.y - 6, 8), Math.max(page.h - height - 8, 8));
+      // Leader line: anchor edge → card edge, so the note reads as attached
+      // to its block even when pushed to the margin.
+      const cardCx = x + 10;
+      const cardCy = y + height / 2;
+      svg.append(
+        el('line', {
+          x1: String(r.x + r.w + 2),
+          y1: String(r.cy),
+          x2: String(cardCx),
+          y2: String(cardCy),
+          stroke: 'rgba(180, 83, 9, 0.55)',
+          'stroke-width': '1.5',
+          'stroke-linecap': 'round',
+        }),
+      );
       const fo = el('foreignObject', {
         x: String(x),
         y: String(y),
@@ -202,9 +240,13 @@ const drawOne = (
       });
       const div = document.createElement('div');
       div.setAttribute('xmlns', 'http://www.w3.org/1999/xhtml');
+      // Paper chip: warm translucent card, amber ink — margin-note aesthetic
+      // rather than a terminal slab.
       div.style.cssText =
-        'display:inline-block;background:rgba(17,24,39,0.88);color:#fef3c7;' +
-        'padding:5px 10px;border-radius:7px;font-size:14px;line-height:1.5;' +
+        'display:inline-block;background:rgba(255, 251, 235, 0.94);color:#78350f;' +
+        'padding:6px 11px;border-radius:8px;font-size:14px;line-height:1.5;' +
+        'border:1px solid rgba(180, 83, 9, 0.45);' +
+        'box-shadow:0 1px 4px rgba(120, 53, 15, 0.18);' +
         'font-family:ui-serif, Georgia, serif;';
       if (mathml) {
         div.innerHTML = mathml;
@@ -216,15 +258,18 @@ const drawOne = (
       return;
     }
     case 'caption': {
+      // Takeaway chip at the foot of the page: measure-less chip = padded
+      // text with a halo; keep centered and legible over any content.
       const text = el('text', {
         x: String(page.w / 2),
         y: String(page.h - 16),
         'text-anchor': 'middle',
         'font-size': '13.5',
-        'font-family': 'ui-sans-serif, system-ui, sans-serif',
-        fill: '#92400e',
-        stroke: 'rgba(255,255,255,0.9)',
-        'stroke-width': '3',
+        'font-weight': '500',
+        'font-family': 'ui-serif, Georgia, serif',
+        fill: '#78350f',
+        stroke: 'rgba(255, 251, 235, 0.95)',
+        'stroke-width': '4',
         'paint-order': 'stroke',
       });
       text.textContent = a.text;

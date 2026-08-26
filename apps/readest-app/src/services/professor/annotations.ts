@@ -153,18 +153,32 @@ export function validateAnnotations(
   blocks: HpubBlock[],
 ): ProfessorAnnotation[] {
   const valid = new Set(blocks.map((b) => b.id));
+  /** Models reliably abbreviate full paths to their numeric tail
+   *  ("block:6" for "/page/3/Equation/6"). Repair when the abbreviation
+   *  resolves to exactly one block on the page; drop when ambiguous. */
+  const repair = (id: string): string | null => {
+    if (valid.has(id)) return id;
+    const matches = blocks.filter((b) => b.id.endsWith(`/${id}`));
+    return matches.length === 1 ? matches[0]!.id : null;
+  };
   const out: ProfessorAnnotation[] = [];
   for (const a of annotations) {
-    let ok = true;
     if (a.kind === 'point' || a.kind === 'highlight' || a.kind === 'box') {
-      ok = valid.has(a.blockId);
+      const id = repair(a.blockId);
+      if (id) out.push({ ...a, blockId: id });
+      else console.warn('[professor] dropping annotation with unknown block id:', a);
     } else if (a.kind === 'arrow') {
-      ok = valid.has(a.fromBlockId) && valid.has(a.toBlockId);
+      const from = repair(a.fromBlockId);
+      const to = repair(a.toBlockId);
+      if (from && to) out.push({ ...a, fromBlockId: from, toBlockId: to });
+      else console.warn('[professor] dropping annotation with unknown block id:', a);
     } else if (a.kind === 'write') {
-      ok = valid.has(a.anchorBlockId);
+      const id = repair(a.anchorBlockId);
+      if (id) out.push({ ...a, anchorBlockId: id });
+      else console.warn('[professor] dropping annotation with unknown block id:', a);
+    } else {
+      out.push(a);
     }
-    if (ok) out.push(a);
-    else console.warn('[professor] dropping annotation with unknown block id:', a);
   }
   return out;
 }

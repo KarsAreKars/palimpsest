@@ -26,7 +26,7 @@ import { splitLibraryOpenIds } from '@/utils/audiobook';
 import { getBookWithUpdatedMetadata, listFormater } from '@/utils/book';
 import { getImportErrorMessage } from '@/services/errors';
 import { ingestFile } from '@/services/ingestService';
-import { repairMissingTextLayers } from '@/services/hpub/extractService';
+import { hasTextLayer, repairMissingTextLayers } from '@/services/hpub/extractService';
 import { eventDispatcher } from '@/utils/event';
 import { transferManager } from '@/services/transferManager';
 import { isReadestCloudStorageActive } from '@/services/sync/cloudSyncProvider';
@@ -687,6 +687,39 @@ const LibraryPageContent = ({ searchParams }: { searchParams: ReadonlyURLSearchP
     }
     return params.toString();
   })();
+
+  // Palimpsest app-wide summon (A5): ⌥Space from the library jumps straight
+  // into the professor for the most recently touched converted book — the
+  // reader auto-opens the overlay via ?prof=open.
+  useEffect(() => {
+    const onKey = async (e: KeyboardEvent) => {
+      if (e.code !== 'Space' || !e.altKey || e.repeat) return;
+      const target = e.target as HTMLElement | null;
+      if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA')) return;
+      e.preventDefault();
+      if (!appService) return;
+      const candidates = libraryBooks
+        .filter((b) => b.format === 'PDF' && !b.deletedAt)
+        .sort((a, b) => b.updatedAt - a.updatedAt);
+      for (const book of candidates) {
+        try {
+          if (await hasTextLayer(appService, book)) {
+            navigateToReader(router, [book.hash], 'prof=open');
+            return;
+          }
+        } catch {
+          // availability probe failed — try the next candidate
+        }
+      }
+      eventDispatcher.dispatch('toast', {
+        message: _('No converted book yet — import a PDF and let it finish converting.'),
+        type: 'info',
+      });
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [libraryBooks, appService, router]);
 
   useEffect(() => {
     if (pendingNavigationBookIds) {
