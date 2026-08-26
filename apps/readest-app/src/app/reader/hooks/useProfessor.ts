@@ -24,10 +24,7 @@ import {
   validateAnnotations,
   type ProfessorAnnotation,
 } from '@/services/professor/annotations';
-import {
-  clearProfessorAnnotations,
-  setProfessorAnnotations,
-} from '@/services/professor/annotationBus';
+import { setProfessorAnnotations } from '@/services/professor/annotationBus';
 import { ProfessorVoice } from '@/services/professor/voice';
 import { PROF_ASK_EVENT } from '@/app/reader/components/notebook/StudyTab';
 import {
@@ -147,7 +144,8 @@ export const useProfessor = ({ bookKey }: { bookKey: string }) => {
     abortRef.current?.abort();
     abortRef.current = null;
     voiceRef.current?.stop();
-    clearProfessorAnnotations(bookKey);
+    // Ink is NOT cleared on close (A5): margin notes stay on the page like
+    // a real tutor's pencil marks until the next answer replaces them.
     setOpen(false);
     setPhase('idle');
     setAnswer('');
