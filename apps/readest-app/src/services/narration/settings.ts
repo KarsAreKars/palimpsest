@@ -14,7 +14,7 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import type { ElevenLabsModelTier } from '@/services/tts/providers/elevenlabs';
 
-export type NarrationProviderId = 'edge' | 'elevenlabs';
+export type NarrationProviderId = 'edge' | 'elevenlabs' | 'qwen-local';
 
 export interface NarrationSettingsState {
   provider: NarrationProviderId;
@@ -22,6 +22,8 @@ export interface NarrationSettingsState {
   edgeVoiceId: string | null;
   elevenlabsApiKey: string;
   elevenlabsVoiceId: string | null;
+  /** Local Qwen3-TTS voice id (A9); null = server default (Vivian). */
+  qwenVoiceId: string | null;
   /** flash = low latency (default; click-to-speak wants speed), quality = long listens. */
   elevenlabsTier: ElevenLabsModelTier;
   /** Playback rate, remembered across sessions (per-book memory comes later). */
@@ -31,6 +33,7 @@ export interface NarrationSettingsState {
   setEdgeVoiceId(id: string | null): void;
   setElevenlabsApiKey(key: string): void;
   setElevenlabsVoiceId(id: string | null): void;
+  setQwenVoiceId(id: string | null): void;
   setElevenlabsTier(tier: ElevenLabsModelTier): void;
   setRate(rate: number): void;
 }
@@ -45,6 +48,7 @@ export const useNarrationSettings = create<NarrationSettingsState>()(
       edgeVoiceId: null,
       elevenlabsApiKey: '',
       elevenlabsVoiceId: null,
+      qwenVoiceId: null,
       elevenlabsTier: 'flash',
       rate: 1,
 
@@ -52,6 +56,7 @@ export const useNarrationSettings = create<NarrationSettingsState>()(
       setEdgeVoiceId: (edgeVoiceId) => set({ edgeVoiceId }),
       setElevenlabsApiKey: (elevenlabsApiKey) => set({ elevenlabsApiKey }),
       setElevenlabsVoiceId: (elevenlabsVoiceId) => set({ elevenlabsVoiceId }),
+      setQwenVoiceId: (qwenVoiceId) => set({ qwenVoiceId }),
       setElevenlabsTier: (elevenlabsTier) => set({ elevenlabsTier }),
       setRate: (rate) =>
         set({ rate: Math.min(MAX_NARRATION_RATE, Math.max(MIN_NARRATION_RATE, rate)) }),

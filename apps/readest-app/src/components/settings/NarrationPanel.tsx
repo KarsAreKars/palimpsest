@@ -16,6 +16,7 @@ import {
 import { ElevenLabsProvider, type ElevenLabsQuota } from '@/services/tts/providers/elevenlabs';
 import { getAIFetch } from '@/services/ai/utils/httpFetch';
 import { EdgeSpeechTTS } from '@/libs/edgeTTS';
+import { NarrationQwenProvider } from '@/services/narration/narrationQwenProvider';
 import type { TTSVoice } from '@/services/tts/types';
 import type { SettingsPanelPanelProp } from './SettingsDialog';
 
@@ -98,6 +99,18 @@ const NarrationPanel: React.FC<SettingsPanelPanelProp> = ({ onRegisterReset }) =
             />
             <span className='text-sm'>ElevenLabs — premium voices, uses your API key</span>
           </label>
+          <label className='flex cursor-pointer items-center gap-2'>
+            <input
+              type='radio'
+              name='narration-provider'
+              className='radio radio-sm'
+              checked={settings.provider === 'qwen-local'}
+              onChange={() => settings.setProvider('qwen-local')}
+            />
+            <span className='text-sm'>
+              Qwen3-TTS — local neural voices, offline (needs the local server)
+            </span>
+          </label>
         </div>
       </div>
 
@@ -119,6 +132,17 @@ const NarrationPanel: React.FC<SettingsPanelPanelProp> = ({ onRegisterReset }) =
                 </option>
               ))}
           </select>
+        </div>
+      )}
+
+      {settings.provider === 'qwen-local' && (
+        <div>
+          <h3 className='mb-2 text-sm font-semibold'>Qwen3-TTS voice</h3>
+          <QwenVoicePicker />
+          <p className='mt-1 text-xs text-base-content/50'>
+            Runs on your Mac via the local server (port 8737). If narration silently uses a built-in
+            voice instead, the server isn't running.
+          </p>
         </div>
       )}
 
@@ -234,3 +258,38 @@ const NarrationPanel: React.FC<SettingsPanelPanelProp> = ({ onRegisterReset }) =
 };
 
 export default NarrationPanel;
+
+/** Voice list straight from the local Qwen server (falls back to the
+ *  curated static list when it's down). Kept tiny on purpose — the panel
+ *  is a picker, not a dashboard. */
+function QwenVoicePicker() {
+  const settings = useNarrationSettings();
+  const [voices, setVoices] = useState<TTSVoice[] | null>(null);
+  useEffect(() => {
+    let alive = true;
+    new NarrationQwenProvider()
+      .getAllVoices()
+      .then((v) => alive && setVoices(v))
+      .catch(() => alive && setVoices(null));
+    return () => {
+      alive = false;
+    };
+  }, []);
+  return (
+    <select
+      className='select select-sm w-full max-w-xs'
+      value={settings.qwenVoiceId ?? ''}
+      onChange={(e) => settings.setQwenVoiceId(e.target.value || null)}
+      aria-label='Qwen3-TTS narrator voice'
+    >
+      <option value=''>Vivian (default)</option>
+      {(voices ?? [])
+        .filter((v) => v.id !== 'Vivian')
+        .map((v) => (
+          <option key={v.id} value={v.id}>
+            {v.name}
+          </option>
+        ))}
+    </select>
+  );
+}

@@ -21,6 +21,7 @@ import { ElevenLabsProvider } from '@/services/tts/providers/elevenlabs';
 import type { SpeechProvider } from '@/services/tts/providers/types';
 import { NarrationPlayer, type AudioSink } from './player';
 import { NarrationEdgeProvider } from './narrationEdgeProvider';
+import { NarrationQwenProvider } from './narrationQwenProvider';
 import { useNarrationSettings } from './settings';
 import { WebAudioSink } from './webAudioSink';
 import {
@@ -139,6 +140,17 @@ export class NarrationController extends EventTarget {
         nwarn('narration: ElevenLabs unavailable, falling back to Edge');
         provider = edgeProvider();
       }
+    } else if (settings.provider === 'qwen-local') {
+      // Local Qwen3-TTS server (A9): probe /health, fall back to Edge when
+      // the user hasn't started the server — never leave the book voiceless.
+      const q = new NarrationQwenProvider();
+      const ok = await q.init().catch(() => false);
+      if (ok) {
+        provider = q;
+      } else {
+        nwarn('narration: Qwen local server not reachable (port 8737), falling back to Edge');
+        provider = edgeProvider();
+      }
     } else {
       provider = edgeProvider();
     }
@@ -154,7 +166,15 @@ export class NarrationController extends EventTarget {
     const lang = (book.primaryLanguage || 'en').split('-')[0]!;
     const langVoices = voices.filter((v) => (v.lang || v.id).startsWith(lang));
     let voice: string;
-    if (provider.id === 'elevenlabs') {
+    if (provider.id === 'qwen-local') {
+      voice =
+        (settings.qwenVoiceId && voices.some((v) => v.id === settings.qwenVoiceId)
+          ? settings.qwenVoiceId
+          : undefined) ??
+        provider.fallbackVoiceId ??
+        voices[0]?.id ??
+        'Vivian';
+    } else if (provider.id === 'elevenlabs') {
       voice = settings.elevenlabsVoiceId ?? langVoices[0]?.id ?? voices[0]?.id ?? '';
       if (!voice) {
         console.warn('narration: ElevenLabs returned no voices');
