@@ -341,16 +341,20 @@ def llm_cleanup_pass(md_text: str, cfg: dict) -> tuple[str, dict]:
     repaired, kept = 0, 0
     out: list[str] = []
     for i, chunk in enumerate(chunks):
-        body = json.dumps(
-            {
-                "model": cfg["model"],
-                # No temperature: some models (gpt-5-mini family) 400 on it.
-                "messages": [
+        request: dict = {
+            "model": cfg["model"],
+            # No temperature: some models (gpt-5-mini family) 400 on it.
+            "messages": [
                     {"role": "system", "content": CLEANUP_SYSTEM},
                     {"role": "user", "content": chunk},
                 ],
-            }
-        ).encode("utf-8")
+        }
+        # Mechanical repair doesn't need deep reasoning; on OpenAI's gpt-5
+        # family low effort cuts per-chunk latency several-fold. Only sent to
+        # api.openai.com — other OpenAI-compatible endpoints may reject it.
+        if "api.openai.com" in cfg["base"]:
+            request["reasoning_effort"] = "low"
+        body = json.dumps(request).encode("utf-8")
         cleaned: str | None = None
         for _attempt in range(2):
             try:
@@ -385,6 +389,8 @@ def llm_cleanup_pass(md_text: str, cfg: dict) -> tuple[str, dict]:
         else:
             out.append(chunk)
             kept += 1
+        if (i + 1) % 5 == 0 or i + 1 == len(chunks):
+            log(f"cleanup progress: {i + 1}/{len(chunks)} chunks")
     stats = {"chunks": len(chunks), "repaired": repaired, "kept": kept}
     return "".join(out), stats
 
