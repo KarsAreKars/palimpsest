@@ -114,6 +114,28 @@ def coverage_check(page_texts: list[str]) -> None:
         )
 
 
+
+def ensure_llama_cpp() -> None:
+    """surya2's OCR backend shells out to llama-server. GUI apps on macOS get
+    a bare launchd PATH (no /opt/homebrew/bin), so resolve the binary
+    explicitly. Must run BEFORE marker imports surya — pydantic settings bind
+    env vars at import time."""
+    if os.environ.get("LLAMA_CPP_BINARY"):
+        return
+    from shutil import which
+
+    for cand in (
+        which("llama-server"),
+        "/opt/homebrew/bin/llama-server",
+        "/usr/local/bin/llama-server",
+    ):
+        if cand and Path(cand).exists():
+            os.environ["LLAMA_CPP_BINARY"] = cand
+            log(f"llama-server resolved: {cand}")
+            return
+    log("llama-server NOT found — surya's llamacpp backend will fail (brew install llama.cpp)")
+
+
 # ─── 2. marker extraction ────────────────────────────────────────────────────
 
 def marker_extract(pdf_path: str, cache_dir: Path | None = None, use_llm: bool = False):
@@ -125,6 +147,7 @@ def marker_extract(pdf_path: str, cache_dir: Path | None = None, use_llm: bool =
     OPENROUTER_API_KEY is set): display equations come back as real LaTeX
     instead of images/silence — the difference between a math book that
     narrates and one that skips every formula (constraint #2)."""
+    ensure_llama_cpp()
     cache_key = "llm" if use_llm else "plain"
     if cache_dir:
         cache_dir.mkdir(parents=True, exist_ok=True)
