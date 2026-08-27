@@ -165,8 +165,15 @@ class ExtractionQueue {
       // dropped from the text layer.
       const aiSettings = useSettingsStore.getState().settings?.aiSettings;
       const llmKey = aiSettings?.openrouterApiKey ?? '';
-      const useLlm = Boolean(llmKey);
-      live.llm = useLlm;
+      // Vision-assist extraction (--use-llm) is OFF by default: marker's
+      // OpenAI service issues hundreds of serial per-block vision calls and
+      // wedges silently on dead sockets (CLOSE_WAIT, 0% CPU, zero API usage
+      // — observed live, 2026-08-27). The text-only LLM cleanup pass in the
+      // sidecar (stage 3/6) is validated, fault-tolerant, and covers the
+      // repair job. Vision mode stays available in the sidecar for a future
+      // hardened toggle (needs a per-call watchdog first).
+      const useLlm = false;
+      live.llm = Boolean(llmKey); // the cleanup pass still runs when keyed
       let unlisten: (() => void) | undefined;
       try {
         unlisten = await listen<{ jobId: string; line: string }>('hpub-progress', (ev) => {
