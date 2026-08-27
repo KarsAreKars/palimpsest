@@ -668,6 +668,11 @@ def main() -> None:
         help="cache directory for marker output (speeds up alignment iteration)",
     )
     ap.add_argument(
+        "--epub",
+        default=None,
+        help="companion EPUB of the SAME edition — fusion lane: publisher text + PDF geometry, no Marker",
+    )
+    ap.add_argument(
         "--use-llm",
         action="store_true",
         help="route extraction blocks through an LLM service (OpenRouter) for math/table fidelity",
@@ -684,16 +689,40 @@ def main() -> None:
     page_texts = extract_page_texts(str(pdf_path))
     coverage_check(page_texts)
 
-    log(f"2/6 marker extraction ({len(page_texts)} pages — this is the slow part)")
-    try:
-        md_text, tree, images = marker_extract(
-            str(pdf_path),
-            Path(args.workdir) / "marker" if args.workdir else None,
-            use_llm=args.use_llm,
-        )
-    except Exception as e:  # noqa: BLE001 — surface marker failures as import failures
-        emit({"status": "error", "stage": "marker", "detail": str(e)}, 1)
-        return
+    images: dict = {}
+    if args.epub:
+        # Fusion lane (A7): EPUB supplies clean text, PDF supplies geometry.
+        # No Marker, no llama-server, no GPU grind.
+        log(f"2/6 fusion: epub→markdown + pdf geometry ({len(page_texts)} pages)")
+        try:
+            from fusion import epub_to_markdown, pdf_geometry_tree
+
+            md_text, images, epub_stats = epub_to_markdown(args.epub)
+            log(
+                f"epub: {epub_stats['chapters']} chapters, {epub_stats['chars']} chars, "
+                f"{epub_stats['images']} images"
+            )
+            tree = pdf_geometry_tree(str(pdf_path))
+            # Print hyphenation: the PDF wraps "hyp-\nphen" where the EPUB has
+            # "hyphen". Rejoin on the page side so alignment votes and
+            # containment score clean-on-clean.
+            before = sum(t.count("-\n") for t in page_texts)
+            page_texts = [re.sub(r"(\w)-\n(\w)", r"\1\2", t) for t in page_texts]
+            log(f"dehyphenated {before} line-break splits in page texts")
+        except Exception as e:  # noqa: BLE001
+            emit({"status": "error", "stage": "fusion", "detail": str(e)}, 1)
+            return
+    else:
+        log(f"2/6 marker extraction ({len(page_texts)} pages — this is the slow part)")
+        try:
+            md_text, tree, images = marker_extract(
+                str(pdf_path),
+                Path(args.workdir) / "marker" if args.workdir else None,
+                use_llm=args.use_llm,
+            )
+        except Exception as e:  # noqa: BLE001 — surface marker failures as import failures
+            emit({"status": "error", "stage": "marker", "detail": str(e)}, 1)
+            return
     if not md_text or len(md_text.strip()) < 100:
         emit(
             {
@@ -705,15 +734,18 @@ def main() -> None:
         )
 
     # Asset references: ![](name) -> ![](assets/name) so relative paths resolve
-    # inside the package.
-    for name in images:
-        md_text = md_text.replace(f"]({name})", f"](assets/{name})")
+    # inside the package. (Fusion lane emits assets/ names directly.)
+    if not args.epub:
+        for name in images:
+            md_text = md_text.replace(f"]({name})", f"](assets/{name})")
 
-    cfg = llm_config()
+    cfg = llm_config() if not args.epub else None
     if cfg:
         log(f"3/6 llm cleanup pass ({cfg['model']}) — repairing extraction damage")
         md_text, stats = llm_cleanup_pass(md_text, cfg)
         log(f"cleanup: {stats['chunks']} chunks, {stats['repaired']} repaired, {stats['kept']} kept as-is")
+    elif args.epub:
+        log("3/6 llm cleanup skipped (fusion lane — epub text is publisher-clean)")
     else:
         log("3/6 llm cleanup pass skipped (no API key configured)")
 
@@ -727,6 +759,28 @@ def main() -> None:
         f"classes={containment['page_classes']} "
         f"longest_failing_run={containment['longest_failing_run']}"
     )
+    if args.epub:
+        from fusion import edition_check
+
+        ed = edition_check(manifest["alignment"])
+        log(
+            f"edition check: {ed['anchored_pages']}/{ed['total_pages']} pages anchored "
+            f"({ed['anchored_fraction']:.0%})"
+        )
+        if ed["anchored_fraction"] < 0.5:
+            emit(
+                {
+                    "status": "rejected",
+                    "reason": "edition_mismatch",
+                    "detail": (
+                        f"Only {ed['anchored_fraction']:.0%} of PDF pages match the EPUB text. "
+                        "These don't look like the same edition — fusion would scramble the "
+                        "alignment. Import the PDF alone (Marker lane) or find the matching EPUB."
+                    ),
+                    **ed,
+                },
+                4,
+            )
     gate_book(manifest, md_text, tree, containment)
     log(f"gate passed: {manifest.get('gate')}")
 
@@ -740,7 +794,10 @@ def main() -> None:
             assets = out_dir / "assets"
             assets.mkdir(exist_ok=True)
             for name, img in images.items():
-                img.save(assets / name)
+                if isinstance(img, bytes):
+                    (assets / name).write_bytes(img)
+                else:
+                    img.save(assets / name)
         emit(
             {
                 "status": "ok",
@@ -759,12 +816,15 @@ def main() -> None:
             z.write(pdf_path, "book.pdf")
             z.writestr("content.md", md_text)
             z.writestr("manifest.json", json.dumps(manifest, indent=2))
-            for name, img in images.items():
-                import io
+            import io
 
-                buf = io.BytesIO()
-                img.save(buf, format=img.format or "PNG")
-                z.writestr(f"assets/{name}", buf.getvalue())
+            for name, img in images.items():
+                if isinstance(img, bytes):
+                    z.writestr(f"assets/{name}", img)
+                else:
+                    buf = io.BytesIO()
+                    img.save(buf, format=img.format or "PNG")
+                    z.writestr(f"assets/{name}", buf.getvalue())
         emit(
             {
                 "status": "ok",
