@@ -66,7 +66,14 @@ export class OpenRouterProvider implements AIProvider {
   }
 
   getEmbeddingModel(): EmbeddingModel {
-    const modelId = this.settings.openrouterEmbeddingModel || DEFAULT_EMBEDDING_MODEL;
+    let modelId = this.settings.openrouterEmbeddingModel || DEFAULT_EMBEDDING_MODEL;
+    // The `openai/` provider prefix is an OpenRouter naming convention.
+    // Pointed at plain OpenAI (api.openai.com) it 404s — OpenAI's own model
+    // ids are unprefixed — and the retry wrapper makes the failure look like
+    // an indexing hang (observed: '0 / 85 chunks' stuck).
+    if (this.baseUrl.includes('api.openai.com') && modelId.startsWith('openai/')) {
+      modelId = modelId.slice('openai/'.length);
+    }
     return this.client.textEmbeddingModel(modelId);
   }
 
