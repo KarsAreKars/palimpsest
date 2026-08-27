@@ -1011,6 +1011,20 @@ def main() -> None:
         )
         manifest = build_manifest_chars(title, md_text, page_texts, tree)
 
+    if args.epub:
+        # Photo plates / map pages carry a caption at most — nothing to
+        # narrate and nothing to align. Class them visual (excluded from
+        # containment) instead of letting them fail as prose.
+        plates = 0
+        for p in manifest["alignment"]:
+            text = page_texts[p["page"] - 1] if p["page"] - 1 < len(page_texts) else ""
+            if len(re.sub(r"[^a-z0-9]", "", text.lower())) < 300:
+                if p.get("page_class") == "prose":
+                    p["page_class"] = "visual"
+                    plates += 1
+        if plates:
+            log(f"fusion: {plates} low-text plate/map pages classed visual")
+
     log("5/6 class-aware quality gate (A2)")
     if any(p["method"] == "anchored-chars" for p in manifest["alignment"]):
         containment = containment_check_chars(md_text, page_texts, manifest["alignment"])
@@ -1043,6 +1057,33 @@ def main() -> None:
                 },
                 4,
             )
+    if args.epub:
+        # Tolerate unbound front/back matter (publisher intros, plates,
+        # indexes, read-more ads): the drift rule applies to the NARRATIVE
+        # SPAN — first to last page that passes containment. Matter outside
+        # the span is tolerated up to 25 pages each side; inside it, runs
+        # stay fatal.
+        verdicts = containment["verdicts"]
+        passing = [i for i, v in enumerate(verdicts) if v is True]
+        if passing:
+            lead = passing[0]
+            tail = len(verdicts) - 1 - passing[-1]
+            if lead <= 25 and tail <= 25:
+                core = verdicts[passing[0] : passing[-1] + 1]
+                run = longest = 0
+                for v in core:
+                    if v is False:
+                        run += 1
+                        longest = max(longest, run)
+                    else:
+                        run = 0
+                if lead or tail:
+                    log(
+                        f"fusion gate: tolerating {lead} leading + {tail} trailing "
+                        f"unbound matter pages; narrative-span longest failing run={longest}"
+                    )
+                containment["longest_failing_run"] = longest
+
     gate_book(manifest, md_text, tree, containment)
     log(f"gate passed: {manifest.get('gate')}")
 
