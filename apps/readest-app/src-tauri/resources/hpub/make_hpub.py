@@ -92,6 +92,34 @@ def extract_page_texts(pdf_path: str) -> list[str]:
     return [(page.extract_text() or "") for page in reader.pages]
 
 
+
+def despace_page_text(text: str) -> tuple[str, bool]:
+    """Letter-spaced text layers ("T h e s a m e w a y …" — every glyph its
+    own token) break word-shingle alignment while looking healthy to the
+    coverage check. Detect pages whose tokens are >50% single chars and
+    rejoin the runs into words."""
+    toks = text.split()
+    if len(toks) < 20:
+        return text, False
+    singles = sum(1 for t in toks if len(re.sub(r"[^a-z0-9']", "", t.lower())) <= 1)
+    if singles / len(toks) < 0.5:
+        return text, False
+    out: list[str] = []
+    buf: list[str] = []
+    for t in toks:
+        core = re.sub(r"[^a-z0-9']", "", t.lower())
+        if 0 < len(core) <= 1:
+            buf.append(core)
+        else:
+            if buf:
+                out.append("".join(buf))
+                buf = []
+            out.append(t)
+    if buf:
+        out.append("".join(buf))
+    return " ".join(out), True
+
+
 def coverage_check(page_texts: list[str]) -> None:
     no_text = sum(
         1 for t in page_texts if len(re.sub(r"[^a-z0-9]", "", t.lower())) < MIN_PAGE_TEXT_CHARS
@@ -516,6 +544,216 @@ def build_manifest(title: str, md_text: str, page_texts: list[str], tree: dict) 
     }
 
 
+
+# ─── boundary-invariant (char-level) alignment fallback ─────────────────────
+# Some digital PDFs have degenerate word geometry: letter-spaced text layers
+# ("T h e s a m e w a y") or near-zero word gaps that make extractors join
+# words — on BOTH sides (pypdf page text AND marker/surya md). Word-shingle
+# alignment needs 6 consecutive matching tokens and dies. Char shingles don't
+# care where the spaces are.
+CHAR_SHINGLE = 16        # chars per shingle (24 shatters at ~2% VLM char noise)
+CHAR_SHINGLE_STEP = 4    # sampling stride (keeps the index ~n/4)
+CHAR_MIN_ANCHOR_CONFIDENCE = 0.35  # shingles intact at ~2% char noise ≈ 0.72; margin below
+CHAR_VOTE_BUCKET = 800   # vote bucketing in md char space
+CHAR_NEAR_WINDOW = 1600  # accepted spread around the winning bucket
+
+
+def char_norm_with_offsets(text: str) -> tuple[str, list[int]]:
+    """Lowercase alnum stream + map back to original string offsets."""
+    out: list[str] = []
+    offsets: list[int] = []
+    for i, ch in enumerate(text.lower()):
+        if ch.isalnum():
+            out.append(ch)
+            offsets.append(i)
+    return "".join(out), offsets
+
+
+def char_shingle_seq(s: str):
+    for i in range(0, max(len(s) - CHAR_SHINGLE + 1, 0), CHAR_SHINGLE_STEP):
+        yield i, s[i : i + CHAR_SHINGLE]
+
+
+def build_manifest_chars(title: str, md_text: str, page_texts: list[str], tree: dict) -> dict:
+    """Char-shingle variant of build_manifest — same output shape, immune to
+    word-boundary damage. Used only as a fallback when token anchoring fails,
+    so healthy books keep the tuned token path."""
+    md_norm, md_offsets = char_norm_with_offsets(md_text)
+
+    index: dict[str, list[int]] = {}
+    for i, sh in char_shingle_seq(md_norm):
+        index.setdefault(sh, []).append(i)
+    anchor_index = {sh: pos for sh, pos in index.items() if len(pos) <= MAX_SHINGLE_OCCURRENCES}
+
+    pages = []
+    cursor = 0
+    for pno, text in enumerate(page_texts):
+        norm, _ = char_norm_with_offsets(text)
+        shs = list(char_shingle_seq(norm))
+        votes: dict[int, int] = {}
+        matched = 0
+        for i, sh in shs:
+            if sh in anchor_index:
+                for mdpos in anchor_index[sh]:
+                    key = (mdpos - i) // CHAR_VOTE_BUCKET
+                    votes[key] = votes.get(key, 0) + 1
+                matched += 1
+        total_sh = max(len(shs), 1)
+        confidence = matched / total_sh
+        if votes and confidence >= CHAR_MIN_ANCHOR_CONFIDENCE:
+            best_key = max(votes.items(), key=lambda kv: kv[1])[0]
+            near = [
+                mdpos
+                for i, sh in shs
+                if sh in anchor_index
+                for mdpos in anchor_index[sh]
+                if abs(mdpos - i - best_key * CHAR_VOTE_BUCKET) < CHAR_NEAR_WINDOW
+            ]
+            if near:
+                md_start = max(min(near), 0)
+                md_end = min(max(near) + CHAR_SHINGLE, len(md_norm) - 1)
+            else:
+                md_start = max(best_key * CHAR_VOTE_BUCKET, 0)
+                md_end = min(md_start + len(norm), len(md_norm) - 1)
+            md_start = max(md_start, cursor)
+            md_end = max(md_end, md_start + 1)
+            cursor = md_start
+            pages.append(
+                {
+                    "page": pno + 1,
+                    "md_char_start": md_offsets[md_start],
+                    "md_char_end": md_offsets[md_end],
+                    "confidence": round(confidence, 3),
+                    "method": "anchored-chars",
+                }
+            )
+        else:
+            pages.append(
+                {
+                    "page": pno + 1,
+                    "md_char_start": None,
+                    "md_char_end": None,
+                    "confidence": round(confidence, 3),
+                    "method": "unmatched",
+                }
+            )
+
+    anchored = [p for p in pages if p["method"] == "anchored-chars"]
+    for p in pages:
+        if p["method"] == "unmatched":
+            prev = next((a for a in reversed(anchored) if a["page"] < p["page"]), None)
+            nxt = next((a for a in anchored if a["page"] > p["page"]), None)
+            if prev and nxt:
+                gap = nxt["page"] - prev["page"]
+                frac = (p["page"] - prev["page"]) / gap
+                span = nxt["md_char_start"] - prev["md_char_end"]
+                p["md_char_start"] = int(prev["md_char_end"] + span * frac)
+                p["md_char_end"] = int(prev["md_char_end"] + span * (frac + 1 / gap))
+                p["method"] = "interpolated"
+                p["confidence"] = round(min(prev["confidence"], nxt["confidence"]) * 0.5, 3)
+
+    # Per-block bboxes + classes: identical to the token path.
+    tree_pages = tree.get("children") or []
+    for p in pages:
+        if p["page"] - 1 >= len(tree_pages):
+            break
+        tpage = tree_pages[p["page"] - 1]
+        blocks = []
+
+        def walk(node):
+            for child in node.get("children") or []:
+                if child.get("children"):
+                    walk(child)
+                elif child.get("block_type"):
+                    blocks.append(child)
+
+        walk(tpage)
+        p["blocks"] = [
+            {
+                "id": b.get("id"),
+                "type": b.get("block_type"),
+                "bbox": b.get("bbox"),
+                "text_head": strip_html(b.get("html", "")).strip()[:120],
+            }
+            for b in blocks
+        ]
+        hierarchy = tpage.get("section_hierarchy") or {}
+        if hierarchy:
+            p["section_hierarchy"] = {k: v for k, v in hierarchy.items()}
+
+    classes = classify_pages(tree)
+    for p in pages:
+        p["page_class"] = classes.get(p["page"], "prose")
+
+    return {
+        "format": "hpub/0.1",
+        "title": title,
+        "view_layer": "book.pdf",
+        "text_layer": "content.md",
+        "page_count": len(pages),
+        "alignment": pages,
+    }
+
+
+def containment_check_chars(md_text: str, page_texts: list[str], alignment: list[dict]) -> dict:
+    """Char-multiset containment: what fraction of the page's normalized
+    chars appear in the aligned md window. Boundary-invariant sibling of
+    containment_check — same output shape."""
+    from collections import Counter
+
+    scores = []
+    for p, text in zip(alignment, page_texts):
+        if p["md_char_start"] is None:
+            scores.append(0.0)
+            continue
+        page_norm, _ = char_norm_with_offsets(text)
+        window = md_text[p["md_char_start"] : p["md_char_end"]]
+        win_norm, _ = char_norm_with_offsets(window)
+        win_counts = Counter(win_norm)
+        contained = 0
+        for c in page_norm:
+            if win_counts.get(c, 0) > 0:
+                win_counts[c] -= 1
+                contained += 1
+        scores.append(contained / max(len(page_norm), 1))
+
+    verdicts: list[bool | None] = []
+    for p, score in zip(alignment, scores):
+        cls = p.get("page_class", "prose")
+        if cls == "visual":
+            verdicts.append(None)
+        elif cls == "mixed":
+            verdicts.append(score >= MIN_MIXED_CONTAINMENT)
+        else:
+            verdicts.append(score >= MIN_PROSE_CONTAINMENT)
+
+    prose_scores = [s for s, p in zip(scores, alignment) if p.get("page_class", "prose") == "prose"]
+    prose_mean = sum(prose_scores) / max(len(prose_scores), 1)
+
+    longest_run = 0
+    run = 0
+    for v in verdicts:
+        if v is False:
+            run += 1
+            longest_run = max(longest_run, run)
+        else:
+            run = 0
+
+    return {
+        "mean": round(sum(scores) / max(len(scores), 1), 3),
+        "min": round(min(scores) if scores else 0.0, 3),
+        "prose_mean": round(prose_mean, 3),
+        "per_page": [round(s, 3) for s in scores],
+        "verdicts": verdicts,
+        "longest_failing_run": longest_run,
+        "page_classes": {
+            cls: sum(1 for p in alignment if p.get("page_class") == cls)
+            for cls in ("prose", "mixed", "visual")
+        },
+        "mode": "chars",
+    }
+
+
 # ─── 4. quality gate: token containment ──────────────────────────────────────
 
 def containment_check(md_text: str, page_texts: list[str], alignment: list[dict]) -> dict:
@@ -693,6 +931,10 @@ def main() -> None:
 
     log("1/6 text-layer coverage check")
     page_texts = extract_page_texts(str(pdf_path))
+    page_texts, despaced = zip(*(despace_page_text(t) for t in page_texts))
+    if any(despaced):
+        log(f"letter-spaced text layer repaired on {sum(despaced)}/{len(page_texts)} pages")
+    page_texts = list(page_texts)
     coverage_check(page_texts)
 
     images: dict = {}
@@ -757,9 +999,23 @@ def main() -> None:
 
     log("4/6 page alignment + manifest")
     manifest = build_manifest(title, md_text, page_texts, tree)
+    anchored_frac = sum(1 for p in manifest["alignment"] if p["method"] == "anchored") / max(
+        len(page_texts), 1
+    )
+    if anchored_frac < MIN_ANCHORED_FRACTION:
+        # Boundary-invariant fallback: degenerate word geometry (letter-spaced
+        # text layers, zero word gaps) breaks token shingles on BOTH sides.
+        log(
+            f"token alignment weak ({anchored_frac:.0%} anchored) — retrying with "
+            "boundary-invariant char alignment"
+        )
+        manifest = build_manifest_chars(title, md_text, page_texts, tree)
 
     log("5/6 class-aware quality gate (A2)")
-    containment = containment_check(md_text, page_texts, manifest["alignment"])
+    if any(p["method"] == "anchored-chars" for p in manifest["alignment"]):
+        containment = containment_check_chars(md_text, page_texts, manifest["alignment"])
+    else:
+        containment = containment_check(md_text, page_texts, manifest["alignment"])
     log(
         f"containment: prose_mean={containment['prose_mean']} "
         f"classes={containment['page_classes']} "
