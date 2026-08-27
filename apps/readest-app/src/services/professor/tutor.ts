@@ -29,7 +29,22 @@ export interface TutorRequest {
   /** When absent or disabled, the echo tutor answers instead. */
   aiSettings?: AISettings | null;
   signal?: AbortSignal;
+  /** A8: rendered images of the visible page(s) — PNG data URLs. Evidence
+   *  for figures/diagrams/rendered math; annotations still use block ids. */
+  images?: string[];
   cb: TutorCallbacks;
+}
+
+/** User-message content: plain text, or text + image parts when the Prof
+ *  has eyes on the page (A8). Exported for tests. */
+export function buildUserContent(
+  question: string,
+  pack: ProfessorContextPack,
+  images?: string[],
+): string | Array<{ type: 'text'; text: string } | { type: 'image'; image: string }> {
+  const text = buildProfessorUserMessage(question, pack);
+  if (!images?.length) return text;
+  return [{ type: 'text', text }, ...images.map((url) => ({ type: 'image' as const, image: url }))];
 }
 
 const STOPWORDS = new Set([
@@ -157,7 +172,7 @@ export async function askProfessor(req: TutorRequest): Promise<void> {
     const result = streamText({
       model,
       system: PROFESSOR_SYSTEM_PROMPT,
-      messages: [{ role: 'user', content: buildProfessorUserMessage(question, pack) }],
+      messages: [{ role: 'user', content: buildUserContent(question, pack, req.images) }],
       abortSignal: signal,
     });
     let full = '';

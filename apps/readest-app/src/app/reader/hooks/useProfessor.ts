@@ -18,6 +18,7 @@ import { useEnv } from '@/context/EnvContext';
 import { useBookDataStore } from '@/store/bookDataStore';
 import { buildContextPack, type ProfessorExchange } from '@/services/professor/contextPack';
 import { askProfessor, distillNote } from '@/services/professor/tutor';
+import { captureVisiblePageImages } from '@/services/professor/vision';
 import {
   parseAnnotations,
   stripAnnotations,
@@ -242,10 +243,18 @@ export const useProfessor = ({ bookKey }: { bookKey: string }) => {
       };
 
       const aiSettings = useSettingsStore.getState().settings.aiSettings;
+      // A8: give the Prof eyes — rendered images of the visible page(s).
+      // Best-effort: capture failure means a text-only answer, not an error.
+      const pageImages = captureVisiblePageImages(view);
+      const imageKb = Math.round(pageImages.reduce((n, i) => n + i.dataUrl.length, 0) / 1024);
+      nlog(
+        `[PROF-TRACE] vision: ${pageImages.length} page image(s) (${imageKb}KB) pages=${pageImages.map((i) => i.page).join(',') || 'none'}`,
+      );
       await askProfessor({
         question: q,
         pack,
         aiSettings,
+        images: pageImages.map((i) => i.dataUrl),
         signal: aborter.signal,
         cb: {
           onToken: (t) => {

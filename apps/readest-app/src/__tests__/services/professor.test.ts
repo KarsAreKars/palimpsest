@@ -90,6 +90,26 @@ describe('professor prompt', () => {
     expect(PROFESSOR_SYSTEM_PROMPT).toMatch(/read aloud/);
     expect(PROFESSOR_SYSTEM_PROMPT).toMatch(/no bullet-point/i);
     expect(PROFESSOR_SYSTEM_PROMPT).toMatch(/never sycophantic/i);
+    // A8: page-vision grounding — images are evidence, not addressing.
+    expect(PROFESSOR_SYSTEM_PROMPT).toMatch(/NOT the addressing system/);
+  });
+
+  it('buildUserContent stays text-only without images, adds parts with them', async () => {
+    const { buildUserContent } = await import('@/services/professor/tutor');
+    const plain = buildUserContent('what is a direct limit?', pack);
+    expect(typeof plain).toBe('string');
+    const withEyes = buildUserContent('explain the diagram', pack, [
+      'data:image/png;base64,AAA',
+      'data:image/png;base64,BBB',
+    ]);
+    expect(Array.isArray(withEyes)).toBe(true);
+    if (!Array.isArray(withEyes)) return;
+    expect(withEyes[0]).toMatchObject({ type: 'text' });
+    expect((withEyes[0] as { text: string }).text).toContain('explain the diagram');
+    expect(withEyes.slice(1)).toEqual([
+      { type: 'image', image: 'data:image/png;base64,AAA' },
+      { type: 'image', image: 'data:image/png;base64,BBB' },
+    ]);
   });
 
   it('user message embeds the excerpt and the question', () => {

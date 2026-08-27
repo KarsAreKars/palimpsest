@@ -72,4 +72,45 @@ describe.runIf(RUN)('professor live probe (gpt-4o-mini via user key)', () => {
     );
     expect(answer.length).toBeGreaterThan(40);
   }, 120_000);
+
+  it('vision smoke: page image flows through the provider (A8)', async () => {
+    const md = fs.readFileSync(path.join(DIR, 'content.md'), 'utf8');
+    const manifest = JSON.parse(
+      fs.readFileSync(path.join(DIR, 'manifest.json'), 'utf8'),
+    ) as HpubManifest;
+    const settingsRaw = JSON.parse(
+      fs.readFileSync(
+        path.join(
+          process.env['HOME']!,
+          'Library/Application Support/com.bilingify.readest/settings.json',
+        ),
+        'utf8',
+      ),
+    );
+    const aiSettings = { ...settingsRaw.aiSettings, enabled: true } as AISettings;
+    const pack = buildContextPack({ md, manifest, page: 4 });
+    // 1x1 red PNG — enough to prove the image content part reaches the model.
+    const RED_DOT =
+      'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
+    let answer = '';
+    await askProfessor({
+      question:
+        'I attached an image along with the page context. In one short sentence: what color dominates the attached image?',
+      pack,
+      aiSettings,
+      images: [RED_DOT],
+      cb: {
+        onToken: (t) => (answer += t),
+        onDone: () => undefined,
+        onError: (m) => {
+          throw new Error(m);
+        },
+      },
+    });
+    console.log('VISION PROBE ANSWER:', answer.slice(0, 300));
+    expect(answer.length).toBeGreaterThan(20);
+    // 1x1 red renders at the red/orange boundary at that resolution;
+    // the assertion is that the model GROUNDED in the image at all.
+    expect(answer.toLowerCase()).toMatch(/red|orange/);
+  }, 120_000);
 });
