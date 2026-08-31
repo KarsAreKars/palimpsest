@@ -133,9 +133,9 @@ describe('applyNarrativePass', () => {
       unit(3, 1, 'New paragraph.', 60, 74),
     ]);
     expect(out[0]!.prosody).toMatchObject({ pause_before_ms: 700, pause_after_ms: 600 });
-    expect(out[1]!.prosody?.pause_before_ms).toBe(300); // md gap = paragraph
+    expect(out[1]!.prosody?.pause_before_ms).toBe(650); // md gap = paragraph
     expect(out[2]!.prosody?.pause_before_ms ?? 0).toBe(0); // same block
-    expect(out[3]!.prosody?.pause_before_ms).toBe(300);
+    expect(out[3]!.prosody?.pause_before_ms).toBe(650);
   });
 
   it('prosody: display equations get surrounding beats', () => {

@@ -145,7 +145,11 @@ const KIND_PROSODY: Record<NarrationKind, NarrationProsody> = {
   skip: { pause_before_ms: 250, pause_after_ms: 250 }, // diagram announcements
 };
 
-const PARAGRAPH_PAUSE_MS = 300;
+// Paragraph = paratone boundary (SPEECH_SCIENCE.md §2): listeners segment
+// discourse by pitch resets and longer silence here. 300ms read as a
+// sentence beat; ~650ms is the audible 'new unit' cue. Silence at structure
+// points aids comprehension — never minimize it (§3).
+const PARAGRAPH_PAUSE_MS = 650;
 
 // ---------------------------------------------------------------------------
 // The pass itself
