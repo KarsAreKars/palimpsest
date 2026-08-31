@@ -30,9 +30,13 @@ import os
 
 MODEL_ID = "mlx-community/Qwen3-TTS-12Hz-1.7B-CustomVoice-8bit"
 
-# Anti-overacting defaults. Qwen3-TTS reads drama INTO the text when given
-# free rein; the ElevenReader-style fix is a boring, procedural style prompt
-# plus a lowered temperature (0.7 default -> predictable acoustic path).
+# Narration defaults — the config the user picked by ear on 2026-08-31
+# (Desktop/qwen-ab-new.wav, the 20.6s 'even narration' sample from commit
+# b9f0c72's A/B). Later rounds tried restrained-expressive (§8.1), calm
+# counter-steer, and flat-fast — all rejected; this b9f0c72 wording at
+# temp 0.5 is the chosen operating point. Qwen3-TTS reads drama INTO the
+# text when given free rein; this procedural style prompt plus a lowered
+# temperature (0.7 default -> predictable acoustic path) is the fix.
 # Override per request with {"instruct": ..., "temperature": ...}, or
 # server-wide via PALIMPSEST_QWEN_INSTRUCT / PALIMPSEST_QWEN_TEMPERATURE.
 DEFAULT_INSTRUCT = (
