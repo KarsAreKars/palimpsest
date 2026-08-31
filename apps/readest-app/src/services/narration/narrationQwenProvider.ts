@@ -25,18 +25,18 @@ const DEFAULT_BASE = 'http://127.0.0.1:8737';
 // Shown if the server is down at voice-list time; the server is the source
 // of truth when it's up.
 const STATIC_VOICES: TTSVoice[] = [
-  { id: 'Vivian', name: 'Vivian (warm female)', lang: 'en' },
-  { id: 'Serena', name: 'Serena (soft female)', lang: 'en' },
-  { id: 'Chelsie', name: 'Chelsie (clear female)', lang: 'en' },
-  { id: 'Ethan', name: 'Ethan (warm male)', lang: 'en' },
-  { id: 'Ryan', name: 'Ryan (clear male)', lang: 'en' },
-  { id: 'Aiden', name: 'Aiden (deep male)', lang: 'en' },
+  { id: 'vivian', name: 'Vivian (warm female)', lang: 'en' },
+  { id: 'serena', name: 'Serena (soft female)', lang: 'en' },
+  { id: 'ryan', name: 'Ryan (clear male)', lang: 'en' },
+  { id: 'aiden', name: 'Aiden (deep male)', lang: 'en' },
+  { id: 'eric', name: 'Eric (mellow male)', lang: 'en' },
+  { id: 'dylan', name: 'Dylan (bright male)', lang: 'en' },
 ];
 
 export class NarrationQwenProvider implements SpeechProvider {
   readonly id = 'qwen-local';
   readonly label = 'Qwen3-TTS (local)';
-  readonly fallbackVoiceId = 'Vivian';
+  readonly fallbackVoiceId = 'vivian';
   readonly cacheable = true; // local + deterministic-ish; the player caches per unit anyway
 
   #base: string;

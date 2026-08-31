@@ -26,17 +26,31 @@ import threading
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
+import os
 
 MODEL_ID = "mlx-community/Qwen3-TTS-12Hz-1.7B-CustomVoice-8bit"
 
-# Curated narrator-friendly presets from the Qwen3-TTS CustomVoice set.
+# Anti-overacting defaults. Qwen3-TTS reads drama INTO the text when given
+# free rein; the ElevenReader-style fix is a boring, procedural style prompt
+# plus a lowered temperature (0.7 default -> predictable acoustic path).
+# Override per request with {"instruct": ..., "temperature": ...}, or
+# server-wide via PALIMPSEST_QWEN_INSTRUCT / PALIMPSEST_QWEN_TEMPERATURE.
+DEFAULT_INSTRUCT = (
+    "A professional audiobook narrator reading aloud in a calm, neutral, "
+    "natural voice. Steady conversational pace, even tone, minimal emotional "
+    "inflection, no dramatization, no character voices."
+)
+DEFAULT_TEMPERATURE = 0.5
+
+# Real speaker ids from the Qwen3-TTS CustomVoice checkpoint
+# (model.supported_speakers) — English-leaning subset, lowercase ids.
 VOICES = [
-    {"id": "Vivian", "label": "Vivian (warm female)"},
-    {"id": "Serena", "label": "Serena (soft female)"},
-    {"id": "Chelsie", "label": "Chelsie (clear female)"},
-    {"id": "Ethan", "label": "Ethan (warm male)"},
-    {"id": "Ryan", "label": "Ryan (clear male)"},
-    {"id": "Aiden", "label": "Aiden (deep male)"},
+    {"id": "vivian", "label": "Vivian (warm female)"},
+    {"id": "serena", "label": "Serena (soft female)"},
+    {"id": "ryan", "label": "Ryan (clear male)"},
+    {"id": "aiden", "label": "Aiden (deep male)"},
+    {"id": "eric", "label": "Eric (mellow male)"},
+    {"id": "dylan", "label": "Dylan (bright male)"},
 ]
 
 _lock = threading.Lock()
@@ -96,11 +110,21 @@ class Handler(BaseHTTPRequestHandler):
         if len(text) > 4000:
             self._json(400, {"error": "text too long (max 4000 chars)"})
             return
-        voice = payload.get("voice") or "Vivian"
+        voice = (payload.get("voice") or "vivian").lower()
         if voice not in {v["id"] for v in VOICES}:
-            voice = "Vivian"
+            voice = "vivian"
         speed = float(payload.get("speed") or 1.0)
-        instruct = payload.get("instruct") or None
+        instruct = payload.get("instruct") or os.environ.get(
+            "PALIMPSEST_QWEN_INSTRUCT", DEFAULT_INSTRUCT
+        )
+        try:
+            temperature = float(
+                payload.get("temperature")
+                or os.environ.get("PALIMPSEST_QWEN_TEMPERATURE", DEFAULT_TEMPERATURE)
+            )
+        except (TypeError, ValueError):
+            temperature = DEFAULT_TEMPERATURE
+        temperature = min(max(temperature, 0.05), 1.5)
 
         from mlx_audio.tts.generate import generate_audio
 
@@ -113,6 +137,7 @@ class Handler(BaseHTTPRequestHandler):
                     voice=voice,
                     speed=speed,
                     instruct=instruct,
+                    temperature=temperature,
                     stt_model=None,  # no whisper verification pass — narration trusts the text
                     output_path=td,
                     file_prefix="out",
