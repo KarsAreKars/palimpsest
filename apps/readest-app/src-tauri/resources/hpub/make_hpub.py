@@ -233,7 +233,10 @@ def marker_extract(pdf_path: str, cache_dir: Path | None = None, use_llm: bool =
 def norm_tokens_with_offsets(text: str):
     tokens, offsets = [], []
     for m in re.finditer(r"[a-z0-9]+", text.lower()):
-        tokens.append(m.group(0))
+        t = m.group(0)
+        if _GLYPH_NAME_RE.match(t):
+            continue  # math-font glyph-name leaks ('bracehtipupleft') — furniture
+        tokens.append(t)
         offsets.append(m.start())
     return tokens, offsets
 
@@ -330,22 +333,32 @@ def llm_config() -> dict | None:
     }
 
 
-def chunk_markdown(md_text: str, target: int = CLEANUP_CHUNK_CHARS) -> list[str]:
-    """Paragraph-boundary chunks that never split inside a $$ ... $$ block."""
+def chunk_markdown(md_text: str, target: int = CLEANUP_CHUNK_CHARS) -> list[tuple[int, int, str]]:
+    """Paragraph-boundary chunks that never split inside a $$ ... $$ block.
+    Returns (start, end, text) offsets into md_text so the cleanup pass can
+    be TARGETED at chunks overlapping failing pages (Tadelis lesson,
+    2026-09-02: full-book cleanup rewrites healthy pages and LOWERS
+    containment — prose_mean fell 0.905 -> 0.89)."""
     paras = re.split(r"(\n\n+)", md_text)
-    units = [p for p in paras if p]
-    chunks: list[str] = []
+    chunks: list[tuple[int, int, str]] = []
     cur = ""
+    cur_start = 0
+    pos = 0
     in_display = False
-    for u in units:
+    for u in paras:
+        if not u:
+            continue
         if cur and len(cur) + len(u) > target and not in_display:
-            chunks.append(cur)
+            chunks.append((cur_start, pos, cur))
             cur = ""
+        if not cur:
+            cur_start = pos
         cur += u
+        pos += len(u)
         if u.count("$$") % 2 == 1:
             in_display = not in_display
     if cur:
-        chunks.append(cur)
+        chunks.append((cur_start, pos, cur))
     return chunks
 
 
@@ -364,11 +377,25 @@ def cleanup_chunk_ok(original: str, cleaned: str) -> bool:
     return True
 
 
-def llm_cleanup_pass(md_text: str, cfg: dict) -> tuple[str, dict]:
+def llm_cleanup_pass(
+    md_text: str, cfg: dict, only_spans: list[tuple[int, int]] | None = None
+) -> tuple[str, dict]:
+    """Repair extraction damage with an LLM. When only_spans is given (md
+    char spans of FAILING pages from a preliminary alignment), only chunks
+    overlapping those spans are sent — everything else passes through
+    verbatim. Blind full-book cleanup rewrites healthy pages and lowers
+    containment; targeted cleanup repairs where it is needed and nowhere
+    else."""
     chunks = chunk_markdown(md_text)
-    repaired, kept = 0, 0
+    repaired, kept, skipped = 0, 0, 0
     out: list[str] = []
-    for i, chunk in enumerate(chunks):
+    targeted = 0
+    for i, (start, end, chunk) in enumerate(chunks):
+        if only_spans is not None and not any(start < e and end > s for s, e in only_spans):
+            out.append(chunk)
+            skipped += 1
+            continue
+        targeted += 1
         request: dict = {
             "model": cfg["model"],
             # No temperature: some models (gpt-5-mini family) 400 on it.
@@ -417,9 +444,9 @@ def llm_cleanup_pass(md_text: str, cfg: dict) -> tuple[str, dict]:
         else:
             out.append(chunk)
             kept += 1
-        if (i + 1) % 5 == 0 or i + 1 == len(chunks):
-            log(f"cleanup progress: {i + 1}/{len(chunks)} chunks")
-    stats = {"chunks": len(chunks), "repaired": repaired, "kept": kept}
+        if (targeted % 5 == 0) or (i + 1 == len(chunks)):
+            log(f"cleanup progress: {targeted} targeted chunks done (at {i + 1}/{len(chunks)})")
+    stats = {"chunks": len(chunks), "targeted": targeted, "skipped": skipped, "repaired": repaired, "kept": kept}
     return "".join(out), stats
 
 
@@ -756,6 +783,62 @@ def containment_check_chars(md_text: str, page_texts: list[str], alignment: list
 
 # ─── 4. quality gate: token containment ──────────────────────────────────────
 
+_LATEX_COMMAND_RE = re.compile(r"\\[a-zA-Z]+")
+_MATH_SPAN_RE = re.compile(r"\$\$.*?\$\$|\$[^$\n]+?\$", re.S)
+
+
+def flatten_math_spans(text: str) -> str:
+    """LaTeX markup is invisible on the printed page: $BR_1(q_2^2)$ renders
+    as BR1(q22) and pypdf reads 'BR1(q2 | 2)'. A containment metric that
+    tokenizes raw markdown punishes CORRECT math extraction — the Tadelis
+    failure (2026-09-02): dense-math pages scored 0.4-0.6 with perfect
+    LaTeX. Flatten math spans to their alphanumeric payload; layout commands
+    (\\frac, \\cdots, ...) vanish — they are geometry, not tokens."""
+
+    def _flat(m: re.Match) -> str:
+        span = _LATEX_COMMAND_RE.sub(" ", m.group(0))
+        return " " + " ".join(re.findall(r"[A-Za-z0-9]+", span)) + " "
+
+    return _MATH_SPAN_RE.sub(_flat, text)
+
+
+# The PDF text layer keeps fi/fl ligatures ('\ufb01rm' tokenizes as 'rm' —
+# 27 orphaned tokens on ONE Tadelis page) while Marker normalizes to ascii.
+# Expand on both sides so ligatured words match (2026-09-02).
+_LIGATURES = str.maketrans(
+    {
+        "\ufb00": "ff",
+        "\ufb01": "fi",
+        "\ufb02": "fl",
+        "\ufb03": "ffi",
+        "\ufb04": "ffl",
+        "\ufb05": "st",
+        "\ufb06": "st",
+    }
+)
+
+# Math-font ToUnicode maps leak glyph NAMES into the page text layer
+# ('bracehtipupleft' for a tall left brace). Furniture, not prose.
+_GLYPH_NAME_RE = re.compile(
+    r"^(brace|bracket|paren|arrow)(htip|btip|tip|up|down|left|right|middle|top|bot|ext)[a-z]*$"
+)
+
+
+def containment_tokens(text: str, is_md: bool) -> list[str]:
+    """Gate tokens. Page-side text gets ligature expansion and glyph-name
+    filtering; md-side math spans are flattened first. Both sides split
+    letter/digit runs ('br1' -> 'br','1'): the page flattens
+    sub/superscripts into joined fragments while LaTeX keeps them
+    structured — splitting keeps the multisets comparable. Symmetric by
+    construction; prose without digits is unaffected."""
+    text = text.translate(_LIGATURES)
+    if is_md:
+        text = flatten_math_spans(text)
+    return [
+        t for t in re.findall(r"[a-z]+|[0-9]+", text.lower()) if not _GLYPH_NAME_RE.match(t)
+    ]
+
+
 def containment_check(md_text: str, page_texts: list[str], alignment: list[dict]) -> dict:
     """Per-page token containment, then the class-aware gate (amendment A2).
     Returns stats; `verdicts` carries per-page pass/fail/None(excluded)."""
@@ -766,9 +849,9 @@ def containment_check(md_text: str, page_texts: list[str], alignment: list[dict]
         if p["md_char_start"] is None:
             scores.append(0.0)
             continue
-        page_tokens, _ = norm_tokens_with_offsets(text)
+        page_tokens = containment_tokens(text, is_md=False)
         window = md_text[p["md_char_start"] : p["md_char_end"]]
-        win_tokens, _ = norm_tokens_with_offsets(window)
+        win_tokens = containment_tokens(window, is_md=True)
         win_counts = Counter(win_tokens)
         contained = 0
         for t in page_tokens:
@@ -932,6 +1015,12 @@ def main() -> None:
     log("1/6 text-layer coverage check")
     page_texts = extract_page_texts(str(pdf_path))
     page_texts, despaced = zip(*(despace_page_text(t) for t in page_texts))
+    # Ligature expansion at the SOURCE: the PDF text layer keeps fi/fl
+    # ligatures ('\ufb01rm' tokenizes as 'rm'), Marker normalizes to ascii —
+    # unexpanded, every ligatured word is a broken shingle vote AND a
+    # containment miss (Tadelis ch.16, 2026-09-02). Expanding before
+    # alignment keeps token offsets consistent for everything downstream.
+    page_texts = [t.translate(_LIGATURES) for t in page_texts]
     if any(despaced):
         log(f"letter-spaced text layer repaired on {sum(despaced)}/{len(page_texts)} pages")
     page_texts = list(page_texts)
@@ -987,11 +1076,38 @@ def main() -> None:
         for name in images:
             md_text = md_text.replace(f"]({name})", f"](assets/{name})")
 
+    # md side of the ligature repair (see step 1). Expansion happens BEFORE
+    # alignment and artifact write, so content.md is the expanded text and
+    # manifest spans stay consistent with it.
+    md_text = md_text.translate(_LIGATURES)
+
     cfg = llm_config() if not args.epub else None
     if cfg:
-        log(f"3/6 llm cleanup pass ({cfg['model']}) — repairing extraction damage")
-        md_text, stats = llm_cleanup_pass(md_text, cfg)
-        log(f"cleanup: {stats['chunks']} chunks, {stats['repaired']} repaired, {stats['kept']} kept as-is")
+        # Targeted cleanup (Tadelis lesson, 2026-09-02): a blind full-book
+        # pass rewrites healthy pages and LOWERS containment (prose_mean
+        # 0.905 -> 0.89). Run a preliminary alignment on the uncleaned text,
+        # find the pages that fail containment, and repair only the chunks
+        # overlapping them. Marker output is cached, so this costs one extra
+        # alignment, not a re-extraction.
+        prelim_manifest = build_manifest(title, md_text, page_texts, tree)
+        prelim = containment_check(md_text, page_texts, prelim_manifest["alignment"])
+        failing_spans = [
+            (p["md_char_start"], p["md_char_end"])
+            for p, v in zip(prelim_manifest["alignment"], prelim["verdicts"])
+            if v is False and p["md_char_start"] is not None
+        ]
+        if failing_spans:
+            log(
+                f"3/6 llm cleanup pass ({cfg['model']}) — targeted at "
+                f"{len(failing_spans)} failing pages"
+            )
+            md_text, stats = llm_cleanup_pass(md_text, cfg, only_spans=failing_spans)
+            log(
+                f"cleanup: {stats['targeted']} targeted, {stats['repaired']} repaired, "
+                f"{stats['kept']} kept as-is, {stats['skipped']} skipped (healthy)"
+            )
+        else:
+            log("3/6 llm cleanup: preliminary alignment found no failing pages — nothing to repair")
     elif args.epub:
         log("3/6 llm cleanup skipped (fusion lane — epub text is publisher-clean)")
     else:
