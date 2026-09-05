@@ -108,7 +108,7 @@ const NarrationPanel: React.FC<SettingsPanelPanelProp> = ({ onRegisterReset }) =
               onChange={() => settings.setProvider('qwen-local')}
             />
             <span className='text-sm'>
-              Qwen3-TTS — local neural voices, offline (needs the local server)
+              Qwen3-TTS + Kokoro — local neural voices, offline (needs the local server)
             </span>
           </label>
         </div>
@@ -137,11 +137,12 @@ const NarrationPanel: React.FC<SettingsPanelPanelProp> = ({ onRegisterReset }) =
 
       {settings.provider === 'qwen-local' && (
         <div>
-          <h3 className='mb-2 text-sm font-semibold'>Qwen3-TTS voice</h3>
+          <h3 className='mb-2 text-sm font-semibold'>Local neural voice</h3>
           <QwenVoicePicker />
           <p className='mt-1 text-xs text-base-content/50'>
-            Runs on your Mac via the local server (port 8737). If narration silently uses a built-in
-            voice instead, the server isn't running.
+            Kokoro voices (Heart, Adam…) are the long-form pick; Qwen3 voices follow style
+            instructions. Runs on your Mac via the local server (port 8737). If narration silently
+            uses a built-in voice instead, the server isn't running.
           </p>
         </div>
       )}

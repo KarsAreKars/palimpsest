@@ -173,7 +173,7 @@ export class NarrationController extends EventTarget {
           : undefined) ??
         provider.fallbackVoiceId ??
         voices[0]?.id ??
-        'vivian';
+        'af_heart';
     } else if (provider.id === 'elevenlabs') {
       voice = settings.elevenlabsVoiceId ?? langVoices[0]?.id ?? voices[0]?.id ?? '';
       if (!voice) {
