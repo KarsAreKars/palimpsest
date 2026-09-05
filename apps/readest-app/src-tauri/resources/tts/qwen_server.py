@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import socket
 import sys
 import tempfile
 import threading
@@ -117,6 +118,25 @@ class Handler(BaseHTTPRequestHandler):
         voice = (payload.get("voice") or "vivian").lower()
         if voice not in {v["id"] for v in VOICES}:
             voice = "vivian"
+        # Cascade breaker (2026-09-05): a degenerate generation once produced
+        # 96s of audio for 303 chars; the client gave up at ~30s but the
+        # server kept burning GPU under the global lock, so every queued
+        # request timed out behind work nobody was waiting on (>1 min of
+        # silence in the app). Two guards:
+        #   1. Liveness: if the client already hung up, skip generation
+        #      entirely — zombie work never starts.
+        try:
+            if self.connection.recv(1, socket.MSG_PEEK | socket.MSG_DONTWAIT) == b"":
+                print("[qwen-tts] client gone before generation — skipping", flush=True)
+                return
+        except BlockingIOError:
+            pass  # alive, no pending data
+        except OSError:
+            return
+        #   2. Runaway cap: healthy synthesis ≈ 2 tokens/char; cap at 3x so a
+        #      looping decode dies near the client's patience horizon instead
+        #      of 3x beyond it.
+        max_tokens = min(max(len(text) * 3, 600), 4500)
         speed = float(payload.get("speed") or 1.0)
         instruct = payload.get("instruct") or os.environ.get(
             "PALIMPSEST_QWEN_INSTRUCT", DEFAULT_INSTRUCT
@@ -142,6 +162,7 @@ class Handler(BaseHTTPRequestHandler):
                     speed=speed,
                     instruct=instruct,
                     temperature=temperature,
+                    max_tokens=max_tokens,
                     stt_model=None,  # no whisper verification pass — narration trusts the text
                     output_path=td,
                     file_prefix="out",
