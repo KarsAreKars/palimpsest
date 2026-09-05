@@ -18,7 +18,10 @@ import { useEnv } from '@/context/EnvContext';
 import { useBookDataStore } from '@/store/bookDataStore';
 import { buildContextPack, type ProfessorExchange } from '@/services/professor/contextPack';
 import { askProfessor, distillNote } from '@/services/professor/tutor';
-import { captureVisiblePageImages } from '@/services/professor/vision';
+import {
+  captureVisiblePageImages,
+  captureWindowScreenshotDataUrl,
+} from '@/services/professor/vision';
 import {
   parseAnnotations,
   stripAnnotations,
@@ -256,15 +259,21 @@ export const useProfessor = ({ bookKey }: { bookKey: string }) => {
       // A8: give the Prof eyes — rendered images of the visible page(s).
       // Best-effort: capture failure means a text-only answer, not an error.
       const pageImages = captureVisiblePageImages(view);
-      const imageKb = Math.round(pageImages.reduce((n, i) => n + i.dataUrl.length, 0) / 1024);
+      // ClickyX-parity: ALSO capture the user's literal window (their
+      // highlights/selection/ink as displayed). First image = live window
+      // shot; clean page renders follow. Anchors (manifest block ids)
+      // remain the only addressing system — images are evidence.
+      const windowShot = await captureWindowScreenshotDataUrl();
+      const images = [...(windowShot ? [windowShot] : []), ...pageImages.map((i) => i.dataUrl)];
+      const imageKb = Math.round(images.reduce((n, u) => n + u.length, 0) / 1024);
       nlog(
-        `[PROF-TRACE] vision: ${pageImages.length} page image(s) (${imageKb}KB) pages=${pageImages.map((i) => i.page).join(',') || 'none'}`,
+        `[PROF-TRACE] vision: windowShot=${windowShot ? 'yes' : 'no'} + ${pageImages.length} page image(s) (${imageKb}KB) pages=${pageImages.map((i) => i.page).join(',') || 'none'}`,
       );
       await askProfessor({
         question: q,
         pack,
         aiSettings,
-        images: pageImages.map((i) => i.dataUrl),
+        images,
         signal: aborter.signal,
         cb: {
           onToken: (t) => {

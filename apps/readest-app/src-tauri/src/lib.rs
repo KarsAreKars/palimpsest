@@ -36,6 +36,7 @@ mod mobi_parser;
 mod nightly_update;
 mod parser_common;
 mod range_file;
+mod screenshot;
 #[cfg(desktop)]
 mod spawn_fresh_browser;
 mod transfer_file;
@@ -333,6 +334,7 @@ pub fn run() {
             mobi_parser::parse_mobi_metadata,
             mobi_parser::extract_mobi_cover_full,
             hpub::hpub_extract,
+            screenshot::capture_window_screenshot,
             #[cfg(target_os = "macos")]
             macos::safari_auth::auth_with_safari,
             #[cfg(target_os = "macos")]

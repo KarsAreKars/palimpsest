@@ -51,6 +51,35 @@ const findPageCanvas = (doc: Document): HTMLCanvasElement | null => {
   return best;
 };
 
+import { invoke } from '@tauri-apps/api/core';
+
+/** ClickyX parity: 3s cache TTL — rapid follow-up questions reuse the frame. */
+const WINDOW_SHOT_TTL_MS = 3000;
+let windowShotCache: { at: number; dataUrl: string } | null = null;
+
+/**
+ * Live screenshot of the reader window (Rust `capture_window_screenshot`,
+ * xcap) — the Prof sees the user's literal view: highlights, selection,
+ * ink, exactly as displayed. Least-privilege: only our own process's
+ * windows are captured, downscaled to 1280px server-side.
+ *
+ * Additive, never a failure mode: without macOS Screen Recording
+ * permission (or on any capture error) this returns null and the Prof
+ * answers from the A8 page images alone.
+ */
+export async function captureWindowScreenshotDataUrl(): Promise<string | null> {
+  if (windowShotCache && Date.now() - windowShotCache.at < WINDOW_SHOT_TTL_MS) {
+    return windowShotCache.dataUrl;
+  }
+  try {
+    const dataUrl = await invoke<string>('capture_window_screenshot');
+    windowShotCache = { at: Date.now(), dataUrl };
+    return dataUrl;
+  } catch {
+    return null;
+  }
+}
+
 /**
  * Clone-paint the visible pages' canvases into PNG data URLs.
  * `maxWidth` caps the export width (vision tokens scale with pixels; a
