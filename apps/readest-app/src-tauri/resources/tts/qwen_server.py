@@ -25,7 +25,7 @@ import sys
 import tempfile
 import threading
 import time
-from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
 import os
 
@@ -112,13 +112,19 @@ def synth_kokoro(text: str, voice: str, speed: float) -> bytes:
     import io
     import wave
 
+    import mlx.core as mx
     import numpy as np
 
     pipe = get_kokoro()
-    parts = [np.array(r.audio).flatten() for r in pipe(text, voice=voice, speed=speed)]
-    if not parts:
-        raise RuntimeError("kokoro produced no audio")
-    audio = np.concatenate(parts)
+    # ThreadingHTTPServer runs every request on a FRESH thread, and MLX binds
+    # eval streams per-thread — without this the pipeline dies with "There is
+    # no Stream(cpu, 1) in current thread" (app-side: every sentence 500s,
+    # the highlight cursor races off-screen in silence, 2026-09-06).
+    with mx.stream(mx.new_stream(mx.gpu)):
+        parts = [np.array(r.audio).flatten() for r in pipe(text, voice=voice, speed=speed)]
+        if not parts:
+            raise RuntimeError("kokoro produced no audio")
+        audio = np.concatenate(parts)
     pcm = (np.clip(audio, -1, 1) * 32767).astype("<i2").tobytes()
     buf = io.BytesIO()
     with wave.open(buf, "wb") as w:
@@ -295,7 +301,14 @@ def main() -> None:
     if args.preload:
         get_model()
         get_kokoro()  # warm both engines — a cold kokoro first-request costs ~20s
-    server = ThreadingHTTPServer(("127.0.0.1", args.port), Handler)
+    # Single-threaded on purpose: generation was always serialized by the
+    # global lock (MLX isn't thread-safe), and ThreadingHTTPServer gave each
+    # request a FRESH thread with no MLX streams bound — every kokoro call
+    # 500'd with "no Stream(cpu, 1) in current thread" (2026-09-06). One
+    # thread = streams live on the main thread = the whole bug class dies.
+    # Cost: /health can't answer mid-generation; acceptable (probes happen
+    # at session start).
+    server = HTTPServer(("127.0.0.1", args.port), Handler)
     print(f"[qwen-tts] listening on http://127.0.0.1:{args.port} (model {_model_id})", file=sys.stderr)
     server.serve_forever()
 
