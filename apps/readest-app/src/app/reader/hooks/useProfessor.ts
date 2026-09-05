@@ -26,7 +26,11 @@ import {
   withAnnotationPages,
   type ProfessorAnnotation,
 } from '@/services/professor/annotations';
-import { setProfessorAnnotations } from '@/services/professor/annotationBus';
+import {
+  clearProfessorAnnotations,
+  getProfessorAnnotations,
+  setProfessorAnnotations,
+} from '@/services/professor/annotationBus';
 import { ProfessorVoice, holdPartialTag } from '@/services/professor/voice';
 import { PROF_ASK_EVENT } from '@/app/reader/components/notebook/StudyTab';
 import {
@@ -148,6 +152,12 @@ export const useProfessor = ({ bookKey }: { bookKey: string }) => {
     voiceRef.current?.stop();
     // Ink is NOT cleared on close (A5): margin notes stay on the page like
     // a real tutor's pencil marks until the next answer replaces them.
+    // EXCEPTION: pending ink from the aborted stream — its strike will
+    // never arrive, so it would pulse on the page forever (the stuck red
+    // dots). Sweep pending marks only; completed ink stays.
+    if (getProfessorAnnotations(bookKey)?.pending) {
+      clearProfessorAnnotations(bookKey);
+    }
     setOpen(false);
     setPhase('idle');
     setAnswer('');
@@ -344,6 +354,13 @@ export const useProfessor = ({ bookKey }: { bookKey: string }) => {
             voice.stop();
             setPhase('idle');
             setError(message);
+            // A failed/aborted stream can leave PENDING ink on the page
+            // (faint pulsing marks the strike never lands on — the "red
+            // dots that won't clear" bug). Completed margin notes from a
+            // previous answer are untouched (A5); only pending ink is swept.
+            if (getProfessorAnnotations(bookKey)?.pending) {
+              clearProfessorAnnotations(bookKey);
+            }
           },
         },
       });
