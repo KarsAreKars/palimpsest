@@ -149,7 +149,30 @@ export const useProfessor = ({ bookKey }: { bookKey: string }) => {
     if (controller?.playing) controller.player.pause();
   }, [open, bookKey]);
 
+  // Gesture ink (point/highlight/box/arrow) is an ATTENTION aid while the
+  // answer lands — not a margin note. User report (2026-09-03): stray red
+  // dots lingering on the page read as a bug. Gestures fade 60s after the
+  // strike; WRITE/CAPTION margin notes persist until the next answer (A5).
+  const gestureFadeRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const GESTURE_FADE_MS = 60_000;
+  const scheduleGestureFade = useCallback(() => {
+    if (gestureFadeRef.current) clearTimeout(gestureFadeRef.current);
+    gestureFadeRef.current = setTimeout(() => {
+      const s = getProfessorAnnotations(bookKey);
+      if (!s || s.pending) return;
+      const notes = s.annotations.filter((a) => a.kind === 'write' || a.kind === 'caption');
+      if (notes.length === s.annotations.length) return;
+      if (notes.length === 0) clearProfessorAnnotations(bookKey);
+      else setProfessorAnnotations(bookKey, { ...s, annotations: notes });
+    }, GESTURE_FADE_MS);
+  }, [bookKey]);
+  const cancelGestureFade = useCallback(() => {
+    if (gestureFadeRef.current) clearTimeout(gestureFadeRef.current);
+    gestureFadeRef.current = null;
+  }, []);
+
   const close = useCallback(() => {
+    cancelGestureFade();
     abortRef.current?.abort();
     abortRef.current = null;
     voiceRef.current?.stop();
@@ -165,7 +188,7 @@ export const useProfessor = ({ bookKey }: { bookKey: string }) => {
     setPhase('idle');
     setAnswer('');
     setError(null);
-  }, [bookKey]);
+  }, [bookKey, cancelGestureFade]);
 
   const ask = useCallback(
     async (question: string) => {
@@ -219,6 +242,7 @@ export const useProfessor = ({ bookKey }: { bookKey: string }) => {
       abortRef.current?.abort();
       const aborter = new AbortController();
       abortRef.current = aborter;
+      cancelGestureFade(); // a new question's ink must not be swept by the previous answer's timer
       // Barge-in (plan §5): a new question silences the previous answer.
       const voice = getVoice();
       voice.stop();
@@ -317,6 +341,7 @@ export const useProfessor = ({ bookKey }: { bookKey: string }) => {
             );
             // The strike: pending marks snap to full ink.
             setProfessorAnnotations(bookKey, { page: targetPage, annotations, pending: false });
+            scheduleGestureFade();
 
             // HP-4 question log (plan §6): fold the exchange into
             // learner.json, refresh the cached concept history, then distill
