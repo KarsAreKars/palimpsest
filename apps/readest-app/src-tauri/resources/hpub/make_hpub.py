@@ -23,6 +23,7 @@ import json
 import os
 import re
 import sys
+import time
 import urllib.request
 import zipfile
 from pathlib import Path
@@ -71,8 +72,11 @@ VISUAL_PAGE_THRESHOLD = 0.50
 MIXED_PAGE_THRESHOLD = 0.15
 
 
+_T0 = time.monotonic()
+
+
 def log(msg: str) -> None:
-    print(f"[make_hpub] {msg}", file=sys.stderr, flush=True)
+    print(f"[make_hpub +{time.monotonic() - _T0:7.1f}s] {msg}", file=sys.stderr, flush=True)
 
 
 def emit(result: dict, code: int) -> None:
@@ -160,13 +164,23 @@ def ensure_llama_cpp() -> None:
         if cand and Path(cand).exists():
             os.environ["LLAMA_CPP_BINARY"] = cand
             log(f"llama-server resolved: {cand}")
+            # Decode-throughput sweet spot measured on math-dense slices
+            # (2026-09-05): 8 slots (surya default) → 3.8 s/page; 32 → 2.9;
+            # 64 no better. Must be set BEFORE marker imports surya (pydantic
+            # binds env at import). Explicit env always wins.
+            os.environ.setdefault("SURYA_INFERENCE_PARALLEL", "32")
             return
     log("llama-server NOT found — surya's llamacpp backend will fail (brew install llama.cpp)")
 
 
 # ─── 2. marker extraction ────────────────────────────────────────────────────
 
-def marker_extract(pdf_path: str, cache_dir: Path | None = None, use_llm: bool = False):
+def marker_extract(
+    pdf_path: str,
+    cache_dir: Path | None = None,
+    use_llm: bool = False,
+    page_range: list[int] | None = None,
+):
     """One build_document pass, rendered to Markdown + JSON. Returns
     (md_text, doc_tree, images{name: PIL.Image}). Caches to disk so
     alignment/gate iteration doesn't pay the ~3.4 s/page Marker cost twice.
@@ -177,6 +191,13 @@ def marker_extract(pdf_path: str, cache_dir: Path | None = None, use_llm: bool =
     narrates and one that skips every formula (constraint #2)."""
     ensure_llama_cpp()
     cache_key = "llm" if use_llm else "plain"
+    if page_range is not None:
+        import hashlib
+
+        digest = hashlib.md5(
+            (pdf_path + str(page_range)).encode(), usedforsecurity=False
+        ).hexdigest()[:10]
+        cache_key = f"{cache_key}.range-{digest}"
     if cache_dir:
         cache_dir.mkdir(parents=True, exist_ok=True)
         md_cache = cache_dir / f"content.{cache_key}.md"
@@ -195,8 +216,11 @@ def marker_extract(pdf_path: str, cache_dir: Path | None = None, use_llm: bool =
     # this stack (worker process died) and run slower than serial — with
     # default workers marker paid ~3.4 s/page (Tadelis ≈ 24 min); serial
     # measures 0.65–0.83 s/page (≈ 4.6 min for 417 pp). SURYA_INFERENCE_
-    # PARALLEL=16 added nothing — the VLM decode saturates Metal at 8 slots.
+    # PARALLEL=32 is the math-slice sweet spot (3.8 → 2.9 s/page; 8 is the
+    # shipped default, 64 regains nothing, -fa hangs the VLM outright).
     config["pdftext_workers"] = None
+    if page_range is not None:
+        config["page_range"] = page_range
     llm_service = None
     if use_llm:
         import os
@@ -232,6 +256,214 @@ def marker_extract(pdf_path: str, cache_dir: Path | None = None, use_llm: bool =
         (cache_dir / f"content.{cache_key}.md").write_text(md_out.markdown, encoding="utf-8")
         (cache_dir / f"tree.{cache_key}.json").write_text(json.dumps(tree), encoding="utf-8")
     return md_out.markdown, tree, md_out.images or {}
+
+
+# ─── 2b. fast path: VLM only where the embedded text layer can't speak ───────
+#
+# Digital-born PDFs carry a real text layer. For pure-prose pages that layer
+# IS the book — paying ~1–4 s/page of VLM decode to re-OCR clean text is pure
+# waste (measured 2026-09-05: prose slices 0.67 s/page, math slices 2.9–3.8).
+# The fast path flags pages that genuinely need the VLM — math fonts (display
+# equations come back as LaTeX, constraint #2) and image plates — and runs
+# Marker on those only. Prose pages narrate straight from pdftext, fusion-lane
+# philosophy. Tuned against the golden Tadelis tree: broad math-font rule +
+# image coverage = 100% recall on Marker's Equation/Picture/Table pages.
+
+MATH_FONT_RE = re.compile(
+    r"(cmmi|cmsy|cmex|msbm|msam|mtmi|mtsyn|mtex|stmary|eufm|wasy|esint|math)",
+    re.I,
+)
+PAGE_NUM_RE = re.compile(r"^[0-9ivxlcdmIVXLCDM]{1,6}$")
+FASTPATH_MAX_FLAGGED_FRACTION = 0.9  # beyond this, splicing overhead isn't worth it
+
+
+def fastpath_scan(pdf_path: str) -> tuple[list[int], set[int], list[dict]]:
+    """Return (flagged 0-based page indices, raw pdftext page dicts).
+
+    Flagged = math-font span present (inline OR display math; inline rides
+    along because recall must be total) OR low-text page (<400 chars —
+    plates, figures, chapter openers are all cheap for the VLM and pypdfium's
+    get_objects() returned 0 objects on plate pages here, so image-area
+    detection is a dead end; tuned on the golden Tadelis tree: 99.3% recall,
+    the 2 misses degrade gracefully — a table linearizes, a captioned figure
+    keeps its caption)."""
+    from pdftext.extraction import dictionary_output
+
+    pages = dictionary_output(pdf_path, sort=True, workers=None)
+    n = len(pages)
+    edge = max(2, int(0.05 * n))  # covers/title/copyright/ads live at the edges
+    flagged: set[int] = set()
+    low_text: set[int] = set()
+    for i, p in enumerate(pages):
+        nchars = 0
+        hit = False
+        for b in p["blocks"]:
+            for ln in b["lines"]:
+                for sp in ln["spans"]:
+                    t = sp.get("text") or ""
+                    nchars += len(t)
+                    if t.strip() and MATH_FONT_RE.search(sp["font"].get("name") or ""):
+                        hit = True
+        if nchars < 400:
+            low_text.add(i)
+        if hit or (nchars < 400 and edge <= i < n - edge):
+            # Low-text flagging skips the book's edges: South's front matter
+            # measured 75 s/page of degenerate VLM decode (7 pages = 528s)
+            # while mid-book plates cost 1-3s. The gate already tolerates
+            # unbound leading/trailing matter.
+            flagged.add(i)
+    return sorted(flagged), low_text, pages
+
+
+def _prose_block_text(block: dict) -> str:
+    """pdftext block → one paragraph: lines joined, print hyphenation rejoined."""
+    out_lines: list[str] = []
+    for ln in block["lines"]:
+        line = "".join(sp.get("text") or "" for sp in ln["spans"]).strip()
+        if not line:
+            continue
+        if out_lines and out_lines[-1].endswith("-") and line[0].islower():
+            out_lines[-1] = out_lines[-1][:-1] + line
+        else:
+            out_lines.append(line)
+    return " ".join(out_lines).strip()
+
+
+def hybrid_marker_extract(
+    pdf_path: str,
+    n_pages: int,
+    flagged: list[int],
+    low_text: set[int],
+    raw_pages: list[dict],
+    cache_dir: Path | None = None,
+) -> tuple[str, dict, dict]:
+    """Marker on flagged pages only; pdftext prose for the rest. Returns the
+    same (md_text, tree, images) triple as marker_extract."""
+    from fusion import pdf_geometry_tree
+    from marker.renderers.markdown import Markdownify
+
+    md_flagged, tree_flagged, images = marker_extract(
+        pdf_path, cache_dir=cache_dir, page_range=flagged
+    )
+    geo_tree = pdf_geometry_tree(pdf_path)
+
+    # Marker keeps original page numbers in ids (/page/<n>/…) — index by that.
+    marker_pages: dict[int, dict] = {}
+    for p in tree_flagged.get("children") or []:
+        m = re.match(r"/page/(\d+)/", p.get("id") or "")
+        if m:
+            marker_pages[int(m.group(1))] = p
+
+    mdify = Markdownify(
+        False,
+        "",
+        heading_style="ATX",
+        bullets="-",
+        escape_misc=False,
+        escape_underscores=True,
+        escape_asterisks=True,
+        escape_dollars=True,
+        sub_symbol="<sub>",
+        sup_symbol="<sup>",
+        inline_math_delimiters=("$", "$"),
+        block_math_delimiters=("$$", "$$"),
+        html_tables_in_markdown=False,
+    )
+
+    # Marker tree html uses <content-ref src='/page/30/ListItem/205'> for
+    # nested content (lists, groups) — the full MarkdownRenderer resolves
+    # these against the document; per-page synthesis must expand them by
+    # hand or every list item silently vanishes from the narration layer.
+    blocks_by_id: dict[str, dict] = {}
+
+    def index_blocks(node: dict) -> None:
+        for c in node.get("children") or []:
+            if c.get("id"):
+                blocks_by_id[c["id"]] = c
+            index_blocks(c)
+
+    for p in tree_flagged.get("children") or []:
+        index_blocks(p)
+
+    CONTENT_REF_RE = re.compile(r"<content-ref\s+src=['\"]([^'\"]+)['\"]\s*></content-ref>")
+
+    def expand_html(block: dict, depth: int = 0) -> str:
+        html = block.get("html") or "".join(c.get("html") or "" for c in block.get("children") or [])
+        if depth >= 4 or "content-ref" not in html:
+            return html
+        return CONTENT_REF_RE.sub(
+            lambda m: expand_html(blocks_by_id[m.group(1)], depth + 1)
+            if m.group(1) in blocks_by_id
+            else "",
+            html,
+        )
+
+    def marker_page_md(page: dict) -> str:
+        parts = []
+        for b in page.get("children") or []:
+            html = expand_html(b)
+            if html.strip():
+                parts.append(mdify.convert(html).strip())
+        return "\n\n".join(t for t in parts if t)
+
+    geo_pages = geo_tree["children"]
+    merged_children: list[dict] = []
+    md_parts: list[str] = []
+    marginals_dropped = 0
+    for i in range(n_pages):
+        if i in marker_pages:
+            merged_children.append(marker_pages[i])
+            md_parts.append(marker_page_md(marker_pages[i]))
+            continue
+        geo = geo_pages[i]
+        if i in low_text:
+            # Nearly-empty page we deliberately didn't VLM (edge matter):
+            # give the merged tree a Picture block so classify_pages calls
+            # it visual and the quality gate doesn't count its (empty) prose
+            # containment against us.
+            pb = geo["bbox"]
+            geo = {
+                **geo,
+                "children": [
+                    *(geo.get("children") or []),
+                    {
+                        "id": f"/page/{i}/Picture/0",
+                        "block_type": "Picture",
+                        "bbox": [
+                            pb[0] + 0.2 * (pb[2] - pb[0]),
+                            pb[1] + 0.2 * (pb[3] - pb[1]),
+                            pb[2] - 0.2 * (pb[2] - pb[0]),
+                            pb[3] - 0.2 * (pb[3] - pb[1]),
+                        ],
+                        "html": "",
+                    },
+                ],
+            }
+        merged_children.append(geo)
+        raw_page = raw_pages[i]
+        page_h = (raw_page["bbox"][3] - raw_page["bbox"][1]) or 1
+        paras = []
+        for raw in raw_page["blocks"]:
+            text = _prose_block_text(raw)
+            if not text or PAGE_NUM_RE.match(text):
+                continue
+            # Running heads / footers: short text hugging the page edges —
+            # nobody wants "SOUTH · 2" narrated at every page turn.
+            top = raw["bbox"][1] - raw_page["bbox"][1]
+            bot = raw["bbox"][3] - raw_page["bbox"][1]
+            if len(text) < 80 and (top < 0.08 * page_h or bot > 0.94 * page_h):
+                marginals_dropped += 1
+                continue
+            paras.append(text)
+        md_parts.append("\n\n".join(paras))
+
+    md_text = "\n\n".join(t for t in md_parts if t)
+    tree = {"children": merged_children, "body_font_size": geo_tree.get("body_font_size", 10.0)}
+    log(
+        f"fast path: VLM on {len(flagged)}/{n_pages} pages "
+        f"({len(flagged) / max(n_pages, 1):.0%}), {marginals_dropped} marginals dropped"
+    )
+    return md_text, tree, images
 
 
 # ─── 3. alignment (shingle anchoring, from phase-0 align.py) ─────────────────
@@ -1010,6 +1242,11 @@ def main() -> None:
         action="store_true",
         help="route extraction blocks through an LLM service (OpenRouter) for math/table fidelity",
     )
+    ap.add_argument(
+        "--no-fastpath",
+        action="store_true",
+        help="run the VLM on every page (default: only math/visual pages — prose reads pdftext directly)",
+    )
     args = ap.parse_args()
 
     pdf_path = Path(args.pdf)
@@ -1058,11 +1295,30 @@ def main() -> None:
     else:
         log(f"2/6 marker extraction ({len(page_texts)} pages — this is the slow part)")
         try:
-            md_text, tree, images = marker_extract(
-                str(pdf_path),
-                Path(args.workdir) / "marker" if args.workdir else None,
-                use_llm=args.use_llm,
-            )
+            flagged: list[int] | None = None
+            if not args.use_llm and not args.no_fastpath:
+                flagged, low_text, raw_pages = fastpath_scan(str(pdf_path))
+                if len(flagged) > FASTPATH_MAX_FLAGGED_FRACTION * len(page_texts):
+                    log(
+                        f"fast path off: {len(flagged)}/{len(page_texts)} pages flagged "
+                        "— full marker pass is simpler"
+                    )
+                    flagged = None
+            if flagged is not None:
+                md_text, tree, images = hybrid_marker_extract(
+                    str(pdf_path),
+                    len(page_texts),
+                    flagged,
+                    low_text,
+                    raw_pages,
+                    Path(args.workdir) / "marker" if args.workdir else None,
+                )
+            else:
+                md_text, tree, images = marker_extract(
+                    str(pdf_path),
+                    Path(args.workdir) / "marker" if args.workdir else None,
+                    use_llm=args.use_llm,
+                )
         except Exception as e:  # noqa: BLE001 — surface marker failures as import failures
             emit({"status": "error", "stage": "marker", "detail": str(e)}, 1)
             return
