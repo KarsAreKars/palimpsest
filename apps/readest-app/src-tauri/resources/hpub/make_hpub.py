@@ -191,6 +191,12 @@ def marker_extract(pdf_path: str, cache_dir: Path | None = None, use_llm: bool =
     from marker.renderers.markdown import MarkdownRenderer
 
     config: dict = {"output_format": "markdown"}
+    # 2026-09-05 speed pass: pdftext's multiprocessing workers BOTH crash on
+    # this stack (worker process died) and run slower than serial — with
+    # default workers marker paid ~3.4 s/page (Tadelis ≈ 24 min); serial
+    # measures 0.65–0.83 s/page (≈ 4.6 min for 417 pp). SURYA_INFERENCE_
+    # PARALLEL=16 added nothing — the VLM decode saturates Metal at 8 slots.
+    config["pdftext_workers"] = None
     llm_service = None
     if use_llm:
         import os
