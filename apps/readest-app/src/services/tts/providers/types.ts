@@ -21,6 +21,11 @@ export interface SpeechSynthesisRequest {
   text: string;
   voice: string;
   pitch: number;
+  /** Optional style instruction for instruction-capable engines (Qwen3-TTS
+   *  today). Providers without an instruct channel ignore it. The Professor
+   *  uses this to speak flatter than book narration — same voice, calmer
+   *  register — without touching the pinned narration config. */
+  instruct?: string;
 }
 
 export interface SpeechSynthesisResult {

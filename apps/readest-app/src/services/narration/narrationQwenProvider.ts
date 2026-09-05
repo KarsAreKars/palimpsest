@@ -75,7 +75,13 @@ export class NarrationQwenProvider implements SpeechProvider {
     const res = await this.#fetch(`${this.#base}/tts`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text: req.text, voice: req.voice }),
+      body: JSON.stringify({
+        text: req.text,
+        voice: req.voice,
+        // Per-request instruct override (the server supports it; absent =
+        // the pinned ear-approved default in qwen_server.py).
+        ...(req.instruct ? { instruct: req.instruct } : {}),
+      }),
       signal,
     });
     if (!res.ok) {

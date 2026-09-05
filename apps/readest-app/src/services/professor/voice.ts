@@ -28,6 +28,17 @@ import { doctorSpeakText } from '@/services/narration/narrative';
 import { stripAnnotationTags } from './annotations';
 import { nlog, nwarn } from '@/services/narration/log';
 
+// The Professor speaks FLATTER than the book: his text is LLM-written and
+// tends exclamatory, and Qwen3-TTS reads drama into excited text even under
+// the pinned narration instruct (user report, 2026-09-03: "still too
+// expressive"). Sent per-request — instruction-capable providers honor it,
+// others ignore it (SpeechSynthesisRequest.instruct). Book narration is
+// untouched.
+const PROFESSOR_INSTRUCT =
+  'A calm, flat, matter-of-fact tutor explaining something aloud. Plain, ' +
+  'even, understated delivery with minimal expression. No excitement, no ' +
+  'drama, no exclaiming — just clear, direct explanation.';
+
 // ---------------------------------------------------------------------------
 // Pure stream machinery (contract-tested)
 // ---------------------------------------------------------------------------
@@ -238,7 +249,7 @@ export class ProfessorVoice {
   ): Promise<SpeechSynthesisResult | null> {
     const request = () =>
       speech.provider.synthesize(
-        { lang: speech.lang, text, voice: speech.voice, pitch: 0 },
+        { lang: speech.lang, text, voice: speech.voice, pitch: 0, instruct: PROFESSOR_INSTRUCT },
         new AbortController().signal,
       );
     try {
