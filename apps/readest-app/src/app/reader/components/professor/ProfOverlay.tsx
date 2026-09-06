@@ -52,9 +52,14 @@ type InputMode = 'voice' | 'text';
 
 const loadInputMode = (): InputMode => {
   try {
-    return localStorage.getItem(INPUT_MODE_KEY) === 'text' ? 'text' : 'voice';
+    const saved = localStorage.getItem(INPUT_MODE_KEY);
+    if (saved === 'voice' || saved === 'text') return saved;
+    // Default is TEXT: the user dictates via TypeWhisper (system-level — it
+    // owns the mic, the STT, and its own waveform UI) straight into the
+    // field. In-app voice stays available via the SPEAK toggle.
+    return 'text';
   } catch {
-    return 'voice';
+    return 'text';
   }
 };
 
@@ -247,16 +252,18 @@ const ProfOverlay: React.FC<ProfOverlayProps> = ({ bookKey }) => {
     if (!open && recognitionRef.current) stopListening(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
-  // ⌥Space while open = RELEASE (ask) when listening, close otherwise.
+  // ⌥Space while open: listening → release+ask; text with content → ask;
+  // otherwise → close.
   useEffect(() => {
     const onRelease = () => {
       if (listening) stopListening(true);
+      else if (draft.trim()) submit();
       else close();
     };
     window.addEventListener('prof-release', onRelease);
     return () => window.removeEventListener('prof-release', onRelease);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [listening]);
+  }, [listening, draft]);
 
   useEffect(() => () => recognitionRef.current?.abort(), []);
 
@@ -320,7 +327,7 @@ const ProfOverlay: React.FC<ProfOverlayProps> = ({ bookKey }) => {
               ref={inputRef}
               type='text'
               className='w-72 text-sm'
-              placeholder='Ask about what you are reading…'
+              placeholder='Ask — or dictate with TypeWhisper…'
               aria-label='Ask the professor'
               value={draft}
               onChange={(e) => setDraft(e.target.value)}
