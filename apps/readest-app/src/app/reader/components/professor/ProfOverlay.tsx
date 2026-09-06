@@ -75,6 +75,14 @@ const ProfOverlay: React.FC<ProfOverlayProps> = ({ bookKey }) => {
   const recorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const SR = typeof window !== 'undefined' ? getSpeechRecognition() : null;
+  const canSR = !!SR;
+  const canRecord =
+    typeof window !== 'undefined' &&
+    typeof MediaRecorder !== 'undefined' &&
+    !!navigator.mediaDevices?.getUserMedia;
+  // WKWebView may lack BOTH SpeechRecognition and getUserMedia — never trap
+  // the user in a voice mode that can't hear. Fall back to the text field.
+  const voiceCapable = canSR || canRecord;
 
   useEffect(() => {
     setInputMode(loadInputMode());
@@ -163,9 +171,15 @@ const ProfOverlay: React.FC<ProfOverlayProps> = ({ bookKey }) => {
   };
 
   const startListening = () => {
-    if (!SR || listening) return;
+    if (listening || !voiceCapable) return;
     if (phase === 'answering' || phase === 'thinking') interrupt();
-    void startRecording(); // Whisper's ear, in parallel with ghost partials
+    void startRecording(); // Whisper's ear — the transcript authority
+    if (!SR) {
+      // No browser STT: Whisper-only mode (no ghost partials, still voice).
+      setDraft('');
+      setListening(true);
+      return;
+    }
     const rec = new SR();
     rec.lang = 'en-US';
     rec.interimResults = true;
@@ -196,7 +210,7 @@ const ProfOverlay: React.FC<ProfOverlayProps> = ({ bookKey }) => {
   useEffect(() => {
     if (!open) return undefined;
     setDraft('');
-    if (inputMode === 'voice' && SR) {
+    if (inputMode === 'voice' && voiceCapable) {
       const t = setTimeout(startListening, 80);
       return () => clearTimeout(t);
     }
@@ -216,6 +230,9 @@ const ProfOverlay: React.FC<ProfOverlayProps> = ({ bookKey }) => {
 
   const speaking = phase === 'answering';
   const thinking = phase === 'thinking';
+  // The mode actually rendered: chosen mode, downgraded to text when this
+  // webview has no ear at all.
+  const effectiveMode: InputMode = inputMode === 'voice' && voiceCapable ? 'voice' : 'text';
 
   /** Clicking the orb = the one gesture for everything: release-to-ask while
       listening, barge-in while he speaks, summon-to-listen when idle. */
@@ -246,7 +263,7 @@ const ProfOverlay: React.FC<ProfOverlayProps> = ({ bookKey }) => {
 
         <div className='pointer-events-auto flex items-center gap-3'>
           {/* the orb */}
-          {inputMode === 'voice' && (
+          {effectiveMode === 'voice' && (
             <button
               type='button'
               onClick={orbClick}
@@ -281,7 +298,7 @@ const ProfOverlay: React.FC<ProfOverlayProps> = ({ bookKey }) => {
           )}
 
           {/* text mode: the field replaces the transcript line */}
-          {inputMode === 'text' && (
+          {effectiveMode === 'text' && (
             <PaperField
               ref={inputRef}
               type='text'
@@ -298,20 +315,20 @@ const ProfOverlay: React.FC<ProfOverlayProps> = ({ bookKey }) => {
             />
           )}
 
-          {/* mic ⇄ keyboard toggle, in the orb itself */}
-          {SR && (
-            <button
-              type='button'
-              className='typed text-mutedink hover:text-ink text-[9px]'
-              aria-label={inputMode === 'voice' ? 'Switch to typing' : 'Switch to voice'}
-              onClick={() => {
-                if (listening) stopListening(false);
-                setMode(inputMode === 'voice' ? 'text' : 'voice');
-              }}
-            >
-              {inputMode === 'voice' ? '⌨ TYPE' : '🎙 SPEAK'}
-            </button>
-          )}
+          {/* mic ⇄ keyboard toggle, in the orb itself — ALWAYS rendered
+              (gating it on SR once trapped WKWebView users in a dead voice
+              mode with no way to type, 2026-09-06) */}
+          <button
+            type='button'
+            className='typed text-mutedink hover:text-ink text-[9px]'
+            aria-label={effectiveMode === 'voice' ? 'Switch to typing' : 'Switch to voice'}
+            onClick={() => {
+              if (listening) stopListening(false);
+              setMode(effectiveMode === 'voice' ? 'text' : 'voice');
+            }}
+          >
+            {effectiveMode === 'voice' ? '⌨ TYPE' : '🎙 SPEAK'}
+          </button>
 
           <button
             type='button'
