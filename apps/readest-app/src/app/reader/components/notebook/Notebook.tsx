@@ -34,6 +34,7 @@ import NoteEditor from './NoteEditor';
 import SearchBar from './SearchBar';
 import NotebookTabNavigation from './NotebookTabNavigation';
 import StudyTab from './StudyTab';
+import SpineView from './SpineView';
 import EmptyState from '../EmptyState';
 import type { NotebookTab } from '@/store/notebookStore';
 
@@ -429,7 +430,11 @@ const Notebook: React.FC = ({}) => {
             </div>
           )}
         </div>
-        {notebookActiveTab === 'ai' ? (
+        {notebookActiveTab === 'spine' ? (
+          <div className='min-h-0 flex-1'>
+            <SpineView bookKey={sideBarBookKey} />
+          </div>
+        ) : notebookActiveTab === 'ai' ? (
           <div className='flex min-h-0 flex-1 flex-col'>
             <AIAssistant key={activeConversationId ?? 'new'} bookKey={sideBarBookKey} />
           </div>

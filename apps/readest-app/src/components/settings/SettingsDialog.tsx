@@ -8,7 +8,7 @@ import { useCommandPalette } from '@/components/command-palette';
 import { RiFontSize, RiShareLine } from 'react-icons/ri';
 import { RiDashboardLine, RiTranslate } from 'react-icons/ri';
 import { VscSymbolColor } from 'react-icons/vsc';
-import { PiDotsThreeVerticalBold, PiRobot, PiSpeakerHigh, PiWaveform } from 'react-icons/pi';
+import { PiDotsThreeVerticalBold, PiSpeakerHigh } from 'react-icons/pi';
 import { LiaHandPointerSolid } from 'react-icons/lia';
 import { IoAccessibilityOutline } from 'react-icons/io5';
 import {
@@ -109,25 +109,17 @@ const SettingsDialog: React.FC<{ bookKey: string }> = ({ bookKey }) => {
       label: _('Language'),
     },
     {
+      // UX spec C: Connectors = everything that talks to the outside world —
+      // LLM providers, the local voice server, ElevenLabs, sync, OPDS.
+      // The AI and Narration tabs fold into this one panel below.
       tab: 'Integrations',
       icon: RiShareLine,
-      label: _('Integrations'),
-    },
-    {
-      tab: 'AI',
-      icon: PiRobot,
-      label: _('AI Assistant'),
-      // Palimpsest: the professor's brain is configured here — never hide it.
+      label: _('Connectors'),
     },
     {
       tab: 'TTS',
       icon: PiSpeakerHigh,
       label: _('TTS'),
-    },
-    {
-      tab: 'Narration',
-      icon: PiWaveform,
-      label: _('Narration'),
     },
     {
       tab: 'Custom',
@@ -487,8 +479,27 @@ const SettingsDialog: React.FC<{ bookKey: string }> = ({ bookKey }) => {
             onRegisterReset={(fn) => registerResetFunction('Language', fn)}
           />
         )}
-        {activePanel === 'AI' && <AIPanel />}
-        {activePanel === 'Integrations' && <IntegrationsPanel />}
+        {activePanel === 'Integrations' && (
+          <div className='flex flex-col gap-6'>
+            {/* voice + LLM connectors sit beside sync/OPDS — one rule:
+                if it talks to the outside world, it lives here */}
+            <section>
+              <h2 className='typed text-mutedink mb-2 text-[10px]'>Narration voices</h2>
+              <NarrationPanel
+                bookKey={bookKey}
+                onRegisterReset={(fn) => registerResetFunction('Narration', fn)}
+              />
+            </section>
+            <section>
+              <h2 className='typed text-mutedink mb-2 text-[10px]'>The Prof's brain (LLM)</h2>
+              <AIPanel />
+            </section>
+            <section>
+              <h2 className='typed text-mutedink mb-2 text-[10px]'>Sync & catalogs</h2>
+              <IntegrationsPanel />
+            </section>
+          </div>
+        )}
         {activePanel === 'Custom' && (
           <MiscPanel
             bookKey={bookKey}

@@ -1,6 +1,6 @@
 import clsx from 'clsx';
 import React from 'react';
-import { PiNotePencil, PiRobot, PiGraduationCap } from 'react-icons/pi';
+import { PiNotePencil, PiRobot, PiGraduationCap, PiBooks } from 'react-icons/pi';
 
 import { useEnv } from '@/context/EnvContext';
 import { useTranslation } from '@/hooks/useTranslation';
@@ -23,10 +23,12 @@ const NotebookTabNavigation: React.FC<NotebookTabNavigationProps> = ({
 
   // Study is always available: the review queue and notes.md exist even
   // before any AI provider is configured (echo-tutor exchanges log too).
-  const tabs: NotebookTab[] = aiEnabled ? ['notes', 'ai', 'study'] : ['study'];
+  const tabs: NotebookTab[] = aiEnabled ? ['spine', 'notes', 'ai', 'study'] : ['spine', 'study'];
 
   const getTabLabel = (tab: NotebookTab) => {
     switch (tab) {
+      case 'spine':
+        return _('Spine');
       case 'notes':
         return _('Notes');
       case 'ai':
@@ -40,6 +42,8 @@ const NotebookTabNavigation: React.FC<NotebookTabNavigationProps> = ({
 
   const getTabIcon = (tab: NotebookTab) => {
     switch (tab) {
+      case 'spine':
+        return <PiBooks className='mx-auto' size={20} />;
       case 'notes':
         return <PiNotePencil className='mx-auto' size={20} />;
       case 'ai':
