@@ -18,6 +18,7 @@ import { useEnv } from '@/context/EnvContext';
 import { useBookDataStore } from '@/store/bookDataStore';
 import { buildContextPack, type ProfessorExchange } from '@/services/professor/contextPack';
 import { askProfessor, distillNote } from '@/services/professor/tutor';
+import { profTrace, profTraceReset, profTraceDump } from '@/services/professor/telemetry';
 import {
   captureVisiblePageImages,
   captureWindowScreenshotDataUrl,
@@ -203,6 +204,8 @@ export const useProfessor = ({ bookKey }: { bookKey: string }) => {
     async (question: string) => {
       const q = question.trim();
       if (!q) return;
+      profTraceReset();
+      profTrace('ask', { q, bookKey });
       // The narration session loads in the background when the book opens;
       // a fast ⌥Space can beat it. Wait briefly instead of erroring — the
       // professor, pen, and voice all hang off this controller.
@@ -214,8 +217,10 @@ export const useProfessor = ({ bookKey }: { bookKey: string }) => {
           await new Promise((r) => setTimeout(r, 250));
           controller = getNarration(bookKey)?.controller;
         }
+        profTrace('narration-wait-done', { found: !!controller });
       }
       if (!controller) {
+        profTraceDump('no narration controller (text layer missing)');
         setError(
           'The professor is still preparing this book (no text layer yet). Try again once the book has finished importing.',
         );
@@ -302,6 +307,14 @@ export const useProfessor = ({ bookKey }: { bookKey: string }) => {
       nlog(
         `[PROF-TRACE] vision: windowShot=${windowShot ? 'yes' : 'no'} + ${pageImages.length} page image(s) (${imageKb}KB) pages=${pageImages.map((i) => i.page).join(',') || 'none'}`,
       );
+      profTrace('vision-pack', {
+        windowShot: !!windowShot,
+        pageImages: pageImages.length,
+        imageKb,
+        provider: aiSettings.provider,
+        model: aiSettings.openrouterModel,
+      });
+      let firstToken = false;
       await askProfessor({
         question: q,
         pack,
@@ -310,6 +323,10 @@ export const useProfessor = ({ bookKey }: { bookKey: string }) => {
         signal: aborter.signal,
         cb: {
           onToken: (t) => {
+            if (!firstToken) {
+              firstToken = true;
+              profTrace('llm-ttft'); // time-to-first-token = perceived speed
+            }
             setPhase('answering');
             setAnswer((prev) => prev + t);
             streamBuf += t;
@@ -317,6 +334,7 @@ export const useProfessor = ({ bookKey }: { bookKey: string }) => {
             voice.push(t); // speaks at the first complete sentence
           },
           onDone: (full, meta) => {
+            profTrace('llm-done', { chars: full.length });
             voice.finish();
             setPhase('idle');
             // The speech/display contract: the bubble and any future spoken
@@ -394,6 +412,7 @@ export const useProfessor = ({ bookKey }: { bookKey: string }) => {
             }
           },
           onError: (message) => {
+            profTraceDump('llm stream error', message);
             voice.stop();
             setPhase('idle');
             setError(message);

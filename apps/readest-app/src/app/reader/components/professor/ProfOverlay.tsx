@@ -20,6 +20,7 @@ import { stripAnnotations } from '@/services/professor/annotations';
 import { PaperField } from '@/components/apothecary';
 import ProfBlob from './ProfBlob';
 import { getAIFetch } from '@/services/ai/utils/httpFetch';
+import { profTrace, profTraceReset, profTraceDump } from '@/services/professor/telemetry';
 
 interface ProfOverlayProps {
   bookKey: string;
@@ -110,18 +111,19 @@ const ProfOverlay: React.FC<ProfOverlayProps> = ({ bookKey }) => {
       /stt failure the Web Speech final transcript is the fallback. */
   const transcribeAndSubmit = (blob: Blob, fallback: string) => {
     const aiFetch = getAIFetch();
-    console.info('[prof] stt: posting', blob.size, 'bytes');
+    profTrace('stt-post', { bytes: blob.size, mime: blob.type });
+    const sttT0 = performance.now();
     aiFetch(`${STT_BASE}/stt`, { method: 'POST', body: blob })
       .then(async (res) => {
         if (!res.ok) throw new Error(await res.text());
         const { text } = (await res.json()) as { text: string };
-        console.info('[prof] stt heard:', text);
+        profTrace('stt-result', { ms: Math.round(performance.now() - sttT0), text });
         const q = (text || fallback).trim();
         if (q) submit(q);
         else setSttError('DID NOT CATCH THAT — TRY AGAIN');
       })
       .catch((e) => {
-        console.warn('[prof] stt failed:', e);
+        profTraceDump('stt request failed', e);
         const q = fallback.trim();
         if (q) submit(q);
         else setSttError('STT OFFLINE — TYPE INSTEAD');
@@ -133,7 +135,7 @@ const ProfOverlay: React.FC<ProfOverlayProps> = ({ bookKey }) => {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       streamRef.current = stream;
       setLiveStream(stream);
-      console.info('[prof] mic stream live');
+      profTrace('mic-live');
       const rec = new MediaRecorder(stream);
       chunksRef.current = [];
       rec.ondataavailable = (e) => {
@@ -142,7 +144,7 @@ const ProfOverlay: React.FC<ProfOverlayProps> = ({ bookKey }) => {
       rec.start();
       recorderRef.current = rec;
     } catch (e) {
-      console.warn('[prof] mic unavailable:', e);
+      profTraceDump('mic unavailable (getUserMedia/MediaRecorder)', e);
       recorderRef.current = null; // mic denied — Web Speech still carries it
       if (!canSR) setSttError('NO MIC ACCESS — TYPE INSTEAD');
     }
@@ -237,6 +239,8 @@ const ProfOverlay: React.FC<ProfOverlayProps> = ({ bookKey }) => {
   // mic" step). In text mode, focus the field instead.
   useEffect(() => {
     if (!open) return undefined;
+    profTraceReset();
+    profTrace('open', { mode: inputMode, canSR, canRecord });
     setDraft('');
     if (inputMode === 'voice' && voiceCapable) {
       const t = setTimeout(startListening, 80);

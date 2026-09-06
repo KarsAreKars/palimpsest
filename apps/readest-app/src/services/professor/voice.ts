@@ -27,6 +27,7 @@ import { isVerbalizerReady, verbalizeInlineMath } from '@/services/narration/ver
 import { doctorSpeakText } from '@/services/narration/narrative';
 import { stripAnnotationTags } from './annotations';
 import { nlog, nwarn } from '@/services/narration/log';
+import { profTrace, profTraceDump } from './telemetry';
 
 // The Professor speaks FLATTER than the book: his text is LLM-written and
 // tends exclamatory, and Qwen3-TTS reads drama into excited text even under
@@ -205,6 +206,7 @@ export class ProfessorVoice {
     this.#token++;
     this.#queue = [];
     this.#feeder = new SpeechFeeder();
+    this.#firstAudioLogged = false;
     this.#sink.stop();
     nlog('professor voice: stop (barge-in)');
   }
@@ -213,6 +215,8 @@ export class ProfessorVoice {
     this.#queue.push(sentence);
     void this.#pump();
   }
+
+  #firstAudioLogged = false;
 
   async #pump(): Promise<void> {
     if (this.#pumping) return;
@@ -223,12 +227,18 @@ export class ProfessorVoice {
         const speech = this.#getSpeech();
         if (!speech) {
           nwarn('professor voice: no narration session — dropping spoken answer');
+          profTraceDump('voice: no narration session to ride');
           this.#queue = [];
           return;
         }
         const text = this.#queue.shift()!;
+        const t0 = performance.now();
         const result = await this.#synthesize(speech, text, token);
         if (!result || token !== this.#token) return;
+        if (!this.#firstAudioLogged) {
+          this.#firstAudioLogged = true;
+          profTrace('voice-first-sentence', { synthMs: Math.round(performance.now() - t0) });
+        }
         nlog(`professor voice: speaking ${text.length} chars`);
         await this.#sink.play(result.audio, speech.rate);
         if (token !== this.#token) return; // barged in mid-utterance
