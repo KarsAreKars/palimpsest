@@ -10,11 +10,13 @@
  * canvas) can snapshot visited pages into a thumb cache; cells already
  * reserve the slot. Ink badges stand in until then.
  */
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { useEnv } from '@/context/EnvContext';
 import { useBookDataStore } from '@/store/bookDataStore';
 import { useTranslation } from '@/hooks/useTranslation';
 import type { BookNote } from '@/types/book';
 import { eventDispatcher } from '@/utils/event';
+import { getThumbUrl } from '@/services/thumbs/pageThumbs';
 
 interface SpineViewProps {
   bookKey: string;
@@ -27,7 +29,10 @@ interface TouchedPage {
 
 const SpineView: React.FC<SpineViewProps> = ({ bookKey }) => {
   const _ = useTranslation();
+  const { appService } = useEnv();
   const { getConfig } = useBookDataStore();
+  const bookHash = bookKey.split('-')[0]!;
+  const [thumbs, setThumbs] = useState<Record<number, string>>({});
 
   const pages = useMemo<TouchedPage[]>(() => {
     const { booknotes = [] } = getConfig(bookKey) ?? {};
@@ -46,6 +51,28 @@ const SpineView: React.FC<SpineViewProps> = ({ bookKey }) => {
   const jump = (note: BookNote) => {
     eventDispatcher.dispatch('navigate', { bookKey, cfi: note.cfi });
   };
+
+  // Resolve cached thumbnails for the touched pages (real page renders,
+  // captured by useSpineThumbs; absent pages keep the typed card).
+  useEffect(() => {
+    if (!appService) return;
+    let cancelled = false;
+    (async () => {
+      const entries: [number, string][] = [];
+      for (const { page } of pages) {
+        if (thumbs[page]) continue;
+        const url = await getThumbUrl(appService, bookHash, page);
+        if (url) entries.push([page, url]);
+      }
+      if (!cancelled && entries.length) {
+        setThumbs((prev) => ({ ...prev, ...Object.fromEntries(entries) }));
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [appService, bookHash, pages.length]);
 
   if (pages.length === 0) {
     return (
@@ -69,6 +96,13 @@ const SpineView: React.FC<SpineViewProps> = ({ bookKey }) => {
           <div key={page} className='relative'>
             {/* page card */}
             <div className='border-ink bg-paperlight relative z-10 mx-1 mb-[-4px] border p-2 shadow-[var(--lift-shadow)]'>
+              {thumbs[page] && (
+                <img
+                  src={thumbs[page]}
+                  alt={_('Page {{page}}', { page })}
+                  className='border-faint mb-1.5 w-full border'
+                />
+              )}
               <div className='flex items-baseline justify-between gap-2'>
                 <span className='typed text-ink text-[10px]'>P. {page}</span>
                 <span className='typed text-mutedink text-[8.5px]'>

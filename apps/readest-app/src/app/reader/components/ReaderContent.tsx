@@ -36,6 +36,7 @@ import { useAuth } from '@/context/AuthContext';
 
 import useBooksManager from '../hooks/useBooksManager';
 import useBookShortcuts from '../hooks/useBookShortcuts';
+import { useSpineThumbs } from '../hooks/useSpineThumbs';
 import Spinner from '@/components/Spinner';
 import SideBar from './sidebar/SideBar';
 import Notebook from './notebook/Notebook';
@@ -68,6 +69,8 @@ const ReaderContent: React.FC<{ ids?: string; settings: SystemSettings }> = ({ i
   const [errorLoading, setErrorLoading] = useState(false);
 
   useBookShortcuts({ sideBarBookKey, bookKeys });
+  // Spine thumbnails: snapshot touched pages as they're rendered (UX spec B)
+  useSpineThumbs({ bookKey: sideBarBookKey ?? '' });
   const isAndroidApp = appService?.isAndroidApp === true;
   const androidGamepadConnected = useAndroidGamepadConnection(isAndroidApp);
   // Android's native bridge gates the Web Gamepad API so Chromium polls only

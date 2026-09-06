@@ -303,7 +303,7 @@ const HeaderBar: React.FC<HeaderBarProps> = ({
           <div
             aria-hidden='true'
             className={clsx(
-              'line-clamp-1 text-center text-xs font-semibold',
+              'text-ink line-clamp-1 text-center font-display text-[15px]',
               !windowButtonVisible && 'max-w-[50%]',
             )}
           >
