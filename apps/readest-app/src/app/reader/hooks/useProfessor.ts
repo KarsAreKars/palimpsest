@@ -103,12 +103,21 @@ export const useProfessor = ({ bookKey }: { bookKey: string }) => {
     return learnerByBook.get(bookKey)!;
   }, [bookKey, appService, getBookData]);
 
-  // ⌥Space toggles the overlay (PTT shell; wake word comes in HP-4).
+  // ⌥Space PTT: press once to summon + listen; press again to RELEASE the
+  // utterance (transcribe + ask) — never to silently close. The overlay
+  // owns the release decision ('prof-release'): listening → ask; not
+  // listening (text mode / already answering) → close.
+  const openRef = useRef(open);
+  openRef.current = open;
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.code === 'Space' && e.altKey && !e.repeat) {
         e.preventDefault();
-        setOpen((v) => !v);
+        if (openRef.current) {
+          window.dispatchEvent(new CustomEvent('prof-release'));
+        } else {
+          setOpen(true);
+        }
       }
     };
     window.addEventListener('keydown', onKey);

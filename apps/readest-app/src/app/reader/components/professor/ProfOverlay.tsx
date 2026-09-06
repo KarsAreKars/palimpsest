@@ -14,11 +14,11 @@
  *
  * The persistent written record is the margin note (A5), not this overlay.
  */
-import clsx from 'clsx';
 import React, { useEffect, useRef, useState } from 'react';
 import { useProfessor } from '@/app/reader/hooks/useProfessor';
 import { stripAnnotations } from '@/services/professor/annotations';
 import { PaperField } from '@/components/apothecary';
+import ProfBlob from './ProfBlob';
 
 interface ProfOverlayProps {
   bookKey: string;
@@ -74,6 +74,8 @@ const ProfOverlay: React.FC<ProfOverlayProps> = ({ bookKey }) => {
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
   const recorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
+  const streamRef = useRef<MediaStream | null>(null);
+  const [liveStream, setLiveStream] = useState<MediaStream | null>(null);
   const SR = typeof window !== 'undefined' ? getSpeechRecognition() : null;
   const canSR = !!SR;
   const canRecord =
@@ -116,6 +118,8 @@ const ProfOverlay: React.FC<ProfOverlayProps> = ({ bookKey }) => {
   const startRecording = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      streamRef.current = stream;
+      setLiveStream(stream);
       const rec = new MediaRecorder(stream);
       chunksRef.current = [];
       rec.ondataavailable = (e) => {
@@ -134,6 +138,8 @@ const ProfOverlay: React.FC<ProfOverlayProps> = ({ bookKey }) => {
     if (!rec) return;
     rec.onstop = () => {
       rec.stream.getTracks().forEach((t) => t.stop());
+      streamRef.current = null;
+      setLiveStream(null);
       if (!submit) return;
       const blob = new Blob(chunksRef.current, { type: rec.mimeType || 'audio/webm' });
       if (blob.size > 0) {
@@ -224,6 +230,17 @@ const ProfOverlay: React.FC<ProfOverlayProps> = ({ bookKey }) => {
     if (!open && recognitionRef.current) stopListening(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
+  // ⌥Space while open = RELEASE (ask) when listening, close otherwise.
+  useEffect(() => {
+    const onRelease = () => {
+      if (listening) stopListening(true);
+      else close();
+    };
+    window.addEventListener('prof-release', onRelease);
+    return () => window.removeEventListener('prof-release', onRelease);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [listening]);
+
   useEffect(() => () => recognitionRef.current?.abort(), []);
 
   if (!open) return null;
@@ -262,39 +279,19 @@ const ProfOverlay: React.FC<ProfOverlayProps> = ({ bookKey }) => {
         ) : null}
 
         <div className='pointer-events-auto flex items-center gap-3'>
-          {/* the orb */}
+          {/* the blob — audio-reactive, borrowed from ClickyX */}
           {effectiveMode === 'voice' && (
-            <button
-              type='button'
+            <ProfBlob
+              size={64}
+              state={
+                listening ? 'listening' : thinking ? 'thinking' : speaking ? 'speaking' : 'idle'
+              }
+              stream={liveStream}
               onClick={orbClick}
-              aria-label={listening ? 'Release to ask' : speaking ? 'Interrupt and speak' : 'Speak'}
-              className={clsx(
-                'flex h-12 w-12 items-center justify-center rounded-full border transition-all',
-                listening && 'border-stamp bg-paperlight shadow-[var(--lift-shadow)]',
-                thinking && 'border-stamp animate-pulse bg-paperlight',
-                speaking && 'border-stamp bg-stamp shadow-[var(--lift-shadow)]',
-                !listening && !thinking && !speaking && 'border-ink bg-paperlight',
-              )}
-            >
-              {/* living waveform: three bars breathing while he listens/speaks */}
-              <span className='flex items-end gap-[3px]' aria-hidden='true'>
-                {[0, 1, 2].map((i) => (
-                  <span
-                    key={i}
-                    className={clsx(
-                      'w-[3px] rounded-sm',
-                      speaking ? 'bg-paperlight' : 'bg-stamp',
-                      listening || speaking ? 'animate-pulse' : '',
-                    )}
-                    style={{
-                      height: `${[10, 16, 7][i]}px`,
-                      animationDelay: `${i * 180}ms`,
-                      animationDuration: listening || speaking ? '900ms' : undefined,
-                    }}
-                  />
-                ))}
-              </span>
-            </button>
+              label={
+                listening ? 'Release to ask (⌥Space)' : speaking ? 'Interrupt and speak' : 'Speak'
+              }
+            />
           )}
 
           {/* text mode: the field replaces the transcript line */}
