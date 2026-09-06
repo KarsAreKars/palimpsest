@@ -37,19 +37,31 @@ const ProfBlob: React.FC<ProfBlobProps> = ({ state, stream, size = 64, onClick, 
       return undefined;
     }
     const ctx = new AudioContext();
+    // WebKit starts AudioContext SUSPENDED outside a direct gesture handler —
+    // a suspended context feeds the analyser pure flatline (every byte 128),
+    // which is exactly "no distortion when I speak" (2026-09-06).
+    void ctx.resume();
     const src = ctx.createMediaStreamSource(stream);
     const analyser = ctx.createAnalyser();
     analyser.fftSize = 256;
     src.connect(analyser);
     const buf = new Uint8Array(analyser.frequencyBinCount);
     let raf = 0;
+    let peak = 0.02; // auto-gain: running peak so normal speech reads ~1
+    let lastLog = 0;
     const tick = () => {
       analyser.getByteTimeDomainData(buf);
       let sum = 0;
       for (let i = 0; i < buf.length; i++) sum += (buf[i]! - 128) ** 2;
-      const rms = Math.sqrt(sum / buf.length) / 64; // ~0..1 in practice
+      const rms = Math.sqrt(sum / buf.length) / 128;
+      if (rms > peak) peak = rms;
+      const normalized = Math.min(1, (rms / peak) * (peak > 0.05 ? 1 : peak / 0.05));
       // Attack fast, release slow — feels alive, not twitchy.
-      levelRef.current = Math.max(rms, levelRef.current * 0.85);
+      levelRef.current = Math.max(normalized, levelRef.current * 0.82);
+      if (performance.now() - lastLog > 2000) {
+        lastLog = performance.now();
+        console.info('[prof] audio ctx:', ctx.state, 'rms:', rms.toFixed(3), 'peak:', peak.toFixed(3));
+      }
       raf = requestAnimationFrame(tick);
     };
     tick();
@@ -109,7 +121,7 @@ const ProfBlob: React.FC<ProfBlobProps> = ({ state, stream, size = 64, onClick, 
         const wobble =
           level *
           base *
-          0.55 *
+          1.1 * // auto-gained level × bigger coefficient — speech is VISIBLE
           (0.6 * Math.sin(3 * a + t * 7) +
             0.3 * Math.sin(5 * a - t * 11) +
             0.15 * Math.sin(8 * a + t * 5));
