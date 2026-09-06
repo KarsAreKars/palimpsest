@@ -168,12 +168,12 @@ export async function askProfessor(req: TutorRequest): Promise<void> {
     return;
   }
 
+  // Never think forever: if the network to the provider dies mid-handshake
+  // (tonight's flaky OpenAI path, 2026-09-06), the user gets a visible
+  // error at 45s instead of an eternal THINKING… blob.
+  const timeout = AbortSignal.timeout(45_000);
+  const combined = signal ? AbortSignal.any([signal, timeout]) : timeout;
   try {
-    // Never think forever: if the network to the provider dies mid-handshake
-    // (tonight's flaky OpenAI path, 2026-09-06), the user gets a visible
-    // error at 45s instead of an eternal THINKING… blob.
-    const timeout = AbortSignal.timeout(45_000);
-    const combined = signal ? AbortSignal.any([signal, timeout]) : timeout;
     const result = streamText({
       model,
       system: PROFESSOR_SYSTEM_PROMPT,
