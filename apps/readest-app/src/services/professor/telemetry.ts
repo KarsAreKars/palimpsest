@@ -9,6 +9,8 @@
 
 type TelemetryData = Record<string, unknown>;
 
+import { nlog, nwarn } from '@/services/narration/log';
+
 const RING_SIZE = 80;
 const ring: { ms: number; event: string; data?: TelemetryData }[] = [];
 let t0 = 0;
@@ -23,13 +25,15 @@ export const profTrace = (event: string, data?: TelemetryData) => {
   const ms = Math.round(performance.now() - t0);
   ring.push({ ms, event, data });
   if (ring.length > RING_SIZE) ring.shift();
-  console.info(`[prof] +${ms}ms ${event}`, data ?? '');
+  // nlog, not console.info: the desktop webview console is invisible to
+  // Readest.log — only the tauri-plugin-log bridge lands there.
+  nlog(`[prof] +${ms}ms ${event}${data ? ' ' + JSON.stringify(data) : ''}`);
 };
 
 /** Dump the recent trail on failure — the report reads itself. */
 export const profTraceDump = (why: string, err?: unknown) => {
-  console.warn(`[prof] FAILED: ${why}`, err ?? '');
-  console.warn(
+  nwarn(`[prof] FAILED: ${why}`, err);
+  nwarn(
     '[prof] trail:\n' +
       ring.map((r) => `  +${r.ms}ms ${r.event} ${r.data ? JSON.stringify(r.data) : ''}`).join('\n'),
   );

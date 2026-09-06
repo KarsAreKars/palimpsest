@@ -169,11 +169,16 @@ export async function askProfessor(req: TutorRequest): Promise<void> {
   }
 
   try {
+    // Never think forever: if the network to the provider dies mid-handshake
+    // (tonight's flaky OpenAI path, 2026-09-06), the user gets a visible
+    // error at 45s instead of an eternal THINKING… blob.
+    const timeout = AbortSignal.timeout(45_000);
+    const combined = signal ? AbortSignal.any([signal, timeout]) : timeout;
     const result = streamText({
       model,
       system: PROFESSOR_SYSTEM_PROMPT,
       messages: [{ role: 'user', content: buildUserContent(question, pack, req.images) }],
-      abortSignal: signal,
+      abortSignal: combined,
     });
     let full = '';
     for await (const chunk of result.textStream) {
@@ -183,7 +188,12 @@ export async function askProfessor(req: TutorRequest): Promise<void> {
     cb.onDone(full, { echo: false });
   } catch (e) {
     if (signal?.aborted) return; // user closed the overlay mid-answer
-    cb.onError(e instanceof Error ? e.message : String(e));
+    const msg = e instanceof Error ? e.message : String(e);
+    cb.onError(
+      timeout.aborted && !signal?.aborted
+        ? 'The professor timed out reaching the model (45s). Check the network to your AI provider and ask again.'
+        : msg,
+    );
   }
 }
 
