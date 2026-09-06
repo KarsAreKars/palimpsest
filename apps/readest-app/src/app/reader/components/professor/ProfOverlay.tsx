@@ -19,6 +19,7 @@ import { useProfessor } from '@/app/reader/hooks/useProfessor';
 import { stripAnnotations } from '@/services/professor/annotations';
 import { PaperField } from '@/components/apothecary';
 import ProfBlob from './ProfBlob';
+import { getAIFetch } from '@/services/ai/utils/httpFetch';
 
 interface ProfOverlayProps {
   bookKey: string;
@@ -70,6 +71,7 @@ const ProfOverlay: React.FC<ProfOverlayProps> = ({ bookKey }) => {
   const [draft, setDraft] = useState('');
   const [listening, setListening] = useState(false);
   const [inputMode, setInputMode] = useState<InputMode>('voice');
+  const [sttError, setSttError] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
   const recorderRef = useRef<MediaRecorder | null>(null);
@@ -102,16 +104,22 @@ const ProfOverlay: React.FC<ProfOverlayProps> = ({ bookKey }) => {
       the live ghost transcript while you speak — it never submits. On any
       /stt failure the Web Speech final transcript is the fallback. */
   const transcribeAndSubmit = (blob: Blob, fallback: string) => {
-    fetch(`${STT_BASE}/stt`, { method: 'POST', body: blob })
+    const aiFetch = getAIFetch();
+    console.info('[prof] stt: posting', blob.size, 'bytes');
+    aiFetch(`${STT_BASE}/stt`, { method: 'POST', body: blob })
       .then(async (res) => {
         if (!res.ok) throw new Error(await res.text());
         const { text } = (await res.json()) as { text: string };
+        console.info('[prof] stt heard:', text);
         const q = (text || fallback).trim();
         if (q) submit(q);
+        else setSttError('DID NOT CATCH THAT — TRY AGAIN');
       })
-      .catch(() => {
+      .catch((e) => {
+        console.warn('[prof] stt failed:', e);
         const q = fallback.trim();
         if (q) submit(q);
+        else setSttError('STT OFFLINE — TYPE INSTEAD');
       });
   };
 
@@ -120,6 +128,7 @@ const ProfOverlay: React.FC<ProfOverlayProps> = ({ bookKey }) => {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       streamRef.current = stream;
       setLiveStream(stream);
+      console.info('[prof] mic stream live');
       const rec = new MediaRecorder(stream);
       chunksRef.current = [];
       rec.ondataavailable = (e) => {
@@ -127,8 +136,10 @@ const ProfOverlay: React.FC<ProfOverlayProps> = ({ bookKey }) => {
       };
       rec.start();
       recorderRef.current = rec;
-    } catch {
+    } catch (e) {
+      console.warn('[prof] mic unavailable:', e);
       recorderRef.current = null; // mic denied — Web Speech still carries it
+      if (!canSR) setSttError('NO MIC ACCESS — TYPE INSTEAD');
     }
   };
 
@@ -171,13 +182,19 @@ const ProfOverlay: React.FC<ProfOverlayProps> = ({ bookKey }) => {
 
   const submit = (q?: string) => {
     const question = (q ?? draft).trim();
-    if (!question || phase !== 'idle') return;
+    if (!question || phase !== 'idle') {
+      console.warn('[prof] submit blocked', { question, phase });
+      return;
+    }
+    console.info('[prof] ask:', question);
+    setSttError('');
     setDraft('');
     void ask(question);
   };
 
   const startListening = () => {
     if (listening || !voiceCapable) return;
+    setSttError('');
     if (phase === 'answering' || phase === 'thinking') interrupt();
     void startRecording(); // Whisper's ear — the transcript authority
     if (!SR) {
@@ -277,6 +294,9 @@ const ProfOverlay: React.FC<ProfOverlayProps> = ({ bookKey }) => {
             {thinking ? 'THINKING…' : draft}
           </div>
         ) : null}
+        {sttError && (
+          <div className='typed text-stamp max-w-lg truncate text-[10px]'>{sttError}</div>
+        )}
 
         <div className='pointer-events-auto flex items-center gap-3'>
           {/* the blob — audio-reactive, borrowed from ClickyX */}
