@@ -24,6 +24,7 @@ import { formatAuthors, formatDescription, formatSeries } from '@/utils/book';
 import { formatCompactTime } from '@/utils/time';
 import { INDETERMINATE_PROGRESS } from '@/utils/transfer';
 import ReadingProgress from './ReadingProgress';
+import BookCover from '@/components/BookCover';
 import { ClothCover } from '@/components/apothecary';
 import { useExtractionStatus } from '@/services/hpub/useExtractionStatus';
 
@@ -63,6 +64,9 @@ const BookItem: React.FC<BookItemProps> = ({
   useEffect(() => {
     setCoverAspect(null);
   }, [book.hash, book.metadata?.coverImageUrl, book.coverImageUrl]);
+
+  // Real cover art when the book has it; cloth + typed label otherwise.
+  const hasCoverArt = !!(book.metadata?.coverImageUrl || book.coverImageUrl);
 
   const CELL_ASPECT_RATIO = 28 / 41;
   const fitCoverInGrid = mode === 'grid' && coverFit === 'fit' && coverAspect !== null;
@@ -141,18 +145,34 @@ const BookItem: React.FC<BookItemProps> = ({
         className={clsx(
           'bookitem-main relative flex justify-center overflow-hidden',
           !fitCoverInGrid && 'aspect-[28/41]',
+          coverFit === 'crop' && 'shadow-[var(--lift-shadow)]',
           mode === 'grid' && 'items-end',
           mode === 'list' && 'min-w-20 items-center',
         )}
         style={bookitemMainStyle}
       >
-        {/* Apothecary: cloth + typed label IS the cover; no cover art. */}
-        <ClothCover
-          title={book.title}
-          author={formatAuthors(book.author, book.primaryLanguage) || undefined}
-          size='lg'
-          className='h-full w-full'
-        />
+        {/* Apothecary: real cover art is a must — the cloth + typed label is
+            the fallback for books that have none. */}
+        {hasCoverArt ? (
+          <BookCover
+            mode={mode}
+            book={book}
+            coverFit={coverFit}
+            showSpine={settings.librarySkeuomorphicCovers}
+            imageClassName={clsx(
+              'shadow-[var(--lift-shadow)]',
+              settings.librarySkeuomorphicCovers ? 'rounded-none' : 'rounded-sm',
+            )}
+            onAspectRatioChange={setCoverAspect}
+          />
+        ) : (
+          <ClothCover
+            title={book.title}
+            author={formatAuthors(book.author, book.primaryLanguage) || undefined}
+            size='lg'
+            className='h-full w-full'
+          />
+        )}
         {isTransferring && (
           // E-ink cannot render a translucent wash — it dithers over the cover
           // art — and has no shadows, so the scrim becomes a solid base-100
