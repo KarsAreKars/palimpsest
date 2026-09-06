@@ -46,6 +46,7 @@ const getSpeechRecognition = (): (new () => SpeechRecognitionLike) | null => {
 };
 
 const INPUT_MODE_KEY = 'palimpsest-prof-input-mode';
+const STT_BASE = 'http://127.0.0.1:8737';
 type InputMode = 'voice' | 'text';
 
 const loadInputMode = (): InputMode => {
@@ -71,6 +72,8 @@ const ProfOverlay: React.FC<ProfOverlayProps> = ({ bookKey }) => {
   const [inputMode, setInputMode] = useState<InputMode>('voice');
   const inputRef = useRef<HTMLInputElement>(null);
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
+  const recorderRef = useRef<MediaRecorder | null>(null);
+  const chunksRef = useRef<Blob[]>([]);
   const SR = typeof window !== 'undefined' ? getSpeechRecognition() : null;
 
   useEffect(() => {
@@ -85,15 +88,71 @@ const ProfOverlay: React.FC<ProfOverlayProps> = ({ bookKey }) => {
     }
   };
 
-  const stopListening = (submit: boolean) => {
+  /** Whisper = transcript authority (sidecar /stt). Web Speech only feeds
+      the live ghost transcript while you speak — it never submits. On any
+      /stt failure the Web Speech final transcript is the fallback. */
+  const transcribeAndSubmit = (blob: Blob, fallback: string) => {
+    fetch(`${STT_BASE}/stt`, { method: 'POST', body: blob })
+      .then(async (res) => {
+        if (!res.ok) throw new Error(await res.text());
+        const { text } = (await res.json()) as { text: string };
+        const q = (text || fallback).trim();
+        if (q) submit(q);
+      })
+      .catch(() => {
+        const q = fallback.trim();
+        if (q) submit(q);
+      });
+  };
+
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const rec = new MediaRecorder(stream);
+      chunksRef.current = [];
+      rec.ondataavailable = (e) => {
+        if (e.data.size > 0) chunksRef.current.push(e.data);
+      };
+      rec.start();
+      recorderRef.current = rec;
+    } catch {
+      recorderRef.current = null; // mic denied — Web Speech still carries it
+    }
+  };
+
+  const stopRecording = (submit: boolean) => {
+    const rec = recorderRef.current;
+    recorderRef.current = null;
+    if (!rec) return;
+    rec.onstop = () => {
+      rec.stream.getTracks().forEach((t) => t.stop());
+      if (!submit) return;
+      const blob = new Blob(chunksRef.current, { type: rec.mimeType || 'audio/webm' });
+      if (blob.size > 0) {
+        setDraft((d) => {
+          transcribeAndSubmit(blob, d);
+          return d;
+        });
+      }
+    };
+    rec.stop();
+  };
+
+  const stopListening = (wantsSubmit: boolean) => {
+    const hadRecorder = !!recorderRef.current;
+    stopRecording(wantsSubmit);
     const rec = recognitionRef.current;
     recognitionRef.current = null;
-    if (rec) {
-      // Mark intent before stopping: onend fires synchronously after stop().
-      (rec as unknown as { __submit?: boolean }).__submit = submit;
-      rec.stop();
-    }
+    if (rec) rec.stop();
     setListening(false);
+    if (wantsSubmit && !hadRecorder) {
+      // Mic denied → no Whisper; the Web Speech ghost transcript submits.
+      setDraft((d) => {
+        const q = d.trim();
+        if (q) setTimeout(() => submit(q), 0);
+        return d;
+      });
+    }
   };
 
   const submit = (q?: string) => {
@@ -106,6 +165,7 @@ const ProfOverlay: React.FC<ProfOverlayProps> = ({ bookKey }) => {
   const startListening = () => {
     if (!SR || listening) return;
     if (phase === 'answering' || phase === 'thinking') interrupt();
+    void startRecording(); // Whisper's ear, in parallel with ghost partials
     const rec = new SR();
     rec.lang = 'en-US';
     rec.interimResults = true;
@@ -116,17 +176,10 @@ const ProfOverlay: React.FC<ProfOverlayProps> = ({ bookKey }) => {
       if (alt) setDraft(alt.transcript);
     };
     rec.onend = () => {
+      // Ghost-partials only: submission belongs to Whisper (/stt) via
+      // stopRecording — Web Speech is the fallback text, never the sender.
       setListening(false);
       recognitionRef.current = null;
-      const wantsSubmit = (rec as unknown as { __submit?: boolean }).__submit !== false;
-      if (wantsSubmit) {
-        // Release-to-ask: whatever the ghost transcript holds becomes the ask.
-        setDraft((d) => {
-          const q = d.trim();
-          if (q) setTimeout(() => submit(q), 0);
-          return d;
-        });
-      }
     };
     rec.onerror = () => {
       setListening(false);

@@ -154,7 +154,19 @@ def get_model():
 
 
 WHISPER_ID = "mlx-community/whisper-large-v3-turbo"
+WHISPER_LOCAL = os.path.expanduser(
+    "~/.cache/huggingface/hub/models--mlx-community--whisper-large-v3-turbo/snapshots/main"
+)
 _whisper_ready = {"ok": None}  # None = not tried; True/False after first attempt
+
+
+def whisper_repo() -> str:
+    """Model source for mlx_whisper: the manually-fetched flat dir if it's
+    complete (curl resume beat HF's downloader on tonight's flaky network),
+    else the repo id for hub download."""
+    if os.path.exists(os.path.join(WHISPER_LOCAL, "weights.safetensors")):
+        return WHISPER_LOCAL
+    return WHISPER_ID
 
 
 def ensure_whisper() -> bool:
@@ -164,6 +176,10 @@ def ensure_whisper() -> bool:
     per-call; the model stays cached in memory by mlx-whisper internally."""
     if _whisper_ready["ok"] is not None:
         return _whisper_ready["ok"]
+    if whisper_repo() == WHISPER_LOCAL:
+        _whisper_ready["ok"] = True
+        print("[whisper] using local snapshot", flush=True)
+        return True
     try:
         from huggingface_hub import snapshot_download
 
@@ -195,7 +211,7 @@ def transcribe_audio(raw: bytes) -> str:
             check=True,
         )
         result = mlx_whisper.transcribe(
-            wav, path_or_hf_repo=WHISPER_ID, condition_on_previous_text=False
+            wav, path_or_hf_repo=whisper_repo(), condition_on_previous_text=False
         )
         return (result.get("text") or "").strip()
     finally:
