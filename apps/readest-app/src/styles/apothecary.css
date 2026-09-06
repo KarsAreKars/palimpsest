@@ -1,0 +1,207 @@
+/**
+ * THE APOTHECARY LIBRARY — Palimpsest design system (2026-09-06)
+ * Le Labo-inspired paper & wood. One ink, one accent, typed labels.
+ * Source of truth: UX_VISION.md + the design-system brief. Rules:
+ * hairline borders over filled cards; stamp red is the ONLY accent and is
+ * never decorative; books sit ON wood, never on plain paper.
+ */
+
+/* ---------- faces ---------- */
+@font-face {
+  font-family: 'Newsreader';
+  src: url('/fonts/newsreader-var.woff2') format('woff2');
+  font-weight: 300 700;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Newsreader';
+  src: url('/fonts/newsreader-var-italic.woff2') format('woff2');
+  font-weight: 300 700;
+  font-style: italic;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Fraunces';
+  src: url('/fonts/fraunces-var.woff2') format('woff2');
+  font-weight: 300 700;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Special Elite';
+  src: url('/fonts/special-elite.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* ---------- palette ---------- */
+:root {
+  --paper: #f3ede0;
+  --paper-light: #f8f4e9;
+  --ink: #26221b;
+  --muted: #8a7e6a;
+  --faint: #c9bfa8;
+  --stamp: #8c3b22;
+  /* cloth covers */
+  --cloth-moss: #4d6136;
+  --cloth-basalt: #1c1915;
+  --cloth-oxblood: #6e3b2a;
+  --cloth-kraft: #c9b48f;
+  --cloth-walnut: #5c4632;
+  --cloth-sage: #dee1cc;
+  /* wood */
+  --oak: #96754f;
+  --oak-dark: #7c5f3e;
+  --oak-light: #ad8a5f;
+  /* one shadow recipe: soft lift, only for objects off the paper */
+  --lift-shadow: 0 5px 14px rgba(42, 37, 29, 0.18);
+}
+
+/* ---------- paper: fibrous, laid, vignetted ---------- */
+/* One tileable noise tile, reused everywhere via the body layer. */
+.paper-bg {
+  background-color: var(--paper);
+  background-image: /* grain: ±4% luminance noise */
+      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='240' height='240' filter='url(%23n)' opacity='0.05'/%3E%3C/svg%3E"),
+      /* faint laid lines, 7px rhythm */
+      repeating-linear-gradient(
+        0deg,
+        transparent 0px,
+        transparent 6px,
+        rgba(38, 34, 27, 0.018) 6px,
+        rgba(38, 34, 27, 0.018) 7px
+      );
+}
+
+/* soft edge vignette, applied to the app shell */
+.paper-vignette::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(ellipse at center, transparent 62%, rgba(42, 37, 29, 0.07) 100%);
+  z-index: 60;
+}
+
+/* ---------- oak: planks things SIT on ---------- */
+.oak-shelf {
+  background-color: var(--oak);
+  background-image: /* long grain streaks */
+      repeating-linear-gradient(
+        90deg,
+        rgba(60, 42, 24, 0.06) 0px,
+        rgba(60, 42, 24, 0.06) 2px,
+        transparent 2px,
+        transparent 46px
+      ),
+      repeating-linear-gradient(
+        90deg,
+        rgba(255, 240, 214, 0.05) 0px,
+        rgba(255, 240, 214, 0.05) 1px,
+        transparent 1px,
+        transparent 31px
+      ),
+      /* top highlight / bottom shadow — the plank edge */
+      linear-gradient(
+        180deg,
+        rgba(255, 246, 226, 0.35) 0%,
+        rgba(255, 246, 226, 0) 12%,
+        rgba(38, 28, 16, 0) 82%,
+        rgba(38, 28, 16, 0.38) 100%
+      );
+}
+
+/* ---------- the typed word ---------- */
+.typed {
+  font-family: 'Special Elite', 'Courier New', monospace;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+/* ---------- primitives as classes (for non-React spots) ---------- */
+.stamp-btn {
+  font-family: 'Special Elite', monospace;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 10px;
+  color: var(--stamp);
+  border: 1.25px solid var(--stamp);
+  background: transparent;
+  padding: 7px 14px 6px;
+  border-radius: 0; /* stamped box, never rounded */
+  transition:
+    background-color 120ms ease,
+    color 120ms ease;
+}
+.stamp-btn:hover {
+  background: var(--stamp);
+  color: var(--paper-light);
+}
+
+.ink-btn {
+  font-family: 'Special Elite', monospace;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 10px;
+  color: var(--paper-light);
+  background: var(--ink);
+  border: 1px solid var(--ink);
+  padding: 7px 14px 6px;
+  border-radius: 0;
+}
+
+.paper-field {
+  background: var(--paper-light);
+  border: 1px solid var(--ink);
+  border-radius: 999px; /* inputs are pills */
+  color: var(--ink);
+  font-family: 'Newsreader', Georgia, serif;
+  padding: 7px 16px;
+  outline: none;
+}
+.paper-field::placeholder {
+  color: var(--muted);
+  font-family: 'Special Elite', monospace;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 10px;
+}
+.paper-field:focus {
+  border-color: var(--stamp);
+}
+
+.hairline {
+  border-color: var(--ink);
+}
+
+/* cloth cover colors, hashed per book */
+.cloth-moss {
+  background-color: var(--cloth-moss);
+}
+.cloth-basalt {
+  background-color: var(--cloth-basalt);
+}
+.cloth-oxblood {
+  background-color: var(--cloth-oxblood);
+}
+.cloth-kraft {
+  background-color: var(--cloth-kraft);
+}
+.cloth-walnut {
+  background-color: var(--cloth-walnut);
+}
+.cloth-sage {
+  background-color: var(--cloth-sage);
+}
+
+/* progress hairline */
+.progress-track {
+  background: var(--faint);
+  height: 2px;
+}
+.progress-fill {
+  background: var(--ink);
+  height: 2px;
+}

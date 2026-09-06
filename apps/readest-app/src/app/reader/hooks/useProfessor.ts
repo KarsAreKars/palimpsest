@@ -404,5 +404,11 @@ export const useProfessor = ({ bookKey }: { bookKey: string }) => {
 
   askRef.current = ask;
 
-  return { open, phase, answer, error, ask, close };
+  /** Barge-in: the user started talking over the answer — stop the voice
+      instantly and drop the queue so the next utterance is theirs. */
+  const interrupt = useCallback(() => {
+    voiceRef.current?.stop();
+  }, []);
+
+  return { open, phase, answer, error, ask, close, interrupt };
 };

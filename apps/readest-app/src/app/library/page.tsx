@@ -122,6 +122,7 @@ import ImportFromFolderDialog, {
 import ImportFromUrlDialog from './components/ImportFromUrlDialog';
 import ImportNovelDialog from './components/ImportNovelDialog';
 import NowPlayingBar from './components/NowPlayingBar';
+import NarrationBar from '@/components/apothecary/NarrationBar';
 import { clipPageWithSignInFallback } from '@/services/send/clipSignIn';
 import ClipSignInAlert from '@/components/ClipSignInAlert';
 import useShortcuts from '@/hooks/useShortcuts';
@@ -1952,7 +1953,7 @@ const LibraryPageContent = ({ searchParams }: { searchParams: ReadonlyURLSearchP
       ref={pageRef}
       aria-label={_('Your Library')}
       className={clsx(
-        'library-page text-base-content full-height flex select-none flex-col overflow-hidden',
+        'library-page paper-bg paper-vignette text-base-content full-height flex select-none flex-col overflow-hidden',
         viewSettings?.isEink ? 'bg-base-100' : 'bg-base-200',
         appService?.hasRoundedWindow && isRoundedWindow && 'window-border rounded-window',
       )}
@@ -2147,6 +2148,8 @@ const LibraryPageContent = ({ searchParams }: { searchParams: ReadonlyURLSearchP
         />
       )}
       <NowPlayingBar isSelectMode={isSelectMode} />
+      {/* the same oak narration bar as the reader's — the voice follows you */}
+      <NarrationBar />
       {showDetailsBook && (
         <BookDetailModal
           isOpen={!!showDetailsBook}

@@ -24,6 +24,7 @@ import {
   registerNarration,
   unregisterNarration,
   setNarrationSpeakMode,
+  getNarration,
 } from '@/services/narration/speakMode';
 import { applyUnitHighlight, clearUnitHighlight } from '@/services/narration/highlight';
 import type { NarrationUnit } from '@/services/narration';
@@ -101,6 +102,19 @@ export const useNarration = ({ bookKey }: { bookKey: string }) => {
     };
 
     (async () => {
+      // UX spec D: audio survives leaving the reader. If this book already
+      // has a live session (user browsed to the library and back), ADOPT it
+      // instead of loading a second one — two controllers would double-play.
+      const existing = getNarration(bookKey);
+      if (existing?.controller.active) {
+        controllerRef.current = existing.controller;
+        existing.controller.addEventListener('unit-change', onUnitChange);
+        existing.controller.addEventListener('book-ended', onEnded);
+        existing.controller.addEventListener('stopped', onEnded);
+        setAvailable(true);
+        console.info('narration: adopted live session');
+        return;
+      }
       const controller = await NarrationController.load(appService, book).catch((e) => {
         console.warn('narration: session load failed', e);
         return null;
@@ -157,8 +171,18 @@ export const useNarration = ({ bookKey }: { bookKey: string }) => {
     return () => {
       cancelled = true;
       rebuildRef.current = null;
-      unregisterNarration(bookKey);
-      controllerRef.current?.stop();
+      // UX spec D: leaving the reader never stops audio. A playing/paused
+      // session stays registered (the library MiniPlayer surfaces it);
+      // re-entry adopts it above. Only a stopped session is released.
+      const controller = controllerRef.current;
+      if (controller?.active) {
+        controller.removeEventListener('unit-change', onUnitChange);
+        controller.removeEventListener('book-ended', onEnded);
+        controller.removeEventListener('stopped', onEnded);
+      } else {
+        unregisterNarration(bookKey);
+        controllerRef.current?.stop();
+      }
       controllerRef.current = null;
       setAvailable(false);
     };

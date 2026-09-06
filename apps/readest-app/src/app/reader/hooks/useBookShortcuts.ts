@@ -106,9 +106,16 @@ const useBookShortcuts = ({ sideBarBookKey, bookKeys }: UseBookShortcutsProps) =
     return entry?.controller.active ? entry : undefined;
   };
 
-  const goLeft = () => {
+  // Shift+←/→ is the always-page-turn override: it bypasses the narration
+  // branch entirely, so the user is never trapped in sentence-skip mode.
+  const shiftHeld = (event?: KeyboardEvent | MessageEvent) => {
+    const src = event instanceof KeyboardEvent ? event : (event?.data as { shiftKey?: boolean });
+    return !!src?.shiftKey;
+  };
+
+  const goLeft = (event?: KeyboardEvent | MessageEvent) => {
     const narration = narrationActive();
-    if (narration) {
+    if (narration && !shiftHeld(event)) {
       void narration.controller.prev();
       return;
     }
@@ -125,9 +132,9 @@ const useBookShortcuts = ({ sideBarBookKey, bookKeys }: UseBookShortcutsProps) =
     viewPagination(getView(sideBarBookKey), viewSettings, 'left', 'pan', distance);
   };
 
-  const goRight = () => {
+  const goRight = (event?: KeyboardEvent | MessageEvent) => {
     const narration = narrationActive();
-    if (narration) {
+    if (narration && !shiftHeld(event)) {
       void narration.controller.next();
       return;
     }
@@ -142,6 +149,14 @@ const useBookShortcuts = ({ sideBarBookKey, bookKeys }: UseBookShortcutsProps) =
     }
     if (moveReadingRuler('right')) return;
     viewPagination(getView(sideBarBookKey), viewSettings, 'right', 'pan', distance);
+  };
+
+  // Esc order (UX spec E): stop narration first, else let panels close.
+  const escapeNarration = () => {
+    const narration = narrationActive();
+    if (!narration) return false;
+    narration.controller.stop();
+    return true;
   };
 
   const goUp = (event?: KeyboardEvent | MessageEvent) => {
@@ -447,6 +462,7 @@ const useBookShortcuts = ({ sideBarBookKey, bookKeys }: UseBookShortcutsProps) =
       onQuitApp: quitApp,
       onGoLeft: goLeft,
       onGoRight: goRight,
+      onEscape: escapeNarration,
       onGoUp: goUp,
       onGoDown: goDown,
       onGoPrev: goPrev,

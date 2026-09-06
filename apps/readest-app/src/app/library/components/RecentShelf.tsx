@@ -5,6 +5,7 @@ import { Book } from '@/types/book';
 import { LibraryCoverFitType } from '@/types/settings';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useLongPress } from '@/hooks/useLongPress';
+import { OakShelf } from '@/components/apothecary';
 import BookItem from './BookItem';
 
 /**
@@ -222,10 +223,8 @@ const RecentShelf: React.FC<RecentShelfProps> = ({
     // `transform-wrapper` opts the shelf into the pull-to-refresh drag: the
     // pull translates every wrapper in the scroller, and the shelf lives in the
     // Virtuoso Header — a sibling of the book list, not a descendant.
-    <div className='recent-shelf transform-wrapper select-none pt-3'>
-      <h3 className='text-base-content/60 mb-1 ps-4 text-xs font-medium sm:ps-6'>
-        {_('Recently read')}
-      </h3>
+    <div className='recent-shelf transform-wrapper select-none pt-4'>
+      <h3 className='typed text-mutedink mb-2 ps-4 text-[10px] sm:ps-6'>{_('Continue reading')}</h3>
       <div className='relative'>
         {/* Horizontal-only scroll; px insets + gap mirror the grid. */}
         <div
@@ -285,9 +284,8 @@ const RecentShelf: React.FC<RecentShelfProps> = ({
           </button>
         )}
       </div>
-      {/* Modern divider: an inset hairline with breathing room above and below
-          so it does not crowd the first shelf row. */}
-      <div aria-hidden='true' className='border-base-content/10 mx-4 mb-3 mt-4 border-t sm:mx-6' />
+      {/* Books sit ON the oak plank — the shelf is real furniture. */}
+      <OakShelf lip={10} />
     </div>
   );
 };

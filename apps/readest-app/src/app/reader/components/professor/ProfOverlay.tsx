@@ -1,15 +1,24 @@
 /**
- * ProfOverlay — the "Hey Prof" bubble (HP-1, hey_prof_integration_plan §1).
+ * ProfOverlay — the orb (UX_VISION §A). The Prof is a PRESENCE, not a chat
+ * box: he speaks, ink is his handwriting, text is subtitles.
  *
- * A minimal overlay at the foot of the reader: hold-tap mic (Web Speech
- * STT where available) or type; the professor's answer streams into the
- * bubble. No drawing yet (HP-2), no voice answers yet (HP-3) — this is the
- * PTT → context pack → streaming text loop.
+ * States:
+ *   listening  — voice mode default. Orb rises, page dims 5%, recording
+ *                starts immediately; ghost-transcript streams underneath.
+ *   thinking   — stamp-red pulse while the vision pack + LLM run.
+ *   speaking   — Kokoro talks; ink strikes the page in sync; a single-line
+ *                auto-fading caption rides the bottom edge. Talking over him
+ *                (orb click / hotkey) barges in: he stops and listens.
+ *   text mode  — mic⇄keyboard toggle in the orb swaps the transcript for a
+ *                PaperField (persisted). Keyboard users keep HP-1's input.
+ *
+ * The persistent written record is the margin note (A5), not this overlay.
  */
 import clsx from 'clsx';
 import React, { useEffect, useRef, useState } from 'react';
 import { useProfessor } from '@/app/reader/hooks/useProfessor';
 import { stripAnnotations } from '@/services/professor/annotations';
+import { PaperField } from '@/components/apothecary';
 
 interface ProfOverlayProps {
   bookKey: string;
@@ -36,45 +45,67 @@ const getSpeechRecognition = (): (new () => SpeechRecognitionLike) | null => {
   );
 };
 
+const INPUT_MODE_KEY = 'palimpsest-prof-input-mode';
+type InputMode = 'voice' | 'text';
+
+const loadInputMode = (): InputMode => {
+  try {
+    return localStorage.getItem(INPUT_MODE_KEY) === 'text' ? 'text' : 'voice';
+  } catch {
+    return 'voice';
+  }
+};
+
+/** The one-line subtitle: the tail of the streamed answer. */
+const lastLine = (answer: string): string => {
+  const clean = stripAnnotations(answer).replace(/\s+/g, ' ').trim();
+  const sentences = clean.match(/[^.!?]+[.!?]+/g);
+  const tail = sentences?.slice(-1)[0] ?? clean;
+  return tail.length > 140 ? `…${tail.slice(-137)}` : tail;
+};
+
 const ProfOverlay: React.FC<ProfOverlayProps> = ({ bookKey }) => {
-  const { open, phase, answer, error, ask, close } = useProfessor({ bookKey });
+  const { open, phase, answer, error, ask, close, interrupt } = useProfessor({ bookKey });
   const [draft, setDraft] = useState('');
   const [listening, setListening] = useState(false);
+  const [inputMode, setInputMode] = useState<InputMode>('voice');
   const inputRef = useRef<HTMLInputElement>(null);
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
   const SR = typeof window !== 'undefined' ? getSpeechRecognition() : null;
 
   useEffect(() => {
-    if (!open) return undefined;
+    setInputMode(loadInputMode());
+  }, []);
+  const setMode = (m: InputMode) => {
+    setInputMode(m);
+    try {
+      localStorage.setItem(INPUT_MODE_KEY, m);
+    } catch {
+      /* private mode */
+    }
+  };
+
+  const stopListening = (submit: boolean) => {
+    const rec = recognitionRef.current;
+    recognitionRef.current = null;
+    if (rec) {
+      // Mark intent before stopping: onend fires synchronously after stop().
+      (rec as unknown as { __submit?: boolean }).__submit = submit;
+      rec.stop();
+    }
+    setListening(false);
+  };
+
+  const submit = (q?: string) => {
+    const question = (q ?? draft).trim();
+    if (!question || phase !== 'idle') return;
     setDraft('');
-    // Focus after the open transition so the reader can talk/type at once.
-    const t = setTimeout(() => inputRef.current?.focus(), 60);
-    return () => clearTimeout(t);
-  }, [open]);
+    void ask(question);
+  };
 
-  // Stop STT when the overlay closes or unmounts.
-  useEffect(() => {
-    if (!open && recognitionRef.current) {
-      recognitionRef.current.abort();
-      recognitionRef.current = null;
-      setListening(false);
-    }
-  }, [open]);
-  useEffect(
-    () => () => {
-      recognitionRef.current?.abort();
-    },
-    [],
-  );
-
-  if (!open) return null;
-
-  const toggleListen = () => {
-    if (!SR) return;
-    if (listening) {
-      recognitionRef.current?.stop();
-      return;
-    }
+  const startListening = () => {
+    if (!SR || listening) return;
+    if (phase === 'answering' || phase === 'thinking') interrupt();
     const rec = new SR();
     rec.lang = 'en-US';
     rec.interimResults = true;
@@ -87,101 +118,180 @@ const ProfOverlay: React.FC<ProfOverlayProps> = ({ bookKey }) => {
     rec.onend = () => {
       setListening(false);
       recognitionRef.current = null;
+      const wantsSubmit = (rec as unknown as { __submit?: boolean }).__submit !== false;
+      if (wantsSubmit) {
+        // Release-to-ask: whatever the ghost transcript holds becomes the ask.
+        setDraft((d) => {
+          const q = d.trim();
+          if (q) setTimeout(() => submit(q), 0);
+          return d;
+        });
+      }
     };
     rec.onerror = () => {
       setListening(false);
       recognitionRef.current = null;
     };
     recognitionRef.current = rec;
+    setDraft('');
     setListening(true);
     rec.start();
   };
 
-  const submit = () => {
-    const q = draft.trim();
-    if (!q || phase !== 'idle') return;
+  // Open = summon: in voice mode, recording starts immediately (no "click
+  // mic" step). In text mode, focus the field instead.
+  useEffect(() => {
+    if (!open) return undefined;
     setDraft('');
-    void ask(q);
+    if (inputMode === 'voice' && SR) {
+      const t = setTimeout(startListening, 80);
+      return () => clearTimeout(t);
+    }
+    const t = setTimeout(() => inputRef.current?.focus(), 60);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
+
+  // Stop STT when the overlay closes or unmounts.
+  useEffect(() => {
+    if (!open && recognitionRef.current) stopListening(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
+  useEffect(() => () => recognitionRef.current?.abort(), []);
+
+  if (!open) return null;
+
+  const speaking = phase === 'answering';
+  const thinking = phase === 'thinking';
+
+  /** Clicking the orb = the one gesture for everything: release-to-ask while
+      listening, barge-in while he speaks, summon-to-listen when idle. */
+  const orbClick = () => {
+    if (inputMode === 'text') return;
+    if (listening) stopListening(true);
+    else if (speaking || thinking) {
+      interrupt();
+      startListening();
+    } else startListening();
   };
 
   return (
-    <div
-      className='pointer-events-none absolute inset-x-0 bottom-24 z-50 flex justify-center px-4'
-      data-testid='prof-overlay'
-    >
-      <div className='pointer-events-auto w-full max-w-xl rounded-2xl border border-base-content/10 bg-base-100/95 shadow-xl backdrop-blur'>
-        <div className='flex items-center gap-2 border-b border-base-content/10 px-4 py-2'>
-          <span
-            className={clsx(
-              'inline-block h-2.5 w-2.5 rounded-full transition-colors',
-              phase === 'idle' && 'bg-emerald-500',
-              phase === 'thinking' && 'animate-pulse bg-amber-500',
-              phase === 'answering' && 'animate-pulse bg-sky-500',
-            )}
-            aria-hidden='true'
-          />
-          <span className='text-sm font-medium'>Professor</span>
-          <span className='text-xs text-base-content/50'>
-            {listening ? 'listening…' : phase === 'thinking' ? 'thinking…' : '⌥Space'}
-          </span>
-          <button
-            type='button'
-            className='btn btn-ghost btn-xs ml-auto'
-            aria-label='Close professor'
-            onClick={close}
-          >
-            ✕
-          </button>
-        </div>
+    <>
+      {/* the 5% dim — the page recedes while the Prof is present */}
+      <div className='pointer-events-none fixed inset-0 z-40 bg-black/[0.05] transition-opacity' />
 
-        {(answer || error) && (
-          <div className='max-h-48 overflow-y-auto px-4 py-3'>
-            {error ? (
-              <p className='text-sm text-error'>{error}</p>
-            ) : (
-              <p className='whitespace-pre-wrap text-sm leading-relaxed' data-testid='prof-answer'>
-                {stripAnnotations(answer)}
-              </p>
-            )}
+      <div
+        className='pointer-events-none absolute inset-x-0 bottom-24 z-50 flex flex-col items-center gap-2 px-4'
+        data-testid='prof-overlay'
+      >
+        {/* ghost transcript / status line — typed, muted */}
+        {(listening && draft) || thinking ? (
+          <div className='typed text-mutedink max-w-lg truncate text-[10px]'>
+            {thinking ? 'THINKING…' : draft}
           </div>
-        )}
+        ) : null}
 
-        <div className='flex items-center gap-2 px-3 py-2'>
+        <div className='pointer-events-auto flex items-center gap-3'>
+          {/* the orb */}
+          {inputMode === 'voice' && (
+            <button
+              type='button'
+              onClick={orbClick}
+              aria-label={listening ? 'Release to ask' : speaking ? 'Interrupt and speak' : 'Speak'}
+              className={clsx(
+                'flex h-12 w-12 items-center justify-center rounded-full border transition-all',
+                listening && 'border-stamp bg-paperlight shadow-[var(--lift-shadow)]',
+                thinking && 'border-stamp animate-pulse bg-paperlight',
+                speaking && 'border-stamp bg-stamp shadow-[var(--lift-shadow)]',
+                !listening && !thinking && !speaking && 'border-ink bg-paperlight',
+              )}
+            >
+              {/* living waveform: three bars breathing while he listens/speaks */}
+              <span className='flex items-end gap-[3px]' aria-hidden='true'>
+                {[0, 1, 2].map((i) => (
+                  <span
+                    key={i}
+                    className={clsx(
+                      'w-[3px] rounded-sm',
+                      speaking ? 'bg-paperlight' : 'bg-stamp',
+                      listening || speaking ? 'animate-pulse' : '',
+                    )}
+                    style={{
+                      height: `${[10, 16, 7][i]}px`,
+                      animationDelay: `${i * 180}ms`,
+                      animationDuration: listening || speaking ? '900ms' : undefined,
+                    }}
+                  />
+                ))}
+              </span>
+            </button>
+          )}
+
+          {/* text mode: the field replaces the transcript line */}
+          {inputMode === 'text' && (
+            <PaperField
+              ref={inputRef}
+              type='text'
+              className='w-72 text-sm'
+              placeholder='Ask about what you are reading…'
+              aria-label='Ask the professor'
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+              onKeyDown={(e) => {
+                e.stopPropagation();
+                if (e.key === 'Enter') submit();
+                else if (e.key === 'Escape') close();
+              }}
+            />
+          )}
+
+          {/* mic ⇄ keyboard toggle, in the orb itself */}
           {SR && (
             <button
               type='button'
-              className={clsx('btn btn-ghost btn-sm', listening && 'text-error')}
-              aria-label={listening ? 'Stop listening' : 'Speak your question'}
-              onClick={toggleListen}
+              className='typed text-mutedink hover:text-ink text-[9px]'
+              aria-label={inputMode === 'voice' ? 'Switch to typing' : 'Switch to voice'}
+              onClick={() => {
+                if (listening) stopListening(false);
+                setMode(inputMode === 'voice' ? 'text' : 'voice');
+              }}
             >
-              {listening ? '■' : '🎙'}
+              {inputMode === 'voice' ? '⌨ TYPE' : '🎙 SPEAK'}
             </button>
           )}
-          <input
-            ref={inputRef}
-            type='text'
-            className='input input-sm flex-1 bg-transparent focus:outline-none'
-            placeholder='Ask about what you are reading…'
-            aria-label='Ask the professor'
-            value={draft}
-            onChange={(e) => setDraft(e.target.value)}
-            onKeyDown={(e) => {
-              e.stopPropagation();
-              if (e.key === 'Enter') submit();
-              else if (e.key === 'Escape') close();
-            }}
-          />
+
           <button
             type='button'
-            className='btn btn-primary btn-sm'
-            disabled={!draft.trim() || phase !== 'idle'}
-            onClick={submit}
+            className='typed text-mutedink hover:text-ink text-[9px]'
+            aria-label='Dismiss professor'
+            onClick={() => {
+              interrupt();
+              close();
+            }}
           >
-            Ask
+            ESC ✕
           </button>
         </div>
       </div>
-    </div>
+
+      {/* the subtitle: one line at the bottom edge while he speaks.
+          The lasting record is the margin note, not this caption. */}
+      {speaking && answer && (
+        <div className='pointer-events-none fixed inset-x-0 bottom-3 z-50 flex justify-center px-6'>
+          <p
+            className='text-ink max-w-2xl truncate text-center text-[13px] italic opacity-80'
+            data-testid='prof-caption'
+          >
+            {lastLine(answer)}
+          </p>
+        </div>
+      )}
+      {error && (
+        <div className='pointer-events-none fixed inset-x-0 bottom-3 z-50 flex justify-center'>
+          <p className='typed text-[10px] text-stamp'>{error}</p>
+        </div>
+      )}
+    </>
   );
 };
 

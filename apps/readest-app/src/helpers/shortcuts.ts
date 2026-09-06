@@ -196,12 +196,15 @@ const DEFAULT_SHORTCUTS = {
     section: 'Window',
   },
   onGoLeft: {
-    keys: ['ArrowLeft', 'h', 'shift+ '],
+    // Shift+← is the always-page-turn override while narration owns plain
+    // arrows (UX spec E); onAdjustTextSelection still wins when a selection
+    // exists (it runs first and only claims the key when it extends one).
+    keys: ['ArrowLeft', 'h', 'shift+ ', 'shift+ArrowLeft'],
     description: _('Go Left / Previous Page'),
     section: 'Navigation',
   },
   onGoRight: {
-    keys: ['ArrowRight', 'l', ' '],
+    keys: ['ArrowRight', 'l', ' ', 'shift+ArrowRight'],
     description: _('Go Right / Next Page'),
     section: 'Navigation',
   },

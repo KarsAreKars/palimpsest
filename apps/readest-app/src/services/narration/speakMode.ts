@@ -26,6 +26,15 @@ export const unregisterNarration = (bookKey: string): void => {
 
 export const getNarration = (bookKey: string): NarrationEntry | undefined => registry.get(bookKey);
 
+/** The one live session anywhere in this window (for the library's
+    MiniPlayer: audio survives leaving the reader — UX spec D). */
+export const getActiveNarration = (): { bookKey: string; entry: NarrationEntry } | undefined => {
+  for (const [bookKey, entry] of registry) {
+    if (entry.controller.active) return { bookKey, entry };
+  }
+  return undefined;
+};
+
 export const setNarrationSpeakMode = (bookKey: string, on: boolean): void => {
   const entry = registry.get(bookKey);
   if (entry) entry.speakMode = on;

@@ -2,7 +2,6 @@ import clsx from 'clsx';
 import React, { useRef } from 'react';
 import { FaChevronDown, FaSearch } from 'react-icons/fa';
 import { MdManageSearch } from 'react-icons/md';
-import { PiPlus } from 'react-icons/pi';
 import { PiSelectionAll, PiSelectionAllFill } from 'react-icons/pi';
 import { PiDotsThreeCircle } from 'react-icons/pi';
 import { MdOutlineMenu } from 'react-icons/md';
@@ -144,11 +143,8 @@ const LibraryHeader: React.FC<LibraryHeaderProps> = ({
               onChange={handleSearchChange}
               spellCheck='false'
               className={clsx(
-                'search-input input h-9 w-full rounded-full pe-[30%] ps-10 sm:h-7',
-                'bg-base-300/45 border-0',
-                'font-sans text-sm font-light',
-                'placeholder:text-base-content/50 truncate',
-                'focus:outline-none focus:ring-0',
+                'search-input paper-field h-9 w-full pe-[30%] ps-10 sm:h-7',
+                'truncate text-sm',
               )}
             />
             {searchTarget === 'text' && (
@@ -202,8 +198,12 @@ const LibraryHeader: React.FC<LibraryHeaderProps> = ({
                   className={clsx(
                     'exclude-title-bar-mousedown dropdown-bottom dropdown-center cursor-pointer',
                   )}
-                  buttonClassName='p-0 h-6 min-h-6 w-6 flex touch-target items-center justify-center !bg-transparent'
-                  toggleButton={<PiPlus role='none' className='m-0.5 h-5 w-5' />}
+                  buttonClassName='p-0 min-h-0 flex touch-target items-center justify-center !bg-transparent'
+                  toggleButton={
+                    <span className='stamp-btn flex items-center gap-1' role='none'>
+                      + Add Book
+                    </span>
+                  }
                 >
                   <ImportMenu
                     onImportBooksFromFiles={onImportBooksFromFiles}

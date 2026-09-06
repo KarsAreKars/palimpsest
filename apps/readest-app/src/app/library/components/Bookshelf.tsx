@@ -3,7 +3,6 @@ import { MdManageSearch } from 'react-icons/md';
 import * as React from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { PiPlus } from 'react-icons/pi';
 import { useOverlayScrollbars } from 'overlayscrollbars-react';
 import 'overlayscrollbars/overlayscrollbars.css';
 import {
@@ -933,15 +932,17 @@ const Bookshelf: React.FC<BookshelfProps> = ({
               aria-label={_('Import Books')}
               aria-haspopup='menu'
               className={clsx(
-                'bookitem-main bg-base-100 hover:bg-base-300/50',
-                'flex items-center justify-center',
+                'bookitem-main border-faint bg-paperlight hover:border-stamp',
+                'flex items-center justify-center border border-dashed',
                 'aspect-[28/41] w-full',
               )}
               onClick={(event) => handleImportBooks(event.currentTarget)}
             >
-              <div className='flex items-center justify-center'>
-                <PiPlus className='size-10' color='gray' />
-              </div>
+              <span className='typed text-mutedink text-center text-[9px] leading-relaxed'>
+                + Add
+                <br />
+                Book
+              </span>
             </button>
           </div>
         );

@@ -24,7 +24,7 @@ import { formatAuthors, formatDescription, formatSeries } from '@/utils/book';
 import { formatCompactTime } from '@/utils/time';
 import { INDETERMINATE_PROGRESS } from '@/utils/transfer';
 import ReadingProgress from './ReadingProgress';
-import BookCover from '@/components/BookCover';
+import { ClothCover } from '@/components/apothecary';
 import { useExtractionStatus } from '@/services/hpub/useExtractionStatus';
 
 interface BookItemProps {
@@ -139,24 +139,19 @@ const BookItem: React.FC<BookItemProps> = ({
     >
       <div
         className={clsx(
-          'bookitem-main relative flex justify-center overflow-hidden rounded',
+          'bookitem-main relative flex justify-center overflow-hidden',
           !fitCoverInGrid && 'aspect-[28/41]',
-          coverFit === 'crop' && 'shadow-md',
           mode === 'grid' && 'items-end',
           mode === 'list' && 'min-w-20 items-center',
         )}
         style={bookitemMainStyle}
       >
-        <BookCover
-          mode={mode}
-          book={book}
-          coverFit={coverFit}
-          showSpine={settings.librarySkeuomorphicCovers}
-          imageClassName={clsx(
-            'shadow-md',
-            settings.librarySkeuomorphicCovers ? 'rounded-none' : 'rounded',
-          )}
-          onAspectRatioChange={setCoverAspect}
+        {/* Apothecary: cloth + typed label IS the cover; no cover art. */}
+        <ClothCover
+          title={book.title}
+          author={formatAuthors(book.author, book.primaryLanguage) || undefined}
+          size='lg'
+          className='h-full w-full'
         />
         {isTransferring && (
           // E-ink cannot render a translucent wash — it dithers over the cover
@@ -221,9 +216,9 @@ const BookItem: React.FC<BookItemProps> = ({
         <div className={clsx('min-w-0 flex-1', mode === 'list' && 'flex flex-col gap-1')}>
           <h4
             className={clsx(
-              'overflow-hidden text-ellipsis font-semibold',
-              mode === 'grid' && 'block whitespace-nowrap text-[0.6em] text-xs',
-              mode === 'list' && 'line-clamp-1 text-base',
+              'typed overflow-hidden text-ellipsis text-ink',
+              mode === 'grid' && 'block whitespace-nowrap text-[9px]',
+              mode === 'list' && 'line-clamp-1 text-[11px]',
             )}
           >
             {book.title}
@@ -263,7 +258,22 @@ const BookItem: React.FC<BookItemProps> = ({
             </div>
           ) : (
             (book.progress || book.readingStatus) && (
-              <ReadingProgress book={book} showTimeRemaining={showTimeRemaining} />
+              <div className='w-full'>
+                {/* the progress hairline: faint track, ink fill, typed % */}
+                {book.progress && book.progress[1] > 1 && book.readingStatus !== 'finished' && (
+                  <div className='progress-track mb-1 w-full'>
+                    <div
+                      className='progress-fill'
+                      style={{
+                        width: `${Math.min(100, Math.round((book.progress[0] / book.progress[1]) * 100))}%`,
+                      }}
+                    />
+                  </div>
+                )}
+                <div className='typed text-mutedink text-[8.5px]'>
+                  <ReadingProgress book={book} showTimeRemaining={showTimeRemaining} />
+                </div>
+              </div>
             )
           )}
           <div className='flex shrink-0 items-center justify-center gap-x-2'>

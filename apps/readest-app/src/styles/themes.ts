@@ -119,6 +119,36 @@ const _ = (stubKey: string) => stubKey;
 
 export const themes = [
   {
+    // THE APOTHECARY LIBRARY — the Palimpsest identity. Paper & wood,
+    // one ink, one stamp-red accent. Dark variant: shelf-at-night, same ink.
+    name: 'apothecary',
+    label: _('Apothecary'),
+    colors: {
+      light: {
+        'base-100': '#F3EDE0', // paper
+        'base-200': '#EDE5D3',
+        'base-300': '#E4D9C2',
+        'base-content': '#26221B', // ink
+        neutral: '#8A7E6A', // muted
+        'neutral-content': '#F8F4E9',
+        primary: '#8C3B22', // stamp red
+        secondary: '#5C4632', // walnut
+        accent: '#96754F', // oak
+      } as Palette,
+      dark: {
+        'base-100': '#1C1915', // basalt cloth
+        'base-200': '#26221B',
+        'base-300': '#332D23',
+        'base-content': '#F3EDE0',
+        neutral: '#8A7E6A',
+        'neutral-content': '#F8F4E9',
+        primary: '#C96A4A', // stamp red lifted for dark paper
+        secondary: '#96754F',
+        accent: '#96754F',
+      } as Palette,
+    },
+  },
+  {
     name: 'default',
     label: _('Default'),
     colors: {

@@ -6,6 +6,7 @@ import { RiArrowGoBackLine, RiArrowGoForwardLine } from 'react-icons/ri';
 import { RiArrowLeftDoubleLine, RiArrowRightDoubleLine } from 'react-icons/ri';
 import { useReaderStore } from '@/store/readerStore';
 import { useTranslation } from '@/hooks/useTranslation';
+import { getNarration } from '@/services/narration/speakMode';
 import type { FooterBarChildProps } from './types';
 import { getNavigationIcon } from './utils';
 import Button from '@/components/Button';
@@ -57,6 +58,22 @@ const DesktopFooterBar: React.FC<FooterBarChildProps> = ({
 
   const isMobile = window.innerWidth < 640 || window.innerHeight < 640;
 
+  // UX spec E: when narration owns the plain arrow keys, say so — typed,
+  // muted, discoverable. Follows the controller's start/stop events.
+  const [narrationOwnsKeys, setNarrationOwnsKeys] = React.useState(false);
+  useEffect(() => {
+    const entry = getNarration(bookKey);
+    if (!entry) return undefined;
+    const sync = () => setNarrationOwnsKeys(entry.controller.active);
+    sync();
+    entry.controller.addEventListener('unit-change', sync);
+    entry.controller.addEventListener('stopped', sync);
+    return () => {
+      entry.controller.removeEventListener('unit-change', sync);
+      entry.controller.removeEventListener('stopped', sync);
+    };
+  }, [bookKey]);
+
   return (
     <div
       className={clsx(
@@ -100,6 +117,11 @@ const DesktopFooterBar: React.FC<FooterBarChildProps> = ({
         disabled={!view?.history.canGoForward}
       />
       {progressValid && <PageJumpInput bookKey={bookKey} className='mx-2 text-sm' />}
+      {narrationOwnsKeys && (
+        <span className='typed text-mutedink hidden whitespace-nowrap text-[8.5px] md:inline'>
+          ← → SKIP SENTENCES · SHIFT FOR PAGES
+        </span>
+      )}
       <input
         ref={rangeInputRef}
         type='range'

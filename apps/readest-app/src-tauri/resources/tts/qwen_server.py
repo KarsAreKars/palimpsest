@@ -153,6 +153,59 @@ def get_model():
     return _model
 
 
+WHISPER_ID = "mlx-community/whisper-large-v3-turbo"
+_whisper_ready = {"ok": None}  # None = not tried; True/False after first attempt
+
+
+def ensure_whisper() -> bool:
+    """Warm the Whisper model (the Prof's ear, UX_VISION §A). Returns False
+    if the model isn't downloaded yet — the /stt route reports 503 then and
+    the app falls back to Web Speech. Transcribe itself imports mlx_whisper
+    per-call; the model stays cached in memory by mlx-whisper internally."""
+    if _whisper_ready["ok"] is not None:
+        return _whisper_ready["ok"]
+    try:
+        from huggingface_hub import snapshot_download
+
+        snapshot_download(WHISPER_ID)
+        _whisper_ready["ok"] = True
+        print("[whisper] model present", flush=True)
+    except Exception as e:
+        _whisper_ready["ok"] = False
+        print(f"[whisper] unavailable: {e}", flush=True)
+    return _whisper_ready["ok"]
+
+
+def transcribe_audio(raw: bytes) -> str:
+    """webm/opus/wav bytes -> text. ffmpeg normalizes to 16k mono PCM for
+    whisper; the single-threaded server keeps us on the main thread, so MLX
+    streams are bound (the 2026-09-06 threading bug class)."""
+    import subprocess
+    import tempfile
+
+    import mlx_whisper
+
+    with tempfile.NamedTemporaryFile(suffix=".audio", delete=False) as fin:
+        fin.write(raw)
+        src = fin.name
+    wav = src + ".wav"
+    try:
+        subprocess.run(
+            ["ffmpeg", "-y", "-v", "error", "-i", src, "-ar", "16000", "-ac", "1", "-f", "wav", wav],
+            check=True,
+        )
+        result = mlx_whisper.transcribe(
+            wav, path_or_hf_repo=WHISPER_ID, condition_on_previous_text=False
+        )
+        return (result.get("text") or "").strip()
+    finally:
+        for p in (src, wav):
+            try:
+                os.unlink(p)
+            except OSError:
+                pass
+
+
 class Handler(BaseHTTPRequestHandler):
     def log_message(self, fmt, *args):  # quiet default access log
         pass
@@ -174,6 +227,28 @@ class Handler(BaseHTTPRequestHandler):
             self._json(404, {"error": "not found"})
 
     def do_POST(self) -> None:
+        if self.path == "/stt":
+            if not ensure_whisper():
+                self._json(503, {"error": "whisper model not downloaded yet"})
+                return
+            try:
+                length = int(self.headers.get("Content-Length") or 0)
+                raw = self.rfile.read(length)
+            except Exception as e:
+                self._json(400, {"error": f"bad body: {e}"})
+                return
+            if not raw:
+                self._json(400, {"error": "empty audio"})
+                return
+            t0 = time.time()
+            try:
+                text = transcribe_audio(raw)
+            except Exception as e:
+                self._json(500, {"error": f"stt failed: {e}"})
+                return
+            print(f"[whisper] {len(raw)}B -> {len(text)} chars in {time.time() - t0:.1f}s", flush=True)
+            self._json(200, {"text": text})
+            return
         if self.path != "/tts":
             self._json(404, {"error": "not found"})
             return
