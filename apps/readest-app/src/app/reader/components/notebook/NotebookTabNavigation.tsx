@@ -52,7 +52,7 @@ const NotebookTabNavigation: React.FC<NotebookTabNavigationProps> = ({
   return (
     <div
       className={clsx(
-        'bottom-tab border-base-300/50 bg-base-200/20 flex min-h-[52px] w-full border-t',
+        'bottom-tab flex min-h-[52px] w-full border-t border-[rgba(38,34,27,0.14)] bg-[rgba(38,34,27,0.05)]',
         appService?.hasRoundedWindow && 'rounded-window-bottom-right',
       )}
       dir='ltr'
@@ -63,8 +63,8 @@ const NotebookTabNavigation: React.FC<NotebookTabNavigationProps> = ({
           tabIndex={0}
           role='button'
           className={clsx(
-            'm-1.5 flex-1 cursor-pointer rounded-lg p-2 transition-colors duration-200',
-            activeTab === tab && 'bg-base-300/85',
+            'relative m-1.5 flex-1 cursor-pointer rounded-lg p-2 transition-colors duration-200',
+            activeTab === tab && 'bg-[rgba(38,34,27,0.07)]',
           )}
           onClick={() => onTabChange(tab)}
           onKeyDown={(e) => {
@@ -76,7 +76,22 @@ const NotebookTabNavigation: React.FC<NotebookTabNavigationProps> = ({
           title={getTabLabel(tab)}
           aria-label={getTabLabel(tab)}
         >
-          <div className='m-0 flex h-6 items-center p-0'>{getTabIcon(tab)}</div>
+          {activeTab === tab && (
+            <span className='bg-stamp absolute inset-x-4 top-0.5 h-[2px] rounded-full' />
+          )}
+          <div className='m-0 flex h-6 items-center p-0'>
+            <span className={clsx('mx-auto', activeTab === tab && 'text-stamp')}>
+              {getTabIcon(tab)}
+            </span>
+          </div>
+          <div
+            className={clsx(
+              'typed text-center text-[7.5px] tracking-wider',
+              activeTab === tab ? 'text-stamp' : 'text-mutedink',
+            )}
+          >
+            {getTabLabel(tab).toUpperCase()}
+          </div>
         </div>
       ))}
     </div>

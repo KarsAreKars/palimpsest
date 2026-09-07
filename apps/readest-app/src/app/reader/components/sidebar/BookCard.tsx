@@ -48,10 +48,10 @@ const BookCard = ({ book }: { book: Book }) => {
         />
       </div>
       <div className='min-w-0 flex-1'>
-        <h4 className='line-clamp-2 w-[90%] text-sm font-semibold'>
+        <h4 className='font-display line-clamp-2 w-[90%] text-[15px] font-semibold leading-snug'>
           {formatTitle(title).replace(/\u00A0/g, ' ')}
         </h4>
-        <p className='truncate text-xs opacity-75'>{formatAuthors(author)}</p>
+        <p className='typed text-mutedink truncate text-[9px]'>{formatAuthors(author).toUpperCase()}</p>
       </div>
       <button
         className='btn btn-ghost hover:bg-base-300 h-6 min-h-6 w-6 rounded-full p-0 transition-colors'

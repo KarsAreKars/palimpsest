@@ -37,7 +37,7 @@ const TabNavigation: React.FC<{
   return (
     <div
       className={clsx(
-        'bottom-tab border-base-300/50 bg-base-200 flex w-full border-t',
+        'bottom-tab flex min-h-[52px] w-full border-t border-[rgba(38,34,27,0.14)] bg-[rgba(38,34,27,0.05)]',
         appService?.hasRoundedWindow && 'rounded-window-bottom-left',
         isMobile && 'h-[65px]',
       )}
@@ -49,9 +49,8 @@ const TabNavigation: React.FC<{
           tabIndex={0}
           role='button'
           className={clsx(
-            'flex-1 m-1.5 cursor-pointer rounded-lg transition-colors duration-200',
-            activeTab === tab && 'bg-base-300/85',
-            isMobile ? 'p-3' : 'p-2',
+            'relative m-1.5 flex-1 cursor-pointer rounded-lg p-2 transition-colors duration-200',
+            activeTab === tab && 'bg-[rgba(38,34,27,0.07)]',
           )}
           onClick={() => onTabChange(tab)}
           onKeyDown={(e) => {
@@ -63,14 +62,28 @@ const TabNavigation: React.FC<{
           title={getTabLabel(tab)}
           aria-label={getTabLabel(tab)}
         >
+          {/* the stamp mark: a 2px underline on the active tab */}
+          {activeTab === tab && (
+            <span className='bg-stamp absolute inset-x-4 top-0.5 h-[2px] rounded-full' />
+          )}
           <div className={clsx('flex h-6 items-center p-0', isMobile ? 'm-0.5' : 'm-0')}>
-            {tab === 'toc' ? (
-              <IoIosList className='mx-auto' />
-            ) : tab === 'annotations' ? (
-              <PiNotePencil className='mx-auto' />
-            ) : (
-              <MdBookmarkBorder className='mx-auto' />
+            <span className={clsx('mx-auto', activeTab === tab && 'text-stamp')}>
+              {tab === 'toc' ? (
+                <IoIosList />
+              ) : tab === 'annotations' ? (
+                <PiNotePencil />
+              ) : (
+                <MdBookmarkBorder />
+              )}
+            </span>
+          </div>
+          <div
+            className={clsx(
+              'typed text-center text-[7.5px] tracking-wider',
+              activeTab === tab ? 'text-stamp' : 'text-mutedink',
             )}
+          >
+            {getTabLabel(tab).toUpperCase()}
           </div>
         </div>
       ))}

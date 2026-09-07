@@ -188,9 +188,9 @@ const SideBar = ({}) => {
       <div
         ref={sidebarRef}
         className={clsx(
-          'sidebar-container flex min-w-60 select-none flex-col',
+          'sidebar-container paper-bg flex min-w-60 select-none flex-col',
           'full-height transition-[padding-top] duration-300',
-          viewSettings?.isEink ? 'bg-base-100' : 'bg-base-200',
+          'border-e border-[rgba(38,34,27,0.14)]',
           appService?.hasRoundedWindow && 'rounded-window-top-left rounded-window-bottom-left',
           isSideBarPinned ? 'z-20' : 'z-[45] shadow-2xl',
           !isSideBarPinned && viewSettings?.isEink && 'border-base-content border-e',
@@ -270,7 +270,7 @@ const SideBar = ({}) => {
               onHideSearchBar={handleHideSearchBar}
             />
           </div>
-          <div className='border-base-300/50 border-b px-3'>
+          <div className='border-b border-[rgba(38,34,27,0.12)] px-3'>
             <BookCard book={book} />
           </div>
         </div>

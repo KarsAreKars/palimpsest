@@ -29,7 +29,7 @@ const SidebarHeader: React.FC<{
     <div
       ref={headerRef}
       className={clsx(
-        'sidebar-header flex h-11 items-center justify-between pe-2',
+        'sidebar-header flex h-11 items-center justify-between border-b border-[rgba(38,34,27,0.12)] pe-2',
         isTrafficLightVisible ? 'ps-1.5 sm:ps-20' : 'ps-1.5',
       )}
       dir='ltr'

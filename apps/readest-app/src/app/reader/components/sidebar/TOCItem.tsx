@@ -118,7 +118,9 @@ const TOCItemView = React.memo<{
       aria-selected={isActive ? 'true' : 'false'}
       data-href={item.href ? getContentMd5(item.href) : undefined}
       className={clsx(
-        'flex w-full cursor-pointer items-center rounded-md py-4 sm:py-2 sm:hover:bg-base-300/75',
+        'flex w-full cursor-pointer items-center py-4 transition-colors sm:py-2',
+        'hover:bg-[rgba(38,34,27,0.05)]',
+        isActive && 'text-stamp font-medium shadow-[inset_2px_0_0_var(--stamp)]',
       )}
       style={{
         height: itemSize ? `${itemSize}px` : 'auto',
@@ -152,8 +154,8 @@ const TOCItemView = React.memo<{
         {item.label}
       </div>
       {(item.location || item.index !== undefined) && (
-        <div aria-hidden='true' className='text-base-content/50 ms-auto ps-1 text-xs sm:pe-1'>
-          {item.location ? item.location.current + 1 : item.index + 1}
+        <div aria-hidden='true' className='typed text-mutedink ms-auto ps-1 text-[9px] sm:pe-1'>
+          {item.location ? `P. ${item.location.current + 1}` : `P. ${item.index! + 1}`}
         </div>
       )}
     </div>
@@ -184,8 +186,8 @@ export const StaticListRow: React.FC<ListRowProps> = ({
   return (
     <div
       className={clsx(
-        'border-base-300 w-full border-b sm:border-none',
-        'pe-4 ps-2 pt-[1px] sm:pe-2',
+        'w-full border-b border-[rgba(38,34,27,0.09)]',
+        'pe-4 ps-2 sm:pe-2',
       )}
       title={flatItem.item.label || ''}
     >
@@ -220,8 +222,8 @@ export const CurrentPositionRow: React.FC<{
   return (
     <div
       className={clsx(
-        'border-base-300 w-full border-b sm:border-none',
-        'pe-4 ps-2 pt-[1px] sm:pe-2',
+        'w-full border-b border-[rgba(38,34,27,0.09)]',
+        'pe-4 ps-2 sm:pe-2',
       )}
       title={label}
     >
@@ -233,21 +235,21 @@ export const CurrentPositionRow: React.FC<{
         onClick={onClick ? handleClick : undefined}
         onKeyDown={onClick ? (e) => e.key === 'Enter' && handleClick(e) : undefined}
         className={clsx(
-          'flex w-full items-center rounded-md py-4 sm:py-2',
-          'text-bold-in-eink sm:bg-base-300/65 sm:text-base-content text-blue-500',
-          onClick && 'cursor-pointer sm:hover:bg-base-300/75',
+          'flex w-full items-center py-4 sm:py-2',
+          'text-stamp',
+          onClick && 'cursor-pointer hover:bg-[rgba(140,59,34,0.06)]',
         )}
         style={{ paddingInlineStart: `${depth * 12 + 8}px` }}
       >
         <FiBookOpen className='h-4 w-4 shrink-0' aria-hidden='true' />
         <div
-          className='ms-2 truncate text-ellipsis'
+          className='typed ms-2 truncate text-ellipsis text-[9px] tracking-wider'
           style={{ whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}
         >
-          {label}
+          {label.toUpperCase()}
         </div>
-        <div aria-hidden='true' className='text-base-content/50 ms-auto ps-1 text-xs sm:pe-1'>
-          {page}
+        <div aria-hidden='true' className='typed ms-auto ps-1 text-[9px] sm:pe-1'>
+          P. {page}
         </div>
       </div>
     </div>

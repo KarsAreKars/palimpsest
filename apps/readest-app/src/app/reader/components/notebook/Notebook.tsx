@@ -341,9 +341,9 @@ const Notebook: React.FC = ({}) => {
       <div
         ref={notebookRef}
         className={clsx(
-          'notebook-container right-0 flex min-w-60 select-none flex-col',
+          'notebook-container paper-bg right-0 flex min-w-60 select-none flex-col',
           'full-height font-sans text-base font-normal transition-[padding-top] duration-300 sm:text-sm',
-          viewSettings?.isEink ? 'bg-base-100' : 'bg-base-200',
+          'border-s border-[rgba(38,34,27,0.14)]',
           appService?.hasRoundedWindow && 'rounded-window-top-right rounded-window-bottom-right',
           isNotebookPinned ? 'z-20' : 'z-[45] shadow-2xl',
           !isNotebookPinned && viewSettings?.isEink && 'border-base-content border-s',

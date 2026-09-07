@@ -224,7 +224,7 @@ const BooknoteItem: React.FC<BooknoteItemProps> = ({
         <div className='flex items-start'>
           {item.note && (
             <div
-              className='me-2 mt-2.5 min-h-full self-stretch rounded-xl bg-gray-300'
+              className='me-2 mt-2.5 min-h-full self-stretch rounded-sm bg-[rgba(38,34,27,0.28)]'
               style={{
                 minWidth: `${separatorWidth}px`,
               }}
@@ -285,10 +285,12 @@ const BooknoteItem: React.FC<BooknoteItemProps> = ({
           )}
         >
           <div className='flex w-full items-center gap-1 truncate'>
-            <span className='truncate text-sm text-gray-500 sm:text-xs'>
-              {item.page ? _('p {{page}}' + ' · ', { page: item.page }) : ''}
+            <span className='typed text-mutedink truncate text-[9px]'>
+              {item.page ? `P. ${item.page} · ` : ''}
             </span>
-            <span className='truncate text-sm text-gray-500 sm:text-xs'>{createdAtLabel}</span>
+            <span className='typed text-mutedink truncate text-[9px] uppercase'>
+              {createdAtLabel}
+            </span>
           </div>
           <div
             className={clsx('flex items-center justify-end gap-4', isEditable && 'w-full')}
