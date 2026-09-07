@@ -43,7 +43,13 @@ const TTSControl: React.FC<TTSControlProps> = ({ bookKey, gridInsets }) => {
   const isEink = viewSettings?.isEink ?? false;
   const playerStyle = viewSettings?.ttsPlayerStyle ?? 'full';
   const hasTimeline = tts.ttsClientsInited && tts.handleSupportsPlaybackInfo();
-  const miniPlayerMounted = tts.showIndicator && !showPlayerSheet;
+  // Palimpsest (2026-09-07): the floating gray pill duplicated the oak
+  // NarrationBar, so its render is gated OFF — but this component must keep
+  // mounting: it hosts useTTSControl (event bridge) and useNarration
+  // (session loader). Removing the mount kills narration outright, as we
+  // learned the hard way. The 'Back to Read Aloud' return button stays.
+  const SHOW_LEGACY_PILL = false;
+  const miniPlayerMounted = SHOW_LEGACY_PILL && tts.showIndicator && !showPlayerSheet;
   const miniPlayerVisible = useMiniPlayerAutoHide(bookKey, playerStyle, miniPlayerMounted);
 
   useEffect(() => {
@@ -123,7 +129,7 @@ const TTSControl: React.FC<TTSControlProps> = ({ bookKey, gridInsets }) => {
           onGetPlaybackInfo={tts.handleGetPlaybackInfo}
         />
       )}
-      {tts.ttsClientsInited && showPlayerSheet && (
+      {SHOW_LEGACY_PILL && tts.ttsClientsInited && showPlayerSheet && (
         <TTSPlayerSheet
           bookKey={bookKey}
           isOpen={showPlayerSheet}
