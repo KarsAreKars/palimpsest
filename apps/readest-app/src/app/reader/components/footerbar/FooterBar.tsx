@@ -15,6 +15,7 @@ import { isForcedMobileLayout } from '../../utils/mobileLayout';
 import MobileFooterBar from './MobileFooterBar';
 import DesktopFooterBar from './DesktopFooterBar';
 import { getFooterBarPosition } from './position';
+import TTSControl from '../tts/TTSControl';
 import NarrationBar from '@/components/apothecary/NarrationBar';
 import ProfOverlay from '../professor/ProfOverlay';
 import ProfAnnotations from '../professor/ProfAnnotations';
@@ -268,10 +269,7 @@ const FooterBar: React.FC<FooterBarProps> = ({
         <div className='bg-base-100 pointer-events-none absolute bottom-0 left-0 hidden h-3 w-full sm:block' />
       )}
 
-      {/* TTSControl (the floating gray pill) removed 2026-09-06: it surfaced
-          whenever ttsEnabled flipped — which our narration sets — doubling
-          the oak NarrationBar. Event bridging lives in useTTSControl, not
-          that component, so playback control is unaffected. */}
+      <TTSControl bookKey={bookKey} gridInsets={gridInsets} />
       {/* Palimpsest: the oak narration bar (UX spec D) — one MiniPlayer,
           mounted here and in the library; audio survives navigation. */}
       <NarrationBar bookKey={bookKey} />

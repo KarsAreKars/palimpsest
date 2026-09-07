@@ -1,5 +1,5 @@
 import clsx from 'clsx';
-import React, { useEffect } from 'react';
+import React, { useCallback, useEffect, useRef } from 'react';
 import { FaHeadphones } from 'react-icons/fa6';
 import { RiArrowLeftSLine, RiArrowRightSLine } from 'react-icons/ri';
 import { RiArrowGoBackLine, RiArrowGoForwardLine } from 'react-icons/ri';
@@ -16,15 +16,45 @@ const DesktopFooterBar: React.FC<FooterBarChildProps> = ({
   bookKey,
   gridInsets,
   progressValid,
+  progressFraction,
   navigationHandlers,
   forceMobileLayout,
   onSpeakText,
 }) => {
   const _ = useTranslation();
-  const { getView, getViewState, getViewSettings } = useReaderStore();
+  const { hoveredBookKey, getView, getViewState, getViewSettings } = useReaderStore();
   const view = getView(bookKey);
   const viewState = getViewState(bookKey);
   const viewSettings = getViewSettings(bookKey);
+
+  const [progressValue, setProgressValue] = React.useState(
+    progressValid ? progressFraction * 100 : 0,
+  );
+
+  const rangeInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (hoveredBookKey !== bookKey) {
+      if (rangeInputRef.current && document.activeElement === rangeInputRef.current) {
+        rangeInputRef.current.blur();
+      }
+    }
+  }, [hoveredBookKey, bookKey]);
+
+  useEffect(() => {
+    if (progressValid) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setProgressValue(progressFraction * 100);
+    }
+  }, [progressValid, progressFraction]);
+
+  const handleProgressChange = useCallback(
+    (value: number) => {
+      setProgressValue(value);
+      navigationHandlers.onProgressChange(value);
+    },
+    [navigationHandlers],
+  );
 
   const isMobile = window.innerWidth < 640 || window.innerHeight < 640;
 
@@ -106,10 +136,16 @@ const DesktopFooterBar: React.FC<FooterBarChildProps> = ({
           ← → SKIP SENTENCES · SHIFT FOR PAGES
         </span>
       )}
-      {/* The old % scrubber is gone (2026-09-06): page arrows, the page-jump
-          field and the Spine own navigation now; the slider was the one
-          control that lied in a PDF (percent ≠ page). */}
-      <div className='min-w-0 flex-1' />
+      <input
+        ref={rangeInputRef}
+        type='range'
+        className='text-base-content mx-2 min-w-0 flex-1'
+        min={0}
+        max={100}
+        aria-label={_('Jump to Location')}
+        value={progressValue}
+        onChange={(e) => handleProgressChange(parseInt(e.target.value, 10))}
+      />
       <Button
         icon={<FaHeadphones className={viewState?.ttsEnabled ? 'text-blue-500' : ''} />}
         onClick={onSpeakText!}
