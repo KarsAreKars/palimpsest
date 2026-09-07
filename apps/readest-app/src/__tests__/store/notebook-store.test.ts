@@ -8,7 +8,7 @@ beforeEach(() => {
     notebookWidth: '',
     isNotebookVisible: false,
     isNotebookPinned: false,
-    notebookActiveTab: 'notes',
+    notebookActiveTab: 'spine',
     notebookNewAnnotation: null,
     notebookNewHighlightId: null,
     notebookEditAnnotation: null,
@@ -93,18 +93,18 @@ describe('notebookStore', () => {
 
   // ── Active tab ─────────────────────────────────────────────────
   describe('setNotebookActiveTab', () => {
-    test('sets active tab to ai', () => {
-      useNotebookStore.getState().setNotebookActiveTab('ai');
-      expect(useNotebookStore.getState().notebookActiveTab).toBe('ai');
+    test('defaults to spine', () => {
+      expect(useNotebookStore.getState().notebookActiveTab).toBe('spine');
+    });
+
+    test('sets active tab to study', () => {
+      useNotebookStore.getState().setNotebookActiveTab('study');
+      expect(useNotebookStore.getState().notebookActiveTab).toBe('study');
     });
 
     test('sets active tab to notes', () => {
-      useNotebookStore.getState().setNotebookActiveTab('ai');
+      useNotebookStore.getState().setNotebookActiveTab('study');
       useNotebookStore.getState().setNotebookActiveTab('notes');
-      expect(useNotebookStore.getState().notebookActiveTab).toBe('notes');
-    });
-
-    test('defaults to notes', () => {
       expect(useNotebookStore.getState().notebookActiveTab).toBe('notes');
     });
   });
@@ -229,7 +229,7 @@ describe('notebookStore', () => {
       expect(state.notebookWidth).toBe('');
       expect(state.isNotebookVisible).toBe(false);
       expect(state.isNotebookPinned).toBe(false);
-      expect(state.notebookActiveTab).toBe('notes');
+      expect(state.notebookActiveTab).toBe('spine');
       expect(state.notebookNewAnnotation).toBeNull();
       expect(state.notebookNewHighlightId).toBeNull();
       expect(state.notebookEditAnnotation).toBeNull();

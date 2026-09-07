@@ -1,10 +1,9 @@
 import clsx from 'clsx';
 import React from 'react';
-import { PiNotePencil, PiRobot, PiGraduationCap, PiBooks } from 'react-icons/pi';
+import { PiNotePencil, PiGraduationCap, PiBooks } from 'react-icons/pi';
 
 import { useEnv } from '@/context/EnvContext';
 import { useTranslation } from '@/hooks/useTranslation';
-import { useSettingsStore } from '@/store/settingsStore';
 import { NotebookTab } from '@/store/notebookStore';
 
 interface NotebookTabNavigationProps {
@@ -18,12 +17,11 @@ const NotebookTabNavigation: React.FC<NotebookTabNavigationProps> = ({
 }) => {
   const _ = useTranslation();
   const { appService } = useEnv();
-  const { settings } = useSettingsStore();
-  const aiEnabled = settings?.aiSettings?.enabled ?? false;
 
-  // Study is always available: the review queue and notes.md exist even
-  // before any AI provider is configured (echo-tutor exchanges log too).
-  const tabs: NotebookTab[] = aiEnabled ? ['spine', 'notes', 'ai', 'study'] : ['spine', 'study'];
+  // The AI chat tab is gone (2026-09-06): the Prof owns ask-the-book, and the
+  // assistant-ui runtime crashed the notebook outright. Three learning
+  // surfaces, always visible — notes must not hide behind an AI flag again.
+  const tabs: NotebookTab[] = ['spine', 'notes', 'study'];
 
   const getTabLabel = (tab: NotebookTab) => {
     switch (tab) {
@@ -31,8 +29,6 @@ const NotebookTabNavigation: React.FC<NotebookTabNavigationProps> = ({
         return _('Spine');
       case 'notes':
         return _('Notes');
-      case 'ai':
-        return _('AI');
       case 'study':
         return _('Study');
       default:
@@ -46,8 +42,6 @@ const NotebookTabNavigation: React.FC<NotebookTabNavigationProps> = ({
         return <PiBooks className='mx-auto' size={20} />;
       case 'notes':
         return <PiNotePencil className='mx-auto' size={20} />;
-      case 'ai':
-        return <PiRobot className='mx-auto' size={20} />;
       case 'study':
         return <PiGraduationCap className='mx-auto' size={20} />;
       default:

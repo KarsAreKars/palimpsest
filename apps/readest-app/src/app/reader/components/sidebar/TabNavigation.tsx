@@ -3,11 +3,9 @@ import React from 'react';
 import { MdBookmarkBorder } from 'react-icons/md';
 import { IoIosList } from 'react-icons/io';
 import { PiNotePencil } from 'react-icons/pi';
-import { LuMessageSquare } from 'react-icons/lu';
 
 import { useEnv } from '@/context/EnvContext';
 import { useTranslation } from '@/hooks/useTranslation';
-import { useSettingsStore } from '@/store/settingsStore';
 import { isForcedMobileLayout } from '../../utils/mobileLayout';
 
 const TabNavigation: React.FC<{
@@ -16,12 +14,12 @@ const TabNavigation: React.FC<{
 }> = ({ activeTab, onTabChange }) => {
   const _ = useTranslation();
   const { appService } = useEnv();
-  const { settings } = useSettingsStore();
-  const aiEnabled = settings?.aiSettings?.enabled ?? false;
 
   const forceMobileLayout = isForcedMobileLayout(appService?.isMobile);
   const isMobile = forceMobileLayout || window.innerWidth < 640 || window.innerHeight < 640;
-  const tabs = ['toc', 'annotations', 'bookmarks', ...(aiEnabled ? ['history'] : [])];
+  // The chat 'history' tab died with the notebook AI tab (2026-09-06):
+  // the Prof owns ask-the-book; its record lives in the margin + Study tab.
+  const tabs = ['toc', 'annotations', 'bookmarks'];
 
   const getTabLabel = (tab: string) => {
     switch (tab) {
@@ -31,8 +29,6 @@ const TabNavigation: React.FC<{
         return _('Annotate');
       case 'bookmarks':
         return _('Bookmark');
-      case 'history':
-        return _('Chat');
       default:
         return '';
     }
@@ -72,10 +68,8 @@ const TabNavigation: React.FC<{
               <IoIosList className='mx-auto' />
             ) : tab === 'annotations' ? (
               <PiNotePencil className='mx-auto' />
-            ) : tab === 'bookmarks' ? (
-              <MdBookmarkBorder className='mx-auto' />
             ) : (
-              <LuMessageSquare className='mx-auto' />
+              <MdBookmarkBorder className='mx-auto' />
             )}
           </div>
         </div>

@@ -1,14 +1,14 @@
 /**
- * StudyTab — the notebook's third tab (HP-5, hey_prof plan §7 + §8).
+ * StudyTab — the learning home (was "the notebook's third tab").
  *
- * Two halves:
- *   1. Review queue — the concept history from learner.json, weakest first
- *      (lowest Bloom, then most-asked). Each row offers a Feynman review:
- *      one click sends the professor a check-me session request through the
- *      normal ask loop (voice, pen, logging all ride along).
- *   2. Study notes — notes.md exactly as the professor distilled it,
- *      rendered as markdown. This is the speed-revision surface: everything
- *      the reader ever asked, in their own words.
+ * Three resurfacing surfaces, per the Readwise/SuperMemo research: learning
+ * sticks when the margins come BACK to you, weakest-first, as questions.
+ *   1. From your margins — your own highlights, newest first. GO jumps to
+ *      the passage; QUIZ ME hands the excerpt to the Prof, who questions
+ *      you on it one at a time (active recall, voice-native).
+ *   2. Review queue — concept history from learner.json, weakest first
+ *      (lowest Bloom, then most-asked), each with a Feynman review button.
+ *   3. Study notes — notes.md exactly as the professor distilled it.
  *
  * Data loads when the tab opens and refreshes on the refresh button;
  * exchanges logged while the panel sits open appear on the next open.
@@ -21,6 +21,7 @@ import { useEnv } from '@/context/EnvContext';
 import { useBookDataStore } from '@/store/bookDataStore';
 import { useTranslation } from '@/hooks/useTranslation';
 import { getDir } from '@/utils/book';
+import { eventDispatcher } from '@/utils/event';
 import {
   loadLearner,
   NOTES_FILENAME,
@@ -56,6 +57,8 @@ const StudyTab: React.FC<{ bookKey: string }> = ({ bookKey }) => {
   const _ = useTranslation();
   const { appService } = useEnv();
   const getBookData = useBookDataStore((s) => s.getBookData);
+  // Reactive: highlights land while the tab is open and resurface at once.
+  const booknotes = useBookDataStore((s) => s.booksData[bookKey]?.config?.booknotes);
   const [learner, setLearner] = useState<LearnerState | null>(null);
   const [notes, setNotes] = useState('');
 
@@ -80,6 +83,29 @@ const StudyTab: React.FC<{ bookKey: string }> = ({ bookKey }) => {
     .filter(([name]) => name !== 'uncategorized')
     .sort((a, b) => a[1].bloom - b[1].bloom || b[1].asked - a[1].asked);
 
+  // The resurfacing deck: your highlights, newest first. Highlights carry
+  // `text` (the excerpt); pure margin notes without an excerpt still resurface
+  // via their note text.
+  const deck = (booknotes ?? [])
+    .filter((n) => !n.deletedAt && (n.text?.trim() || n.note?.trim()))
+    .slice()
+    .sort((a, b) => new Date(b.updatedAt ?? b.createdAt ?? 0).getTime() -
+      new Date(a.updatedAt ?? a.createdAt ?? 0).getTime())
+    .slice(0, 12);
+
+  const goTo = (cfi?: string) => {
+    if (cfi) void eventDispatcher.dispatch('navigate', { bookKey, cfi });
+  };
+
+  const quizMe = (excerpt: string, page?: number) => {
+    askProfessorFromUI(
+      bookKey,
+      `Quiz me on this passage I highlighted${page ? ` (page ${page})` : ''}: "${excerpt.slice(0, 600)}". ` +
+        'Ask me one question at a time about what it means and why it matters. ' +
+        'Wait for each answer before asking the next. Start now.',
+    );
+  };
+
   const startReview = (concept: string) => {
     const pretty = concept.replace(/_/g, ' ');
     askProfessorFromUI(
@@ -90,12 +116,12 @@ const StudyTab: React.FC<{ bookKey: string }> = ({ bookKey }) => {
     );
   };
 
-  const empty = queue.length === 0 && notes.trim().length === 0;
+  const empty = queue.length === 0 && notes.trim().length === 0 && deck.length === 0;
 
   return (
     <div className='flex min-h-0 flex-1 flex-col'>
       <div className='flex items-center justify-between px-3 pt-2'>
-        <span className='font-size-xs text-base-content/60'>{_('Your study log')}</span>
+        <span className='typed text-mutedink text-[9px]'>{_('YOUR MARGINS, BACK TO YOU')}</span>
         <button
           className='btn btn-ghost btn-xs'
           onClick={() => void reload()}
@@ -111,12 +137,45 @@ const StudyTab: React.FC<{ bookKey: string }> = ({ bookKey }) => {
             Icon={PiGraduationCap}
             label={_('Nothing to review yet')}
             hint={_(
-              'Ask the professor something with ⌥Space — your exchanges become study notes here',
+              'Highlight as you read, or ask the professor something with ⌥Space — it all resurfaces here',
             )}
           />
         </div>
       ) : (
         <div className='flex-grow overflow-y-auto px-3 pb-3'>
+          {deck.length > 0 && (
+            <>
+              <p className='content font-size-base mt-1'>{_('From your margins')}</p>
+              <ul>
+                {deck.map((n) => {
+                  const excerpt = (n.text || n.note || '').trim();
+                  return (
+                    <li
+                      key={n.id}
+                      className='border-base-300 bg-base-100 my-2 rounded-lg border p-2.5'
+                    >
+                      <p className='line-clamp-3 text-[13px] italic'>{excerpt}</p>
+                      <div className='mt-1.5 flex items-center justify-between'>
+                        <button
+                          className='typed text-mutedink hover:text-ink text-[9px]'
+                          onClick={() => goTo(n.cfi)}
+                        >
+                          {typeof n.page === 'number' ? `P. ${n.page + 1}` : _('GO')}
+                        </button>
+                        <button
+                          className='btn btn-outline btn-xs gap-1'
+                          onClick={() => quizMe(excerpt, typeof n.page === 'number' ? n.page + 1 : undefined)}
+                        >
+                          <PiSparkle size={12} />
+                          {_('Quiz me')}
+                        </button>
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            </>
+          )}
           {queue.length > 0 && (
             <>
               <p className='content font-size-base mt-1'>{_('Review queue')}</p>

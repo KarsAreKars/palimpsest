@@ -7,7 +7,6 @@ import { useBookDataStore } from '@/store/bookDataStore';
 import { useReaderStore } from '@/store/readerStore';
 import { useSidebarStore } from '@/store/sidebarStore';
 import { useNotebookStore } from '@/store/notebookStore';
-import { useAIChatStore } from '@/store/aiChatStore';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useThemeStore } from '@/store/themeStore';
 import { useEnv } from '@/context/EnvContext';
@@ -28,12 +27,11 @@ import {
   removeBookNoteOverlays,
   removeEmptyAnnotationPlaceholder,
 } from '../../utils/annotatorUtil';
-import AIAssistant from './AIAssistant';
+import StudyTab from './StudyTab';
 import NotebookHeader from './Header';
 import NoteEditor from './NoteEditor';
 import SearchBar from './SearchBar';
 import NotebookTabNavigation from './NotebookTabNavigation';
-import StudyTab from './StudyTab';
 import SpineView from './SpineView';
 import EmptyState from '../EmptyState';
 import type { NotebookTab } from '@/store/notebookStore';
@@ -56,7 +54,6 @@ const Notebook: React.FC = ({}) => {
     useNotebookStore();
   const { setNotebookNewAnnotation, setNotebookNewHighlightId } = useNotebookStore();
   const { setNotebookEditAnnotation, setNotebookActiveTab } = useNotebookStore();
-  const { activeConversationId } = useAIChatStore();
 
   const [isSearchBarVisible, setIsSearchBarVisible] = useState(false);
   const [searchResults, setSearchResults] = useState<BookNote[] | null>(null);
@@ -433,10 +430,6 @@ const Notebook: React.FC = ({}) => {
         {notebookActiveTab === 'spine' ? (
           <div className='min-h-0 flex-1'>
             <SpineView bookKey={sideBarBookKey} />
-          </div>
-        ) : notebookActiveTab === 'ai' ? (
-          <div className='flex min-h-0 flex-1 flex-col'>
-            <AIAssistant key={activeConversationId ?? 'new'} bookKey={sideBarBookKey} />
           </div>
         ) : notebookActiveTab === 'study' ? (
           <StudyTab bookKey={sideBarBookKey} />

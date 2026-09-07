@@ -6,6 +6,7 @@ import { EnvProvider } from '@/context/EnvContext';
 import Providers from '@/components/Providers';
 
 import '../styles/globals.css';
+import '../styles/apothecary.css';
 
 const url = 'https://web.readest.com/';
 const title = 'Readest — Where You Read, Digest and Get Insight';
