@@ -59,18 +59,32 @@ const DesktopFooterBar: React.FC<FooterBarChildProps> = ({
   const isMobile = window.innerWidth < 640 || window.innerHeight < 640;
 
   // UX spec E: when narration owns the plain arrow keys, say so — typed,
-  // muted, discoverable. Follows the controller's start/stop events.
+  // muted, discoverable. The session registers ASYNC (the text layer loads
+  // in the background), so poll for it — a one-shot mount lookup missed it
+  // every time (review fix #2).
   const [narrationOwnsKeys, setNarrationOwnsKeys] = React.useState(false);
   useEffect(() => {
-    const entry = getNarration(bookKey);
-    if (!entry) return undefined;
-    const sync = () => setNarrationOwnsKeys(entry.controller.active);
-    sync();
-    entry.controller.addEventListener('unit-change', sync);
-    entry.controller.addEventListener('stopped', sync);
+    let cleanup: (() => void) | undefined;
+    const attach = () => {
+      const entry = getNarration(bookKey);
+      if (!entry) return false;
+      const sync = () => setNarrationOwnsKeys(entry.controller.active);
+      sync();
+      entry.controller.addEventListener('unit-change', sync);
+      entry.controller.addEventListener('stopped', sync);
+      cleanup = () => {
+        entry.controller.removeEventListener('unit-change', sync);
+        entry.controller.removeEventListener('stopped', sync);
+      };
+      return true;
+    };
+    if (attach()) return cleanup;
+    const poll = setInterval(() => {
+      if (attach()) clearInterval(poll);
+    }, 1500);
     return () => {
-      entry.controller.removeEventListener('unit-change', sync);
-      entry.controller.removeEventListener('stopped', sync);
+      clearInterval(poll);
+      cleanup?.();
     };
   }, [bookKey]);
 

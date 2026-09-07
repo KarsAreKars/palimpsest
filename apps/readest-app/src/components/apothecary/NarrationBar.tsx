@@ -65,7 +65,9 @@ const NarrationBar: React.FC<NarrationBarProps> = ({ bookKey, bookTitle, bookAut
   const [, force] = useState(0);
   const [entry, setEntry] = useState<NarrationEntry | undefined>(undefined);
 
-  // Poll cheaply: the player has no playstate event, only unit-change et al.
+  // Poll cheaply — but only as fast as the situation merits: 500ms while a
+  // session is live (playstate has no event), 2s discovery otherwise
+  // (review fix #3: a flat 500ms forever burned timers on an idle library).
   useEffect(() => {
     const sync = () => {
       const e = bookKey ? getNarration(bookKey) : getActiveNarration()?.entry;
@@ -73,9 +75,9 @@ const NarrationBar: React.FC<NarrationBarProps> = ({ bookKey, bookTitle, bookAut
       force((n) => n + 1);
     };
     sync();
-    const t = setInterval(sync, 500);
+    const t = setInterval(sync, entry?.controller.active ? 500 : 2000);
     return () => clearInterval(t);
-  }, [bookKey]);
+  }, [bookKey, entry]);
 
   const controller = entry?.controller;
   if (!controller?.active) return null;

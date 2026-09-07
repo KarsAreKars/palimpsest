@@ -30,15 +30,16 @@ interface TouchedPage {
 const SpineView: React.FC<SpineViewProps> = ({ bookKey }) => {
   const _ = useTranslation();
   const { appService } = useEnv();
-  const { getConfig } = useBookDataStore();
+  // REACTIVE: the Spine must update live as notes land (review fix #1 —
+  // non-reactive getConfig() left the filmstrip stale until remount).
+  const booknotes = useBookDataStore((s) => s.booksData[bookKey]?.config?.booknotes);
   const bookHash = bookKey.split('-')[0]!;
   const [thumbs, setThumbs] = useState<Record<number, string>>({});
 
   const pages = useMemo<TouchedPage[]>(() => {
-    const { booknotes = [] } = getConfig(bookKey) ?? {};
     const byPage = new Map<number, BookNote[]>();
-    for (const n of booknotes) {
-      if (typeof n.page !== 'number') continue;
+    for (const n of booknotes ?? []) {
+      if (typeof n.page !== 'number' || n.deletedAt) continue;
       const list = byPage.get(n.page) ?? [];
       list.push(n);
       byPage.set(n.page, list);
@@ -46,7 +47,7 @@ const SpineView: React.FC<SpineViewProps> = ({ bookKey }) => {
     return [...byPage.entries()]
       .map(([page, notes]) => ({ page, notes }))
       .sort((a, b) => a.page - b.page);
-  }, [getConfig, bookKey]);
+  }, [booknotes]);
 
   const jump = (note: BookNote) => {
     eventDispatcher.dispatch('navigate', { bookKey, cfi: note.cfi });

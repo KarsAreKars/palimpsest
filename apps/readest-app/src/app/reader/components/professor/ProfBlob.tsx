@@ -48,7 +48,7 @@ const ProfBlob: React.FC<ProfBlobProps> = ({ state, stream, size = 64, onClick, 
     const buf = new Uint8Array(analyser.frequencyBinCount);
     let raf = 0;
     let peak = 0.02; // auto-gain: running peak so normal speech reads ~1
-    let lastLog = 0;
+    let logged = false; // review fix #5: one trace line, not a 2s heartbeat
     const tick = () => {
       analyser.getByteTimeDomainData(buf);
       let sum = 0;
@@ -58,9 +58,9 @@ const ProfBlob: React.FC<ProfBlobProps> = ({ state, stream, size = 64, onClick, 
       const normalized = Math.min(1, (rms / peak) * (peak > 0.05 ? 1 : peak / 0.05));
       // Attack fast, release slow — feels alive, not twitchy.
       levelRef.current = Math.max(normalized, levelRef.current * 0.82);
-      if (performance.now() - lastLog > 2000) {
-        lastLog = performance.now();
-        console.info('[prof] audio ctx:', ctx.state, 'rms:', rms.toFixed(3), 'peak:', peak.toFixed(3));
+      if (!logged && rms > 0.005) {
+        logged = true;
+        console.info('[prof] audio flowing — ctx:', ctx.state, 'first rms:', rms.toFixed(3));
       }
       raf = requestAnimationFrame(tick);
     };

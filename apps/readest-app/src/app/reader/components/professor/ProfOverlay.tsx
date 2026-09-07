@@ -74,6 +74,8 @@ const lastLine = (answer: string): string => {
 
 const ProfOverlay: React.FC<ProfOverlayProps> = ({ bookKey }) => {
   const { open, phase, answer, error, ask, close, interrupt } = useProfessor({ bookKey });
+  const openRef = useRef(open);
+  openRef.current = open;
   const [draft, setDraft] = useState('');
   const [listening, setListening] = useState(false);
   const [inputMode, setInputMode] = useState<InputMode>('voice');
@@ -131,23 +133,31 @@ const ProfOverlay: React.FC<ProfOverlayProps> = ({ bookKey }) => {
   };
 
   const startRecording = async () => {
+    let stream: MediaStream;
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      streamRef.current = stream;
-      setLiveStream(stream);
-      profTrace('mic-live');
-      const rec = new MediaRecorder(stream);
-      chunksRef.current = [];
-      rec.ondataavailable = (e) => {
-        if (e.data.size > 0) chunksRef.current.push(e.data);
-      };
-      rec.start();
-      recorderRef.current = rec;
+      stream = await navigator.mediaDevices.getUserMedia({ audio: true });
     } catch (e) {
       profTraceDump('mic unavailable (getUserMedia/MediaRecorder)', e);
       recorderRef.current = null; // mic denied — Web Speech still carries it
       if (!canSR) setSttError('NO MIC ACCESS — TYPE INSTEAD');
+      return;
     }
+    // Review fix #4: dismissed while the permission prompt was up — the
+    // stream arrived after close; kill it or the mic indicator stays lit.
+    if (!openRef.current) {
+      stream.getTracks().forEach((t) => t.stop());
+      return;
+    }
+    streamRef.current = stream;
+    setLiveStream(stream);
+    profTrace('mic-live');
+    const rec = new MediaRecorder(stream);
+    chunksRef.current = [];
+    rec.ondataavailable = (e) => {
+      if (e.data.size > 0) chunksRef.current.push(e.data);
+    };
+    rec.start();
+    recorderRef.current = rec;
   };
 
   const stopRecording = (submit: boolean) => {
