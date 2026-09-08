@@ -72,6 +72,38 @@ KOKORO_VOICES = [
 ]
 ALL_VOICES = VOICES + KOKORO_VOICES
 
+# Cloned voices (2026-09-07) — designed in VoiceStudio.app (OmniVoice), which
+# bakes each design into a reference wav. Qwen3-TTS clones the identity from
+# ref_audio; our pinned narration instruct still steers the STYLE. ref_text
+# transcribed by our own Whisper (/stt model) — both wavs are the design-
+# preview sentence. Paths point into OmniVoice's app-support dir; if the user
+# deletes VoiceStudio the voices vanish from /voices (existence-checked).
+_OMNIVOICE_DIR = Path.home() / "Library/Application Support/OmniVoice/voices"
+_CLONE_REFS = {
+    "storyteller": {
+        "label": "The Storyteller — elderly British male (clone)",
+        "wav": _OMNIVOICE_DIR / "a029d1dd.wav",
+        "ref_text": (
+            "The valley had been quiet for a hundred years, and tonight, for "
+            "the first time, something stirred beneath the old stone bridge."
+        ),
+    },
+    "librarian": {
+        "label": "The Librarian — middle-aged British female (clone)",
+        "wav": _OMNIVOICE_DIR / "3cec9ff5.wav",
+        "ref_text": (
+            "The valley had been quiet for a hundred years, and tonight for "
+            "the first time, something stirred beneath the old stone bridge."
+        ),
+    },
+}
+CLONE_VOICES = [
+    {"id": vid, "label": meta["label"]}
+    for vid, meta in _CLONE_REFS.items()
+    if meta["wav"].exists()
+]
+ALL_VOICES = ALL_VOICES + CLONE_VOICES
+
 _kokoro_pipe = None
 
 
@@ -357,10 +389,14 @@ class Handler(BaseHTTPRequestHandler):
         t0 = time.time()
         with _lock, tempfile.TemporaryDirectory() as td:
             try:
+                gen_kwargs = {}
+                if voice in clone_ids:
+                    ref = _CLONE_REFS[voice]
+                    gen_kwargs = {"ref_audio": str(ref["wav"]), "ref_text": ref["ref_text"]}
                 generate_audio(
                     text=text,
                     model=get_model(),
-                    voice=voice,
+                    voice=None if voice in clone_ids else voice,
                     speed=speed,
                     instruct=instruct,
                     temperature=temperature,
@@ -370,6 +406,7 @@ class Handler(BaseHTTPRequestHandler):
                     file_prefix="out",
                     save=True,
                     verbose=False,
+                    **gen_kwargs,
                 )
             except Exception as e:
                 self._json(500, {"error": f"generation failed: {e}"})

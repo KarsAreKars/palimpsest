@@ -25,6 +25,8 @@ const DEFAULT_BASE = 'http://127.0.0.1:8737';
 // Shown if the server is down at voice-list time; the server is the source
 // of truth when it's up.
 const STATIC_VOICES: TTSVoice[] = [
+  { id: 'storyteller', name: 'The Storyteller — elderly British male (clone)', lang: 'en' },
+  { id: 'librarian', name: 'The Librarian — middle-aged British female (clone)', lang: 'en' },
   { id: 'vivian', name: 'Vivian (warm female)', lang: 'en' },
   { id: 'serena', name: 'Serena (soft female)', lang: 'en' },
   { id: 'ryan', name: 'Ryan (clear male)', lang: 'en' },
