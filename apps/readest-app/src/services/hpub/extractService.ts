@@ -218,6 +218,12 @@ class ExtractionQueue {
             await buildNarrationForBook(appService, book, { director: true });
           } catch (e) {
             console.warn('narration build failed after extraction', e);
+          } finally {
+            // The badge clears on status 'ok' (BookItem renders nothing) —
+            // without this the LAST live event stays the stage-5 'running'
+            // beat and the library shows "Converting (5/6)" until relaunch
+            // (Nemotron import, 2026-09-10: job done at 20:30, badge stuck).
+            emitStatus(book, { status: 'ok', attempts, updatedAt: Date.now(), llm: useLlm });
           }
         }
       } catch (e) {
