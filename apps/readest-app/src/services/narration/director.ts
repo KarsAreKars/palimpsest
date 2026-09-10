@@ -22,9 +22,17 @@ import { generateText } from 'ai';
 import type { AISettings } from '@/services/ai/types';
 import { getAIProvider } from '@/services/ai/providers';
 import type { NarrationUnit } from './script';
+import { nlog, nwarn } from './log';
 
 /** Units per LLM call — big enough to amortize, small enough to realign. */
 export const DIRECTOR_BATCH = 15;
+
+/** Per-batch request ceiling. 2026-09-10: a hung generateText (flaky
+ * network, no timeout in the ai SDK by default) stalled the sequential
+ * batch loop ~2h with the library badge stuck at "5/6 building spoken
+ * script". A batch that can't answer in 60s falls back to the
+ * deterministic text and the pass moves on. */
+export const DIRECTOR_TIMEOUT_MS = 60_000;
 
 export type DirectorCompleter = (prompt: string) => Promise<string[]>;
 
@@ -70,7 +78,8 @@ export const polishBatch = async (
       if (!polished || polished.length > orig.length * 2 + 80) return orig;
       return polished;
     });
-  } catch {
+  } catch (e) {
+    nwarn('narration-director: batch failed (timeout/provider), keeping deterministic text', e);
     return lines;
   }
 };
@@ -92,16 +101,19 @@ export const applyDirectorsPass = async (
     );
   const result = [...units];
   const total = Math.ceil(targets.length / DIRECTOR_BATCH);
+  let failed = 0;
+  nlog(`narration-director: pass starting — ${targets.length} units in ${total} batches`);
   for (let b = 0; b < total; b++) {
     const slice = targets.slice(b * DIRECTOR_BATCH, (b + 1) * DIRECTOR_BATCH);
-    const polished = await polishBatch(
-      slice.map(({ u }) => u.speak ?? ''),
-      complete,
-    );
+    const originals = slice.map(({ u }) => u.speak ?? '');
+    const polished = await polishBatch(originals, complete);
+    if (polished === originals) failed++; // polishBatch returns its input on error/timeout
     slice.forEach(({ u, i }, j) => {
       if (polished[j] && polished[j] !== u.speak) result[i] = { ...u, speak: polished[j] };
     });
     onBatch?.(b + 1, total);
+    if ((b + 1) % 10 === 0 || b + 1 === total)
+      nlog(`narration-director: batch ${b + 1}/${total} (${failed} fell back)`);
   }
   return result;
 };
@@ -122,7 +134,11 @@ export const directorCompleterFromSettings = (
     return null;
   }
   return async (prompt: string) => {
-    const { text } = await generateText({ model, prompt });
+    const { text } = await generateText({
+      model,
+      prompt,
+      abortSignal: AbortSignal.timeout(DIRECTOR_TIMEOUT_MS),
+    });
     const parsed = parseDirectorResponse(text);
     if (!parsed) throw new Error('director: response was not a JSON string array');
     return parsed;

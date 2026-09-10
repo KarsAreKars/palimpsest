@@ -12,6 +12,7 @@ import type { Book } from '@/types/book';
 import { getDir } from '@/utils/book';
 import { useSettingsStore } from '@/store/settingsStore';
 import { applyDirectorsPass, directorCompleterFromSettings } from './director';
+import { nlog, nwarn } from './log';
 import {
   buildNarrationScript,
   toNarrationJsonl,
@@ -102,9 +103,9 @@ export const buildNarrationForBook = async (
   if (completer) {
     try {
       units = await applyDirectorsPass(units, completer);
-      console.info('narration: director pass applied');
+      nlog('narration: director pass applied');
     } catch (e) {
-      console.warn('narration: director pass skipped', e);
+      nwarn('narration: director pass skipped', e);
     }
   }
   await appService.writeFile(
