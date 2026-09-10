@@ -104,7 +104,9 @@ const StudyTab: React.FC<{ bookKey: string }> = ({ bookKey }) => {
   }, [reload]);
 
   const queue = Object.entries(learner?.concept_states ?? {})
-    .filter(([name]) => name !== 'uncategorized')
+    // chapter_session is the session-summary exchange, not a learnable
+    // concept — it must not surface in the review queue with Bloom pips.
+    .filter(([name]) => name !== 'uncategorized' && name !== 'chapter_session')
     .sort((a, b) => a[1].bloom - b[1].bloom || b[1].asked - a[1].asked);
 
   // The resurfacing deck: your highlights, newest first. Highlights carry
@@ -198,6 +200,7 @@ const StudyTab: React.FC<{ bookKey: string }> = ({ bookKey }) => {
     }
     setGenerating(true);
     setSessionNote('');
+    sessionEndedRef.current = false; // fresh session — the once-guard arms again
     try {
       const source = await readChapterSource();
       if (!source) {
@@ -242,8 +245,14 @@ const StudyTab: React.FC<{ bookKey: string }> = ({ bookKey }) => {
   /** Closing/synthesis: file the reflection report into notes.md and fold a
    *  summary exchange into learner.json via the existing record path. The
    *  per-question exchanges were already logged by the voice loop itself. */
+  const sessionEndedRef = useRef(false);
   const endSession = useCallback(
     async (objs: SessionObjective[]) => {
+      // Guard against double-fire: the verdict callback and the "End
+      // session" button can both land in the same frame (button rendered
+      // off stale activeIdx) — the report must append exactly once.
+      if (sessionEndedRef.current) return;
+      sessionEndedRef.current = true;
       setIdx(null);
       awaitingVerdictRef.current = false;
       const book = getBookData(bookKey)?.book;
@@ -315,6 +324,7 @@ const StudyTab: React.FC<{ bookKey: string }> = ({ bookKey }) => {
   const startSession = () => {
     const objs = objectivesRef.current;
     if (!objs?.length) return;
+    sessionEndedRef.current = false; // re-arm for a restarted session
     lastSetRef.current = getProfessorAnnotations(bookKey);
     askObjective(0, objs);
   };

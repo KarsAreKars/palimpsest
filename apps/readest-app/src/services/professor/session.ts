@@ -41,7 +41,6 @@ export interface ChapterSlice {
 }
 
 export const MAX_OBJECTIVES = 5;
-export const MIN_OBJECTIVES = 3;
 /** Chapters can be huge; the objectives prompt needs the gist, not the tome. */
 export const MAX_CHAPTER_CHARS = 12000;
 
@@ -171,6 +170,9 @@ export async function generateChapterObjectives(args: {
       abortSignal: signal,
     });
     const objectives = parseObjectivesResponse(text);
+    // Deliberate graceful degradation (review 2026-09-10): the contract is
+    // 3-5 objectives, but a chapter that honestly yields 2 good ones is
+    // still a session worth running — 1 is not.
     return objectives.length >= 2 ? objectives : null;
   } catch {
     return null;

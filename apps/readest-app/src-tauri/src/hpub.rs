@@ -298,3 +298,29 @@ pub async fn hpub_extract(
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::parse_stage;
+
+    #[test]
+    fn parses_stage_lines() {
+        assert_eq!(
+            parse_stage("[make_hpub +   12.3s] 2/6 marker extraction (51 pages — slow)"),
+            Some("marker extraction (51 pages — slow)".to_string())
+        );
+    }
+
+    #[test]
+    fn heartbeat_lines_are_not_stages() {
+        assert_eq!(parse_stage("[make_hpub +  33.7s] llm cleanup still running…"), None);
+        assert_eq!(parse_stage("[make_hpub +  66.0s] WARNING: 200 replacement chars"), None);
+        assert_eq!(parse_stage("random noise"), None);
+    }
+
+    #[test]
+    fn malformed_fraction_is_not_a_stage() {
+        assert_eq!(parse_stage("[make_hpub +   1.0s] 2x6 nope"), None);
+        assert_eq!(parse_stage("[make_hpub +   1.0s] /6 missing numerator"), None);
+    }
+}

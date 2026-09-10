@@ -84,17 +84,42 @@ class _Heartbeat:
     """Emit a log() tick every `interval_s` while a long phase runs. The
     Rust parent kills the sidecar after 10 min of stderr silence; marker's
     page loop and a blocked LLM socket can both sit silent far longer than
-    that. Daemon thread: never blocks interpreter exit."""
+    that. Daemon thread: never blocks interpreter exit.
 
-    def __init__(self, label: str, interval_s: float = 30.0) -> None:
+    Progress-aware (review finding, 2026-09-10): an UNCONDITIONAL heartbeat
+    resets the Rust stall timer forever, so a truly wedged phase could never
+    trip the watchdog. The heartbeat therefore goes quiet after
+    `max_silent_s` without a beat() from the main loop. Phases with no
+    progress hook (marker is a black-box call, no beat source) get at most
+    max_silent + Rust's 10 min before the kill (~25 min) — long enough for
+    any legitimate silent stretch (hybrid VLM runs measure ~2-4 s/page),
+    short enough that a wedge dies loudly instead of at the 2h hard cap."""
+
+    def __init__(self, label: str, interval_s: float = 30.0, max_silent_s: float = 900.0) -> None:
         self._label = label
         self._interval = interval_s
+        self._max_silent = max_silent_s
+        self._progress = 0
         self._stop = threading.Event()
         self._thread = threading.Thread(target=self._run, daemon=True)
 
+    def beat(self) -> None:
+        """Main-loop progress pulse — resets the silence budget."""
+        self._progress += 1
+
     def _run(self) -> None:
+        last = -1
+        silent = 0.0
         while not self._stop.wait(self._interval):
-            log(f"{self._label} still running…")
+            if self._progress != last:
+                last = self._progress
+                silent = 0.0
+                log(f"{self._label} still running…")
+            elif silent < self._max_silent:
+                silent += self._interval
+                log(f"{self._label} still running…")
+            # else: stay quiet — if the phase is truly wedged, the Rust
+            # stall watchdog now gets its chance to fire.
 
     def __enter__(self) -> "_Heartbeat":
         self._thread.start()
@@ -747,13 +772,14 @@ def llm_cleanup_pass(
     repaired, kept, skipped = 0, 0, 0
     out: list[str] = []
     targeted = 0
-    with _Heartbeat("llm cleanup"):
+    with _Heartbeat("llm cleanup") as hb:
         for i, (start, end, chunk) in enumerate(chunks):
             if only_spans is not None and not any(start < e and end > s for s, e in only_spans):
                 out.append(chunk)
                 skipped += 1
                 continue
             targeted += 1
+            hb.beat()  # real progress pulse for the watchdog's silence budget
             request: dict = {
                 "model": cfg["model"],
                 # No temperature: some models (gpt-5-mini family) 400 on it.

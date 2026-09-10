@@ -53,6 +53,8 @@ export interface ExtractionStatus {
    *  In-memory only (event bus), never persisted. */
   stage?: number;
   stageDetail?: string;
+  /** Which pipeline stage an error came from (e.g. 'watchdog', 'marker'). */
+  errorStage?: string;
   /** Extraction ran with LLM assist (OpenRouter) — better math fidelity. */
   llm?: boolean;
 }
@@ -66,8 +68,8 @@ const MAX_ATTEMPTS = 3;
  * from a previous webview session (Tauri doesn't cancel commands on reload)
  * — repair must not start a second Marker beside it. */
 const RUNNING_STALE_MS = 30 * 60 * 1000;
-/** Sidecar stderr progress lines: `[make_hpub] N/5 stage title…` */
-const STAGE_RE = /^\[make_hpub\]\s+(\d)\/6\s+(.*)$/;
+/** Sidecar stderr progress lines: `[make_hpub +  12.3s] N/6 stage title…` */
+const STAGE_RE = /^\[make_hpub \+[\s\d.]+s\]\s+(\d)\/6\s+(.*)$/;
 
 export const isExtractionAvailable = (): boolean => isTauriAppPlatform();
 
@@ -245,6 +247,7 @@ class ExtractionQueue {
           status: result.status === 'ok' ? 'ok' : result.status,
           reason: result.reason,
           detail: result.detail,
+          errorStage: result.stage,
           attempts,
           llm: useLlm,
         });
