@@ -16,8 +16,46 @@
 use serde_json::Value;
 use std::path::PathBuf;
 use std::process::Stdio;
+use std::sync::{Arc, Mutex};
+use std::time::{Duration, Instant};
 use tauri::{AppHandle, Emitter, Manager};
 use tokio::io::{AsyncBufReadExt, BufReader};
+
+/// Stall watchdog: the sidecar heartbeats through its long phases (marker
+/// page loop, LLM cleanup) at least every 30 s, so 10 min of stderr silence
+/// means the child is wedged (llama-server socket wedge, hung LLM socket —
+/// the 2h narration-polish freeze class) — kill it instead of blocking the
+/// import queue forever.
+const STALL_LIMIT: Duration = Duration::from_secs(10 * 60);
+/// Hard cap on the whole job; no legitimate book takes this long
+/// (research: global timeouts derive from measured per-page cost, and our
+/// worst case is ~4 s/page + cleanup — hours of slack even for 500 pp).
+const HARD_CAP: Duration = Duration::from_secs(2 * 60 * 60);
+/// How often the watchdog wakes to check for stalls while the child runs.
+const WATCHDOG_TICK: Duration = Duration::from_secs(15);
+
+/// Live progress shared between the stderr pump and the stall watchdog.
+struct SidecarProgress {
+    last_line_at: Instant,
+    last_stage: String,
+}
+
+/// Extract the stage title from a sidecar progress line
+/// ("[make_hpub + 12.3s] 2/6 marker extraction…" → "marker extraction…").
+/// Heartbeat lines carry no N/6 fraction and leave the stage untouched.
+fn parse_stage(line: &str) -> Option<String> {
+    let after = line.split_once(']')?.1.trim_start();
+    let (frac, title) = after.split_once(char::is_whitespace)?;
+    let (n, total) = frac.split_once('/')?;
+    n.trim().parse::<u32>().ok()?;
+    total.trim().parse::<u32>().ok()?;
+    let title = title.trim();
+    if title.is_empty() {
+        None
+    } else {
+        Some(title.to_string())
+    }
+}
 
 fn python_candidates() -> Vec<PathBuf> {
     let mut out = Vec::new();
@@ -137,12 +175,23 @@ pub async fn hpub_extract(
     let stdout = child.stdout.take().expect("stdout piped");
     let progress_app = app.clone();
     let progress_job = job_id.clone().unwrap_or_default();
+    let progress_state = Arc::new(Mutex::new(SidecarProgress {
+        last_line_at: Instant::now(),
+        last_stage: "startup".to_string(),
+    }));
+    let stderr_progress = Arc::clone(&progress_state);
     let stderr_task = tokio::spawn(async move {
         let mut lines = BufReader::new(stderr).lines();
         let mut transcript: Vec<String> = Vec::new();
         while let Ok(Some(line)) = lines.next_line().await {
             if line.trim().is_empty() {
                 continue;
+            }
+            if let Ok(mut st) = stderr_progress.lock() {
+                st.last_line_at = Instant::now();
+                if let Some(stage) = parse_stage(&line) {
+                    st.last_stage = stage;
+                }
             }
             log::info!("hpub sidecar: {line}");
             let _ = progress_app.emit(
@@ -163,13 +212,53 @@ pub async fn hpub_extract(
         buf
     });
 
-    let status = child
-        .wait()
-        .await
-        .map_err(|e| format!("hpub sidecar wait failed: {e}"))?;
+    // Wait with a stall watchdog + hard cap. A fresh wait future each tick:
+    // dropping the loser of select! is cancel-safe for tokio children (the
+    // reaper keeps the exit status for the next wait call).
+    let started = Instant::now();
+    let mut watchdog_kill: Option<String> = None;
+    let status = loop {
+        tokio::select! {
+            status = child.wait() => {
+                break status.map_err(|e| format!("hpub sidecar wait failed: {e}"))?;
+            }
+            _ = tokio::time::sleep(WATCHDOG_TICK) => {
+                let (silence, stage) = progress_state
+                    .lock()
+                    .map(|st| (st.last_line_at.elapsed(), st.last_stage.clone()))
+                    .unwrap_or_else(|_| (Duration::ZERO, "unknown".to_string()));
+                let reason = if started.elapsed() > HARD_CAP {
+                    Some(format!("no completion within the 2h hard cap during {stage}"))
+                } else if silence > STALL_LIMIT {
+                    Some(format!("no progress for 10m during {stage}"))
+                } else {
+                    None
+                };
+                if let Some(reason) = reason {
+                    log::error!("hpub sidecar watchdog: {reason} — killing child");
+                    let _ = child.kill().await;
+                    watchdog_kill = Some(reason);
+                    break child
+                        .wait()
+                        .await
+                        .map_err(|e| format!("hpub sidecar wait failed after watchdog kill: {e}"))?;
+                }
+            }
+        }
+    };
     let stderr_lines = stderr_task.await.unwrap_or_default();
     let stdout = stdout_task.await.unwrap_or_default();
     let stderr = stderr_lines.join("\n");
+
+    // A watchdog kill is a wedged sidecar, not a bad book: hand the TS layer
+    // a structured error it can persist verbatim (stage: "watchdog").
+    if let Some(detail) = watchdog_kill {
+        return Ok(serde_json::json!({
+            "status": "error",
+            "stage": "watchdog",
+            "detail": detail,
+        }));
+    }
 
     // Protocol: last non-empty stdout line is the JSON result object.
     let result_line = stdout

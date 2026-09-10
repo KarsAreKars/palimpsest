@@ -23,6 +23,7 @@ import json
 import os
 import re
 import sys
+import threading
 import time
 import urllib.request
 import zipfile
@@ -77,6 +78,31 @@ _T0 = time.monotonic()
 
 def log(msg: str) -> None:
     print(f"[make_hpub +{time.monotonic() - _T0:7.1f}s] {msg}", file=sys.stderr, flush=True)
+
+
+class _Heartbeat:
+    """Emit a log() tick every `interval_s` while a long phase runs. The
+    Rust parent kills the sidecar after 10 min of stderr silence; marker's
+    page loop and a blocked LLM socket can both sit silent far longer than
+    that. Daemon thread: never blocks interpreter exit."""
+
+    def __init__(self, label: str, interval_s: float = 30.0) -> None:
+        self._label = label
+        self._interval = interval_s
+        self._stop = threading.Event()
+        self._thread = threading.Thread(target=self._run, daemon=True)
+
+    def _run(self) -> None:
+        while not self._stop.wait(self._interval):
+            log(f"{self._label} still running…")
+
+    def __enter__(self) -> "_Heartbeat":
+        self._thread.start()
+        return self
+
+    def __exit__(self, *exc) -> None:
+        self._stop.set()
+        self._thread.join(timeout=1)
 
 
 def emit(result: dict, code: int) -> None:
@@ -244,13 +270,14 @@ def marker_extract(
         else:
             log("llm assist requested but PALIMPSEST_LLM_API_KEY is unset — running plain")
 
-    converter = PdfConverter(
-        artifact_dict=create_model_dict(), config=config, llm_service=llm_service
-    )
-    with converter.filepath_to_str(pdf_path) as temp_path:
-        document = converter.build_document(temp_path)
-        md_out = converter.resolve_dependencies(MarkdownRenderer)(document)
-        json_out = converter.resolve_dependencies(JSONRenderer)(document)
+    with _Heartbeat("marker extraction"):
+        converter = PdfConverter(
+            artifact_dict=create_model_dict(), config=config, llm_service=llm_service
+        )
+        with converter.filepath_to_str(pdf_path) as temp_path:
+            document = converter.build_document(temp_path)
+            md_out = converter.resolve_dependencies(MarkdownRenderer)(document)
+            json_out = converter.resolve_dependencies(JSONRenderer)(document)
     tree = json_out.model_dump(mode="json", exclude={"metadata"})
     if cache_dir:
         (cache_dir / f"content.{cache_key}.md").write_text(md_out.markdown, encoding="utf-8")
@@ -668,6 +695,45 @@ def cleanup_chunk_ok(original: str, cleaned: str) -> bool:
     return True
 
 
+# LLM HTTP timeouts (research 2026-09-10): urllib's urlopen timeout is
+# PER-READ — a server that accepts the connection and slow-drips the body
+# defeats it (the 2h narration-polish freeze class). The per-read timeout
+# covers server-side generation before headers arrive; the total deadline
+# caps the whole response. The _Heartbeat thread keeps stderr alive while a
+# single call blocks, so the Rust 10-min stall watchdog stays happy even at
+# 2 attempts × the full deadline.
+LLM_PER_READ_TIMEOUT_S = 180
+LLM_TOTAL_DEADLINE_S = 600
+
+
+def _post_chat_completion(cfg: dict, body: bytes):
+    """One chat-completion POST under a TOTAL deadline. Reads the body
+    incrementally (read1 = at most one socket recv per call) and aborts when
+    the deadline passes, so a slow-dripping response cannot stretch the
+    per-read timeout into an unbounded wait."""
+    req = urllib.request.Request(
+        f"{cfg['base']}/chat/completions",
+        data=body,
+        headers={
+            "Authorization": f"Bearer {cfg['key']}",
+            "Content-Type": "application/json",
+        },
+    )
+    started = time.monotonic()
+    with urllib.request.urlopen(req, timeout=LLM_PER_READ_TIMEOUT_S) as resp:
+        parts: list[bytes] = []
+        while True:
+            chunk = resp.read1(65536)
+            if not chunk:
+                break
+            parts.append(chunk)
+            if time.monotonic() - started > LLM_TOTAL_DEADLINE_S:
+                raise TimeoutError(
+                    f"LLM response slow-dripped past the {LLM_TOTAL_DEADLINE_S}s total deadline"
+                )
+    return json.loads(b"".join(parts).decode("utf-8"))
+
+
 def llm_cleanup_pass(
     md_text: str, cfg: dict, only_spans: list[tuple[int, int]] | None = None
 ) -> tuple[str, dict]:
@@ -681,62 +747,54 @@ def llm_cleanup_pass(
     repaired, kept, skipped = 0, 0, 0
     out: list[str] = []
     targeted = 0
-    for i, (start, end, chunk) in enumerate(chunks):
-        if only_spans is not None and not any(start < e and end > s for s, e in only_spans):
-            out.append(chunk)
-            skipped += 1
-            continue
-        targeted += 1
-        request: dict = {
-            "model": cfg["model"],
-            # No temperature: some models (gpt-5-mini family) 400 on it.
-            "messages": [
-                    {"role": "system", "content": CLEANUP_SYSTEM},
-                    {"role": "user", "content": chunk},
-                ],
-        }
-        # Mechanical repair doesn't need deep reasoning; on OpenAI's gpt-5
-        # family low effort cuts per-chunk latency several-fold. Only sent to
-        # api.openai.com — other OpenAI-compatible endpoints may reject it.
-        if "api.openai.com" in cfg["base"]:
-            request["reasoning_effort"] = "low"
-        body = json.dumps(request).encode("utf-8")
-        cleaned: str | None = None
-        for _attempt in range(2):
-            try:
-                req = urllib.request.Request(
-                    f"{cfg['base']}/chat/completions",
-                    data=body,
-                    headers={
-                        "Authorization": f"Bearer {cfg['key']}",
-                        "Content-Type": "application/json",
-                    },
-                )
-                with urllib.request.urlopen(req, timeout=180) as resp:
-                    payload = json.loads(resp.read().decode("utf-8"))
-                cleaned = payload["choices"][0]["message"]["content"]
-                break
-            except Exception as e:  # noqa: BLE001 — network/parse failures keep the original
-                detail = ""
-                if hasattr(e, "read"):
-                    try:
-                        detail = " — " + e.read().decode("utf-8")[:200]
-                    except Exception:
-                        pass
-                log(f"cleanup chunk {i + 1}/{len(chunks)} attempt failed: {e}{detail}")
-        if cleaned is not None:
-            cleaned = cleaned.strip()
-            if cleaned.startswith("```"):
-                cleaned = re.sub(r"^```(?:markdown|md)?\s*", "", cleaned)
-                cleaned = re.sub(r"\s*```$", "", cleaned)
-        if cleaned is not None and cleanup_chunk_ok(chunk, cleaned):
-            out.append(cleaned)
-            repaired += 1
-        else:
-            out.append(chunk)
-            kept += 1
-        if (targeted % 5 == 0) or (i + 1 == len(chunks)):
-            log(f"cleanup progress: {targeted} targeted chunks done (at {i + 1}/{len(chunks)})")
+    with _Heartbeat("llm cleanup"):
+        for i, (start, end, chunk) in enumerate(chunks):
+            if only_spans is not None and not any(start < e and end > s for s, e in only_spans):
+                out.append(chunk)
+                skipped += 1
+                continue
+            targeted += 1
+            request: dict = {
+                "model": cfg["model"],
+                # No temperature: some models (gpt-5-mini family) 400 on it.
+                "messages": [
+                        {"role": "system", "content": CLEANUP_SYSTEM},
+                        {"role": "user", "content": chunk},
+                    ],
+            }
+            # Mechanical repair doesn't need deep reasoning; on OpenAI's gpt-5
+            # family low effort cuts per-chunk latency several-fold. Only sent to
+            # api.openai.com — other OpenAI-compatible endpoints may reject it.
+            if "api.openai.com" in cfg["base"]:
+                request["reasoning_effort"] = "low"
+            body = json.dumps(request).encode("utf-8")
+            cleaned: str | None = None
+            for _attempt in range(2):
+                try:
+                    payload = _post_chat_completion(cfg, body)
+                    cleaned = payload["choices"][0]["message"]["content"]
+                    break
+                except Exception as e:  # noqa: BLE001 — network/parse failures keep the original
+                    detail = ""
+                    if hasattr(e, "read"):
+                        try:
+                            detail = " — " + e.read().decode("utf-8")[:200]
+                        except Exception:
+                            pass
+                    log(f"cleanup chunk {i + 1}/{len(chunks)} attempt failed: {e}{detail}")
+            if cleaned is not None:
+                cleaned = cleaned.strip()
+                if cleaned.startswith("```"):
+                    cleaned = re.sub(r"^```(?:markdown|md)?\s*", "", cleaned)
+                    cleaned = re.sub(r"\s*```$", "", cleaned)
+            if cleaned is not None and cleanup_chunk_ok(chunk, cleaned):
+                out.append(cleaned)
+                repaired += 1
+            else:
+                out.append(chunk)
+                kept += 1
+            if (targeted % 5 == 0) or (i + 1 == len(chunks)):
+                log(f"cleanup progress: {targeted} targeted chunks done (at {i + 1}/{len(chunks)})")
     stats = {"chunks": len(chunks), "targeted": targeted, "skipped": skipped, "repaired": repaired, "kept": kept}
     return "".join(out), stats
 

@@ -32,6 +32,10 @@ export type HpubRejectionReason = 'scanned' | 'quality_gate' | 'empty_extraction
 export interface HpubExtractionResult {
   status: 'ok' | 'rejected' | 'error';
   reason?: HpubRejectionReason;
+  /** Failure stage from the sidecar protocol — e.g. 'watchdog' when the
+   *  Rust stall watchdog killed a wedged child; `detail` then carries the
+   *  user-facing explanation verbatim. */
+  stage?: string;
   detail?: string;
   page_count?: number;
   anchored?: number;
@@ -54,6 +58,8 @@ export interface ExtractionStatus {
 }
 
 const STATUS_FILENAME = 'extraction.json';
+/** Sidecar telemetry written next to the artifacts (make_hpub.py, 2026-09-10). */
+const REPORT_FILENAME = 'conversion_report.json';
 /** Cap on automatic repair attempts; a rejected book is never retried. */
 const MAX_ATTEMPTS = 3;
 /** A 'running' status younger than this may belong to a still-alive sidecar
@@ -64,6 +70,34 @@ const RUNNING_STALE_MS = 30 * 60 * 1000;
 const STAGE_RE = /^\[make_hpub\]\s+(\d)\/6\s+(.*)$/;
 
 export const isExtractionAvailable = (): boolean => isTauriAppPlatform();
+
+/** Post-extraction telemetry: quality.ok=false means garbled glyphs
+ *  (U+FFFD/PUA) survived into content.md — the import succeeds but some
+ *  passages will narrate wrong. Returns the persisted detail, or undefined
+ *  when the report is clean/missing. */
+const readConversionReportWarning = async (
+  appService: AppService,
+  book: Book,
+): Promise<string | undefined> => {
+  try {
+    const path = `${getDir(book)}/${REPORT_FILENAME}`;
+    if (!(await appService.exists(path, 'Books'))) return undefined;
+    const raw = await appService.readFile(path, 'Books', 'text');
+    const text = typeof raw === 'string' ? raw : new TextDecoder().decode(raw);
+    const report = JSON.parse(text) as {
+      quality?: { ok?: boolean; replacement_chars?: number; pua_chars?: number };
+    };
+    if (!report.quality || report.quality.ok !== false) return undefined;
+    const garbled = (report.quality.replacement_chars ?? 0) + (report.quality.pua_chars ?? 0);
+    return (
+      `Text layer built, but ${garbled} garbled glyphs survived extraction — ` +
+      `some passages may narrate incorrectly. Details in ${REPORT_FILENAME}.`
+    );
+  } catch (e) {
+    console.warn('conversion report read failed', e);
+    return undefined;
+  }
+};
 
 /** Does this book already carry its text layer? */
 export const hasTextLayer = async (appService: AppService, book: Book): Promise<boolean> =>
@@ -198,6 +232,14 @@ class ExtractionQueue {
           llmBaseUrl: aiSettings?.openrouterBaseUrl ?? '',
           llmModel: aiSettings?.openrouterModel ?? '',
         });
+        // Watchdog kills arrive as a structured result ({status:'error',
+        // stage:'watchdog'}), not a throw — result.detail is persisted
+        // verbatim below so the user sees exactly where the job stalled.
+        // On success, fold in the conversion report's glyph-garbage warning.
+        if (result.status === 'ok') {
+          const warning = await readConversionReportWarning(appService, book);
+          if (warning) result.detail = warning;
+        }
         this.emit(book, result);
         await writeExtractionStatus(appService, book, {
           status: result.status === 'ok' ? 'ok' : result.status,
