@@ -205,7 +205,7 @@ const drawOne = (
           width: String(r.w + 4),
           height: String(r.h + 4),
           rx: '3',
-          fill: 'rgba(250, 204, 21, 0.32)',
+          fill: 'rgba(140, 59, 34, 0.20)',
         }),
       );
       return;
@@ -222,7 +222,7 @@ const drawOne = (
           height: String(r.h + 8),
           rx: '5',
           fill: 'none',
-          stroke: '#f59e0b',
+          stroke: '#8C3B22',
           'stroke-width': '2.5',
         }),
       );
@@ -232,11 +232,37 @@ const drawOne = (
       const b = blocks.get(a.blockId);
       if (!b) return;
       const r = rectOf(b, g);
+      // The fingertip tap: stamp-red dot with a soft expanding halo ring,
+      // so a POINT reads as "tapping the page" instead of a lone dot.
+      const halo = el('circle', {
+        cx: String(r.cx),
+        cy: String(r.cy),
+        r: '12',
+        fill: 'none',
+        stroke: '#8C3B22',
+        'stroke-width': '1.5',
+        opacity: '0.5',
+      });
+      halo.append(
+        el('animate', {
+          attributeName: 'r',
+          values: '10;20;10',
+          dur: '1.6s',
+          repeatCount: 'indefinite',
+        }),
+        el('animate', {
+          attributeName: 'opacity',
+          values: '0.55;0.08;0.55',
+          dur: '1.6s',
+          repeatCount: 'indefinite',
+        }),
+      );
+      svg.append(halo);
       const dot = el('circle', {
         cx: String(r.cx),
         cy: String(r.cy),
         r: '9',
-        fill: '#ef4444',
+        fill: '#8C3B22',
         opacity: '0.85',
       });
       dot.append(
@@ -301,7 +327,7 @@ const drawOne = (
           marker.setAttribute(k, v);
         const head = document.createElementNS(SVG_NS, 'path');
         head.setAttribute('d', 'M0,0 L10,4 L0,8 z');
-        head.setAttribute('fill', '#2563eb');
+        head.setAttribute('fill', '#8C3B22');
         marker.append(head);
         defs.append(marker);
         svg.append(defs);
@@ -310,7 +336,7 @@ const drawOne = (
         el('path', {
           d: `M ${p1.x} ${p1.y} C ${c1x} ${c1y}, ${c2x} ${c2y}, ${p2.x} ${p2.y}`,
           fill: 'none',
-          stroke: '#2563eb',
+          stroke: '#8C3B22',
           'stroke-width': '2.5',
           'stroke-linecap': 'round',
           opacity: '0.9',
@@ -354,7 +380,7 @@ const drawOne = (
           y1: String(fromY),
           x2: String(toX),
           y2: String(toY),
-          stroke: 'rgba(180, 83, 9, 0.55)',
+          stroke: 'rgba(38, 34, 27, 0.5)',
           'stroke-width': '1.5',
           'stroke-linecap': 'round',
         }),
@@ -370,7 +396,7 @@ const drawOne = (
       // Paper chip: warm translucent card, amber ink — margin-note aesthetic
       // rather than a terminal slab.
       div.style.cssText =
-        'display:inline-block;background:rgba(255, 251, 235, 0.94);color:#78350f;' +
+        'display:inline-block;background:rgba(255, 251, 235, 0.94);color:#26221B;' +
         'padding:6px 11px;border-radius:8px;font-size:14px;line-height:1.5;' +
         'border:1px solid rgba(180, 83, 9, 0.45);' +
         'box-shadow:0 1px 4px rgba(120, 53, 15, 0.18);' +
@@ -394,7 +420,7 @@ const drawOne = (
         'font-size': '13.5',
         'font-weight': '500',
         'font-family': 'ui-serif, Georgia, serif',
-        fill: '#78350f',
+        fill: '#26221B',
         stroke: 'rgba(255, 251, 235, 0.95)',
         'stroke-width': '4',
         'paint-order': 'stroke',

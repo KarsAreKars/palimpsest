@@ -122,14 +122,34 @@ const StudyTab: React.FC<{ bookKey: string }> = ({ bookKey }) => {
     <div className='flex min-h-0 flex-1 flex-col'>
       <div className='flex items-center justify-between px-3 pt-2'>
         <span className='typed text-mutedink text-[9px]'>{_('YOUR MARGINS, BACK TO YOU')}</span>
-        <button
-          className='btn btn-ghost btn-xs'
-          onClick={() => void reload()}
-          aria-label={_('Refresh')}
-          title={_('Refresh')}
-        >
-          <PiArrowsClockwise size={14} />
-        </button>
+        <div className='flex items-center gap-1'>
+          {/* OpenMAIC-style chapter quiz, run entirely through the Prof's
+              voice loop: one question at a time, graded answers. */}
+          <button
+            className='typed text-stamp hover:bg-[rgba(140,59,34,0.08)] rounded px-1.5 py-0.5 text-[9px] tracking-wider'
+            onClick={() =>
+              askProfessorFromUI(
+                bookKey,
+                'Quiz me on what I\u2019m reading. Run a 5-question spoken quiz on the material ' +
+                  'around this page: one question at a time, wait for my answer after each, ' +
+                  'grade each one briefly and specifically (what was right, what was missing), ' +
+                  'then move to the next. Start with question one now.',
+              )
+            }
+            aria-label={_('Chapter quiz')}
+            title={_('Chapter quiz')}
+          >
+            {_('QUIZ ME')}
+          </button>
+          <button
+            className='btn btn-ghost btn-xs'
+            onClick={() => void reload()}
+            aria-label={_('Refresh')}
+            title={_('Refresh')}
+          >
+            <PiArrowsClockwise size={14} />
+          </button>
+        </div>
       </div>
       {empty ? (
         <div className='flex flex-grow items-center justify-center overflow-y-auto px-3'>
