@@ -63,12 +63,33 @@ const el = <K extends keyof SVGElementTagNameMap>(
   return node;
 };
 
+/** The shared arrowhead marker (stamp red), created once per overlay svg. */
+const ensureArrowhead = (svg: SVGSVGElement): void => {
+  if (svg.querySelector('defs[data-prof-mark]')) return;
+  const defs = el('defs', {});
+  const marker = document.createElementNS(SVG_NS, 'marker');
+  for (const [k, v] of Object.entries({
+    id: 'prof-arrowhead',
+    markerWidth: '10',
+    markerHeight: '8',
+    refX: '8',
+    refY: '4',
+    orient: 'auto',
+  }))
+    marker.setAttribute(k, v);
+  const head = document.createElementNS(SVG_NS, 'path');
+  head.setAttribute('d', 'M0,0 L10,4 L0,8 z');
+  head.setAttribute('fill', '#8C3B22');
+  marker.append(head);
+  defs.append(marker);
+  svg.append(defs);
+};
+
 interface Rect {
   x: number;
   y: number;
   w: number;
-  h: number;
-  cx: number;
+  h: number;  cx: number;
   cy: number;
 }
 
@@ -232,54 +253,26 @@ const drawOne = (
       const b = blocks.get(a.blockId);
       if (!b) return;
       const r = rectOf(b, g);
-      // The fingertip tap: stamp-red dot with a soft expanding halo ring,
-      // so a POINT reads as "tapping the page" instead of a lone dot.
-      const halo = el('circle', {
-        cx: String(r.cx),
-        cy: String(r.cy),
-        r: '12',
-        fill: 'none',
-        stroke: '#8C3B22',
-        'stroke-width': '1.5',
-        opacity: '0.5',
-      });
-      halo.append(
-        el('animate', {
-          attributeName: 'r',
-          values: '10;20;10',
-          dur: '1.6s',
-          repeatCount: 'indefinite',
-        }),
-        el('animate', {
-          attributeName: 'opacity',
-          values: '0.55;0.08;0.55',
-          dur: '1.6s',
-          repeatCount: 'indefinite',
+      // A small stamp-red pointer arrow from above-left, aimed at the block's
+      // top edge — like a tutor's pencil tip. Static; no pulse (user call,
+      // 2026-09-10: the pulsing dot was annoying).
+      ensureArrowhead(svg);
+      const tx = r.cx;
+      const ty = r.y - 3;
+      const sx = r.cx - 30;
+      const sy = r.y - 30;
+      const mx = (sx + tx) / 2 - 6; // slight bow, hand-drawn feel
+      const my = (sy + ty) / 2 - 6;
+      svg.append(
+        el('path', {
+          d: `M ${sx} ${sy} Q ${mx} ${my} ${tx} ${ty}`,
+          fill: 'none',
+          stroke: '#8C3B22',
+          'stroke-width': '2.5',
+          'stroke-linecap': 'round',
+          'marker-end': 'url(#prof-arrowhead)',
         }),
       );
-      svg.append(halo);
-      const dot = el('circle', {
-        cx: String(r.cx),
-        cy: String(r.cy),
-        r: '9',
-        fill: '#8C3B22',
-        opacity: '0.85',
-      });
-      dot.append(
-        el('animate', {
-          attributeName: 'r',
-          values: '7;12;7',
-          dur: '1.6s',
-          repeatCount: 'indefinite',
-        }),
-        el('animate', {
-          attributeName: 'opacity',
-          values: '0.9;0.35;0.9',
-          dur: '1.6s',
-          repeatCount: 'indefinite',
-        }),
-      );
-      svg.append(dot);
       return;
     }
     case 'arrow': {
@@ -312,26 +305,7 @@ const drawOne = (
       const c1y = my + (ny / len) * bend + (p1.y - my) * 0.5;
       const c2x = mx + (nx / len) * bend + (p2.x - mx) * 0.5;
       const c2y = my + (ny / len) * bend + (p2.y - my) * 0.5;
-      let defs = svg.querySelector('defs[data-prof-mark]') as SVGDefsElement | null;
-      if (!defs) {
-        defs = el('defs', {});
-        const marker = document.createElementNS(SVG_NS, 'marker');
-        for (const [k, v] of Object.entries({
-          id: 'prof-arrowhead',
-          markerWidth: '10',
-          markerHeight: '8',
-          refX: '8',
-          refY: '4',
-          orient: 'auto',
-        }))
-          marker.setAttribute(k, v);
-        const head = document.createElementNS(SVG_NS, 'path');
-        head.setAttribute('d', 'M0,0 L10,4 L0,8 z');
-        head.setAttribute('fill', '#8C3B22');
-        marker.append(head);
-        defs.append(marker);
-        svg.append(defs);
-      }
+      ensureArrowhead(svg);
       svg.append(
         el('path', {
           d: `M ${p1.x} ${p1.y} C ${c1x} ${c1y}, ${c2x} ${c2y}, ${p2.x} ${p2.y}`,
