@@ -277,16 +277,26 @@ PAGE_NUM_RE = re.compile(r"^[0-9ivxlcdmIVXLCDM]{1,6}$")
 FASTPATH_MAX_FLAGGED_FRACTION = 0.9  # beyond this, splicing overhead isn't worth it
 
 
-def fastpath_scan(pdf_path: str) -> tuple[list[int], set[int], list[dict]]:
-    """Return (flagged 0-based page indices, raw pdftext page dicts).
+def _glyph_garbage(text: str) -> int:
+    """Count chars the font's ToUnicode map lied about: U+FFFD replacements
+    and Private Use Area codepoints. Ground truth for 'the text layer cannot
+    speak this glyph' — font-name heuristics (MATH_FONT_RE) miss pipelines
+    whose math fonts don't carry a math-y name (the Nemotron-3 paper's
+    inline math came through as replacement chars on 2026-09-10 with zero
+    font-name hits)."""
+    return text.count("\ufffd") + sum(1 for c in text if 0xE000 <= ord(c) <= 0xF8FF)
 
-    Flagged = math-font span present (inline OR display math; inline rides
-    along because recall must be total) OR low-text page (<400 chars —
-    plates, figures, chapter openers are all cheap for the VLM and pypdfium's
-    get_objects() returned 0 objects on plate pages here, so image-area
-    detection is a dead end; tuned on the golden Tadelis tree: 99.3% recall,
-    the 2 misses degrade gracefully — a table linearizes, a captioned figure
-    keeps its caption)."""
+
+def fastpath_scan(pdf_path: str) -> tuple[list[int], set[int], list[dict], dict]:
+    """Return (flagged 0-based page indices, low-text set, raw pdftext page
+    dicts, scan stats for the conversion report).
+
+    Flagged = math-font span present OR glyph garbage (U+FFFD/PUA, >=2 chars)
+    OR low-text page (<400 chars — plates, figures, chapter openers are all
+    cheap for the VLM and pypdfium's get_objects() returned 0 objects on
+    plate pages here, so image-area detection is a dead end; tuned on the
+    golden Tadelis tree: 99.3% recall, the 2 misses degrade gracefully — a
+    table linearizes, a captioned figure keeps its caption)."""
     from pdftext.extraction import dictionary_output
 
     pages = dictionary_output(pdf_path, sort=True, workers=None)
@@ -294,25 +304,67 @@ def fastpath_scan(pdf_path: str) -> tuple[list[int], set[int], list[dict]]:
     edge = max(2, int(0.05 * n))  # covers/title/copyright/ads live at the edges
     flagged: set[int] = set()
     low_text: set[int] = set()
+    reasons: dict[str, int] = {"math_font": 0, "glyph_garbage": 0, "low_text": 0}
+    font_census: dict[str, int] = {}
+    garbage_pages: list[dict] = []
     for i, p in enumerate(pages):
         nchars = 0
+        bad = 0
         hit = False
+        fonts_here: set[str] = set()
         for b in p["blocks"]:
             for ln in b["lines"]:
                 for sp in ln["spans"]:
                     t = sp.get("text") or ""
                     nchars += len(t)
-                    if t.strip() and MATH_FONT_RE.search(sp["font"].get("name") or ""):
+                    bad += _glyph_garbage(t)
+                    fname = sp["font"].get("name") or ""
+                    if fname:
+                        fonts_here.add(fname)
+                        font_census[fname] = font_census.get(fname, 0) + 1
+                    if t.strip() and MATH_FONT_RE.search(fname):
                         hit = True
         if nchars < 400:
             low_text.add(i)
-        if hit or (nchars < 400 and edge <= i < n - edge):
-            # Low-text flagging skips the book's edges: South's front matter
-            # measured 75 s/page of degenerate VLM decode (7 pages = 528s)
-            # while mid-book plates cost 1-3s. The gate already tolerates
-            # unbound leading/trailing matter.
+        if bad >= 2:
+            garbage_pages.append(
+                {"page": i + 1, "bad_chars": bad, "fonts": sorted(fonts_here)[:8]}
+            )
+        why = (
+            "math_font"
+            if hit
+            else "glyph_garbage"
+            if bad >= 2
+            else "low_text"
+            if nchars < 400 and edge <= i < n - edge
+            else None
+        )
+        # Low-text flagging skips the book's edges: South's front matter
+        # measured 75 s/page of degenerate VLM decode (7 pages = 528s)
+        # while mid-book plates cost 1-3s. The gate already tolerates
+        # unbound leading/trailing matter.
+        if why:
             flagged.add(i)
-    return sorted(flagged), low_text, pages
+            reasons[why] += 1
+    stats = {
+        "pages": n,
+        "flagged": len(flagged),
+        "flag_reasons": reasons,
+        "garbage_pages": garbage_pages[:50],
+        "font_census_top": sorted(font_census.items(), key=lambda kv: -kv[1])[:20],
+    }
+    log(
+        f"fastpath scan: {n} pages, {len(flagged)} flagged "
+        f"(math-font {reasons['math_font']}, glyph-garbage {reasons['glyph_garbage']}, "
+        f"low-text {reasons['low_text']})"
+    )
+    if garbage_pages:
+        log(
+            f"glyph garbage on pages {[g['page'] for g in garbage_pages][:12]}"
+            f"{'…' if len(garbage_pages) > 12 else ''} — font census: "
+            + ", ".join(f"{f}×{c}" for f, c in stats['font_census_top'][:6])
+        )
+    return sorted(flagged), low_text, pages, stats
 
 
 def _prose_block_text(block: dict) -> str:
@@ -552,6 +604,7 @@ def count_md_math_spans(md_text: str) -> int:
 CLEANUP_CHUNK_CHARS = 4000
 
 CLEANUP_SYSTEM = """You are a precision cleanup pass for machine-extracted Markdown from a PDF book. Repair ONLY mechanical extraction damage:
+- glyph garbage: U+FFFD replacement chars (\ufffd) or private-use-area symbols where the PDF font's Unicode mapping lied — these are almost always INLINE MATH (variables, operators, \u00d7, sub/superscripts). Reconstruct the intended math from context and write it as inline $...$ or display $$...$$ LaTeX. Never leave a \ufffd char in the output.
 - broken LaTeX: unbalanced $ or $$ delimiters, commands split across lines (\\frac\n{x}), mangled sub/superscripts — rewrite them as correct inline $...$ or display $$...$$ math
 - line-break hyphenation: rejoin words split as "hy- phen" across lines
 - welded citation clutter: markers like [3], (12), [14,2] fused into prose — drop the marker, keep the prose
@@ -1296,8 +1349,9 @@ def main() -> None:
         log(f"2/6 marker extraction ({len(page_texts)} pages — this is the slow part)")
         try:
             flagged: list[int] | None = None
+            scan_stats: dict | None = None
             if not args.use_llm and not args.no_fastpath:
-                flagged, low_text, raw_pages = fastpath_scan(str(pdf_path))
+                flagged, low_text, raw_pages, scan_stats = fastpath_scan(str(pdf_path))
                 if len(flagged) > FASTPATH_MAX_FLAGGED_FRACTION * len(page_texts):
                     log(
                         f"fast path off: {len(flagged)}/{len(page_texts)} pages flagged "
@@ -1358,22 +1412,76 @@ def main() -> None:
             for p, v in zip(prelim_manifest["alignment"], prelim["verdicts"])
             if v is False and p["md_char_start"] is not None
         ]
-        if failing_spans:
+        # 2026-09-10: containment-failing pages aren't the only damaged ones.
+        # Pages with surviving glyph garbage (U+FFFD/PUA — the Nemotron-3
+        # inline-math leak) pass containment yet narrate as "beep boop".
+        # Target their chunks for cleanup too.
+        garbage_spans = [
+            (p["md_char_start"], p["md_char_end"])
+            for p in prelim_manifest["alignment"]
+            if p["md_char_start"] is not None
+            and _glyph_garbage(md_text[p["md_char_start"] : p["md_char_end"]]) > 0
+        ]
+        target_spans = sorted(set(failing_spans) | set(garbage_spans))
+        if target_spans:
             log(
                 f"3/6 llm cleanup pass ({cfg['model']}) — targeted at "
-                f"{len(failing_spans)} failing pages"
+                f"{len(target_spans)} damaged pages ({len(failing_spans)} containment, "
+                f"{len(garbage_spans)} glyph-garbage)"
             )
-            md_text, stats = llm_cleanup_pass(md_text, cfg, only_spans=failing_spans)
+            md_text, stats = llm_cleanup_pass(md_text, cfg, only_spans=target_spans)
             log(
                 f"cleanup: {stats['targeted']} targeted, {stats['repaired']} repaired, "
                 f"{stats['kept']} kept as-is, {stats['skipped']} skipped (healthy)"
             )
         else:
-            log("3/6 llm cleanup: preliminary alignment found no failing pages — nothing to repair")
+            log("3/6 llm cleanup: preliminary alignment found no damaged pages — nothing to repair")
     elif args.epub:
         log("3/6 llm cleanup skipped (fusion lane — epub text is publisher-clean)")
     else:
         log("3/6 llm cleanup pass skipped (no API key configured)")
+
+    # ── quality sweep + conversion report (telemetry, 2026-09-10) ──────────
+    # The NarrationBar reads content.md aloud; any U+FFFD/PUA char that
+    # survived extraction is SPOKEN garbage. Count what survived, and write
+    # a full per-run report (which path, what got flagged and why, font
+    # census, timings) next to the output so a bad import is debuggable
+    # after the fact instead of by ear.
+    fffd = md_text.count("\ufffd")
+    pua = sum(1 for c in md_text if 0xE000 <= ord(c) <= 0xF8FF)
+    quality = {
+        "replacement_chars": fffd,
+        "pua_chars": pua,
+        "ok": fffd == 0 and pua == 0,
+    }
+    if not quality["ok"]:
+        log(
+            f"WARNING: {fffd} replacement + {pua} PUA chars survived into content.md "
+            "— some pages' text layers lied and were not VLM-flagged"
+        )
+    report = {
+        "pdf": str(pdf_path),
+        "title": title,
+        "pages": len(page_texts),
+        "lane": "epub-fusion" if args.epub else "marker-llm" if args.use_llm else (
+            "fastpath-hybrid" if locals().get("scan_stats") is not None else "marker-full"
+        ),
+        "scan": locals().get("scan_stats"),
+        "quality": quality,
+        "elapsed_s": round(time.monotonic() - _T0, 1),
+    }
+    report_path = (
+        Path(args.out_dir) / "conversion_report.json"
+        if args.out_dir
+        else Path(args.out_hpub).with_suffix(".report.json")
+    )
+    try:
+        report_path.parent.mkdir(parents=True, exist_ok=True)
+        report_path.write_text(json.dumps(report, indent=2))
+        log(f"conversion report -> {report_path}")
+    except OSError as e:
+        log(f"report write failed (non-fatal): {e}")
+
 
     log("4/6 page alignment + manifest")
     manifest = build_manifest(title, md_text, page_texts, tree)
@@ -1487,6 +1595,7 @@ def main() -> None:
                 "page_count": manifest["page_count"],
                 "anchored": manifest["gate"]["anchored"],
                 "gate": manifest["gate"],
+                "quality": quality,
             },
             0,
         )
@@ -1515,6 +1624,7 @@ def main() -> None:
                 "page_count": manifest["page_count"],
                 "anchored": manifest["gate"]["anchored"],
                 "gate": manifest["gate"],
+                "quality": quality,
             },
             0,
         )
