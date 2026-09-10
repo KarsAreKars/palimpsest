@@ -21,6 +21,14 @@
  *   [QKIND:why]                 question kind: define / why / how-connects /
  *                               example / check-me
  *
+ * Chapter-session verdict tags (research-openmaic-2026.md port #5 — the
+ * quiz-grading contract). Emitted only when a Study-tab session question
+ * asks for them; parsed into the annotation bus for the Study tab to read,
+ * stripped like everything else so they are never spoken or shown:
+ *
+ *   [PASS]                      the learner's answer carried the idea
+ *   [RETRY]                     a load-bearing piece was missing
+ *
  * Hard rules (contract-tested):
  *  - Tags are stripped before display AND before speech. Audio must never
  *    contain DSL syntax.
@@ -39,7 +47,8 @@ export type ProfessorAnnotation =
   | { kind: 'caption'; text: string }
   | { kind: 'page'; page: number }
   | { kind: 'concept'; name: string }
-  | { kind: 'qkind'; qkind: string };
+  | { kind: 'qkind'; qkind: string }
+  | { kind: 'verdict'; verdict: 'pass' | 'retry' };
 
 /** The pen
  *  honors the id's own page — but the page comes from the MANIFEST, not
@@ -63,7 +72,10 @@ export const withAnnotationPages = (
   });
 };
 
-const TAG_RE = /\[(POINT|HIGHLIGHT|BOX|ARROW|WRITE|CAPTION|PAGE|CONCEPT|QKIND):([^\]\n]*)\]/g;
+// The body group is optional: the chapter-session verdict tags ([PASS],
+// [RETRY]) carry none.
+const TAG_RE =
+  /\[(POINT|HIGHLIGHT|BOX|ARROW|WRITE|CAPTION|PAGE|CONCEPT|QKIND|PASS|RETRY)(?::([^\]\n]*))?\]/g;
 
 const BLOCK_PREFIX = 'block:';
 
@@ -136,6 +148,14 @@ export function parseAnnotations(text: string): ProfessorAnnotation[] {
       }
       case 'QKIND': {
         if (body) out.push({ kind: 'qkind', qkind: body.toLowerCase().trim() });
+        break;
+      }
+      case 'PASS': {
+        out.push({ kind: 'verdict', verdict: 'pass' });
+        break;
+      }
+      case 'RETRY': {
+        out.push({ kind: 'verdict', verdict: 'retry' });
         break;
       }
     }

@@ -3,27 +3,51 @@
  *
  * Three resurfacing surfaces, per the Readwise/SuperMemo research: learning
  * sticks when the margins come BACK to you, weakest-first, as questions.
- *   1. From your margins — your own highlights, newest first. GO jumps to
+ *   1. Chapter session (OpenMAIC loop) — the Prof drafts 3–5 learning
+ *      objectives from the current chapter, then quizzes you on them one
+ *      at a time through the voice loop, stamping each [PASS]/[RETRY].
+ *      Session end files a reflection report into the study notes.
+ *   2. From your margins — your own highlights, newest first. GO jumps to
  *      the passage; QUIZ ME hands the excerpt to the Prof, who questions
  *      you on it one at a time (active recall, voice-native).
- *   2. Review queue — concept history from learner.json, weakest first
+ *   3. Review queue — concept history from learner.json, weakest first
  *      (lowest Bloom, then most-asked), each with a Feynman review button.
- *   3. Study notes — notes.md exactly as the professor distilled it.
+ *   4. Study notes — notes.md exactly as the professor distilled it.
  *
  * Data loads when the tab opens and refreshes on the refresh button;
  * exchanges logged while the panel sits open appear on the next open.
  */
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { PiGraduationCap, PiArrowsClockwise, PiSparkle } from 'react-icons/pi';
 import { useEnv } from '@/context/EnvContext';
 import { useBookDataStore } from '@/store/bookDataStore';
+import { useSettingsStore } from '@/store/settingsStore';
+import { getBookProgress } from '@/store/readerProgressStore';
 import { useTranslation } from '@/hooks/useTranslation';
 import { getDir } from '@/utils/book';
 import { eventDispatcher } from '@/utils/event';
+import { getNarration } from '@/services/narration/speakMode';
+import type { HpubManifest } from '@/services/narration';
+import { StampButton } from '@/components/apothecary';
+import {
+  getProfessorAnnotations,
+  subscribeProfessorAnnotations,
+  type ProfessorAnnotationSet,
+} from '@/services/professor/annotationBus';
+import {
+  buildSessionQuestion,
+  buildSessionReportMd,
+  extractSessionOutcome,
+  generateChapterObjectives,
+  getChapterText,
+  type SessionObjective,
+} from '@/services/professor/session';
 import {
   loadLearner,
+  appendExchange,
+  appendNote,
   NOTES_FILENAME,
   STUCK_THRESHOLD,
   type LearnerState,
@@ -116,6 +140,200 @@ const StudyTab: React.FC<{ bookKey: string }> = ({ bookKey }) => {
     );
   };
 
+  // ── Chapter session (research-openmaic-2026.md ports #3–#5) ──────────────
+  // Objectives are drafted once per chapter; the quiz itself runs entirely
+  // through the Prof's voice loop. Verdicts come back as [PASS]/[RETRY]
+  // annotation tags on the professor's annotation bus — the Study tab
+  // subscribes and advances the checklist; no new channel, no new agents.
+  const [objectives, setObjectives] = useState<SessionObjective[] | null>(null);
+  const [chapterLabel, setChapterLabel] = useState('');
+  const [activeIdx, setActiveIdx] = useState<number | null>(null);
+  const [generating, setGenerating] = useState(false);
+  const [sessionNote, setSessionNote] = useState('');
+  // Refs mirror the session state so the bus subscription (bound once per
+  // book) always reads the live values.
+  const objectivesRef = useRef<SessionObjective[] | null>(null);
+  const activeIdxRef = useRef<number | null>(null);
+  const chapterLabelRef = useRef('');
+  const awaitingVerdictRef = useRef(false);
+  const lastSetRef = useRef<ProfessorAnnotationSet | null>(null);
+
+  const setObjs = (objs: SessionObjective[] | null) => {
+    objectivesRef.current = objs;
+    setObjectives(objs);
+  };
+  const setIdx = (idx: number | null) => {
+    activeIdxRef.current = idx;
+    setActiveIdx(idx);
+  };
+
+  /** The chapter's text layer: live narration controller first, disk second. */
+  const readChapterSource = useCallback(async (): Promise<{
+    md: string;
+    manifest: HpubManifest;
+  } | null> => {
+    const controller = getNarration(bookKey)?.controller;
+    if (controller?.md && controller?.manifest) {
+      return { md: controller.md, manifest: controller.manifest };
+    }
+    const book = getBookData(bookKey)?.book;
+    if (!appService || !book) return null;
+    try {
+      const dir = getDir(book);
+      const [md, rawManifest] = await Promise.all([
+        appService.readFile(`${dir}/content.md`, 'Books', 'text'),
+        appService.readFile(`${dir}/manifest.json`, 'Books', 'text'),
+      ]);
+      return { md: toText(md), manifest: JSON.parse(toText(rawManifest)) as HpubManifest };
+    } catch {
+      return null;
+    }
+  }, [bookKey, appService, getBookData]);
+
+  const generateObjectives = useCallback(async () => {
+    const aiSettings = useSettingsStore.getState().settings.aiSettings;
+    if (!aiSettings?.enabled) {
+      setSessionNote(_('No AI provider configured — connect one in Settings → AI to run a chapter session.'));
+      return;
+    }
+    setGenerating(true);
+    setSessionNote('');
+    try {
+      const source = await readChapterSource();
+      if (!source) {
+        setSessionNote(_('The book\u2019s text layer is still being prepared — try again in a moment.'));
+        return;
+      }
+      const page = (getBookProgress(bookKey)?.index ?? 0) + 1;
+      const chapter = getChapterText({
+        ...source,
+        toc: getBookData(bookKey)?.bookDoc?.toc ?? [],
+        page,
+      });
+      const list = await generateChapterObjectives({ chapter, aiSettings });
+      if (!list) {
+        setSessionNote(_('The Prof could not draft objectives from this chapter — try again.'));
+        return;
+      }
+      chapterLabelRef.current = chapter.label;
+      setChapterLabel(chapter.label);
+      lastSetRef.current = getProfessorAnnotations(bookKey);
+      setObjs(list.map((text) => ({ text, status: 'pending' as const })));
+    } finally {
+      setGenerating(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bookKey, readChapterSource, getBookData, _]);
+
+  const askObjective = useCallback(
+    (idx: number, objs: SessionObjective[]) => {
+      const objective = objs[idx];
+      if (!objective) return;
+      setIdx(idx);
+      awaitingVerdictRef.current = true;
+      askProfessorFromUI(
+        bookKey,
+        buildSessionQuestion(objective.text, idx + 1, objs.length, chapterLabelRef.current),
+      );
+    },
+    [bookKey],
+  );
+
+  /** Closing/synthesis: file the reflection report into notes.md and fold a
+   *  summary exchange into learner.json via the existing record path. The
+   *  per-question exchanges were already logged by the voice loop itself. */
+  const endSession = useCallback(
+    async (objs: SessionObjective[]) => {
+      setIdx(null);
+      awaitingVerdictRef.current = false;
+      const book = getBookData(bookKey)?.book;
+      if (appService && book) {
+        const page = (getBookProgress(bookKey)?.index ?? 0) + 1;
+        const date = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+        const passed = objs.filter((o) => o.status === 'pass').length;
+        try {
+          await appendNote(
+            appService,
+            book,
+            buildSessionReportMd({ chapterLabel: chapterLabelRef.current, objectives: objs, date, page }),
+          );
+          await appendExchange(appService, book, {
+            ts: new Date().toISOString(),
+            concept: 'chapter_session',
+            page,
+            question_kind: 'check-me',
+            question: `Chapter session on ${chapterLabelRef.current}: ${passed}/${objs.length} objectives passed`,
+            resolved: passed === objs.length,
+          });
+        } catch (e) {
+          console.warn('[study] session report failed', e);
+        }
+      }
+      setSessionNote(_('Session filed to your study notes.'));
+      void reload();
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [bookKey, appService, getBookData, reload, _],
+  );
+
+  const askObjectiveRef = useRef(askObjective);
+  askObjectiveRef.current = askObjective;
+  const endSessionRef = useRef(endSession);
+  endSessionRef.current = endSession;
+
+  // Verdict intake: the Prof's completed answer (the strike — pending flips
+  // false) carries the [PASS]/[RETRY] tag. Consume it once per set object,
+  // stamp the current objective, and advance to the next pending one.
+  useEffect(() => {
+    const unsub = subscribeProfessorAnnotations(() => {
+      if (!awaitingVerdictRef.current) return;
+      const set = getProfessorAnnotations(bookKey);
+      if (!set || set.pending || set === lastSetRef.current) return;
+      const outcome = extractSessionOutcome(set.annotations);
+      if (!outcome) return;
+      lastSetRef.current = set;
+      awaitingVerdictRef.current = false;
+      const objs = objectivesRef.current;
+      const idx = activeIdxRef.current;
+      if (!objs || idx === null) return;
+      const next = objs.map((o, i) =>
+        i === idx
+          ? { ...o, status: outcome.verdict, ...(outcome.takeaway ? { takeaway: outcome.takeaway } : {}) }
+          : o,
+      );
+      setObjs(next);
+      const nextIdx = next.findIndex((o) => o.status === 'pending');
+      if (nextIdx === -1) {
+        void endSessionRef.current(next);
+      } else {
+        askObjectiveRef.current(nextIdx, next);
+      }
+    });
+    return unsub;
+  }, [bookKey]);
+
+  const startSession = () => {
+    const objs = objectivesRef.current;
+    if (!objs?.length) return;
+    lastSetRef.current = getProfessorAnnotations(bookKey);
+    askObjective(0, objs);
+  };
+
+  /** The Prof didn't stamp a verdict (or the reader wants to move on):
+   *  advance without one — the report marks the objective honestly. */
+  const skipObjective = () => {
+    const objs = objectivesRef.current;
+    const idx = activeIdxRef.current;
+    if (!objs || idx === null) return;
+    awaitingVerdictRef.current = false;
+    const nextIdx = objs.findIndex((o, i) => i > idx && o.status === 'pending');
+    if (nextIdx === -1) void endSession(objs);
+    else askObjective(nextIdx, objs);
+  };
+
+  const sessionDone =
+    objectives !== null && activeIdx === null && objectives.some((o) => o.status !== 'pending');
+
   const empty = queue.length === 0 && notes.trim().length === 0 && deck.length === 0;
 
   return (
@@ -151,18 +369,93 @@ const StudyTab: React.FC<{ bookKey: string }> = ({ bookKey }) => {
           </button>
         </div>
       </div>
-      {empty ? (
-        <div className='flex flex-grow items-center justify-center overflow-y-auto px-3'>
-          <EmptyState
-            Icon={PiGraduationCap}
-            label={_('Nothing to review yet')}
-            hint={_(
-              'Highlight as you read, or ask the professor something with ⌥Space — it all resurfaces here',
+      <div className='flex-grow overflow-y-auto px-3 pb-3'>
+        {/* CHAPTER SESSION — the OpenMAIC learning loop: the chapter is the
+            course, the Prof quizzes each objective through the voice loop. */}
+        <p className='content font-size-base mt-1'>{_('Chapter session')}</p>
+        {chapterLabel && (
+          <p className='typed text-mutedink mt-0.5 text-[8.5px]'>{chapterLabel.toUpperCase()}</p>
+        )}
+        {objectives ? (
+          <ol className='mt-1'>
+            {objectives.map((o, i) => (
+              <li key={i} className='border-ink bg-paperlight my-1.5 border px-2 py-1.5'>
+                <div className='flex items-start gap-2'>
+                  <span className='typed text-mutedink mt-0.5 text-[9px] leading-snug'>
+                    {i + 1}.
+                  </span>
+                  <span className='flex-1 text-[13px] leading-snug'>{o.text}</span>
+                  {o.status === 'pass' && (
+                    <span className='text-stamp text-sm leading-none' title={_('Pass')}>
+                      ✓
+                    </span>
+                  )}
+                  {o.status === 'retry' && (
+                    <span className='text-stamp text-sm leading-none' title={_('Retry')}>
+                      ↻
+                    </span>
+                  )}
+                </div>
+                {i === activeIdx && (
+                  <p className='typed text-stamp mt-1 text-[8.5px]'>
+                    {_('THE PROF IS ASKING — ANSWER HIM AND HE STAMPS THE VERDICT')}
+                  </p>
+                )}
+              </li>
+            ))}
+          </ol>
+        ) : (
+          <p className='typed text-mutedink mt-1 text-[9px] leading-relaxed'>
+            {_(
+              'THE CHAPTER IS THE COURSE. THE PROF DRAFTS 3–5 OBJECTIVES, THEN QUIZZES YOU ON EACH — ONE SPOKEN QUESTION AT A TIME.',
             )}
-          />
+          </p>
+        )}
+        {sessionNote && (
+          <p className='typed text-mutedink mt-1 text-[9px] leading-relaxed'>
+            {sessionNote.toUpperCase()}
+          </p>
+        )}
+        <div className='mt-1.5 flex flex-wrap gap-1.5'>
+          {!objectives && (
+            <StampButton onClick={() => void generateObjectives()} disabled={generating}>
+              {generating ? _('Drafting…') : _('Generate objectives')}
+            </StampButton>
+          )}
+          {objectives && activeIdx === null && !sessionDone && (
+            <StampButton onClick={startSession}>{_('Start session')}</StampButton>
+          )}
+          {activeIdx !== null && (
+            <>
+              <StampButton onClick={skipObjective}>{_('Skip')}</StampButton>
+              <StampButton onClick={() => void endSession(objectivesRef.current ?? [])}>
+                {_('End session')}
+              </StampButton>
+            </>
+          )}
+          {sessionDone && (
+            <StampButton
+              onClick={() => {
+                setObjs(null);
+                setSessionNote('');
+              }}
+            >
+              {_('New session')}
+            </StampButton>
+          )}
         </div>
-      ) : (
-        <div className='flex-grow overflow-y-auto px-3 pb-3'>
+        {empty ? (
+          <div className='flex items-center justify-center py-6'>
+            <EmptyState
+              Icon={PiGraduationCap}
+              label={_('Nothing to review yet')}
+              hint={_(
+                'Highlight as you read, or ask the professor something with ⌥Space — it all resurfaces here',
+              )}
+            />
+          </div>
+        ) : (
+          <>
           {deck.length > 0 && (
             <>
               <p className='content font-size-base mt-1'>{_('From your margins')}</p>
@@ -236,8 +529,9 @@ const StudyTab: React.FC<{ bookKey: string }> = ({ bookKey }) => {
               </div>
             </>
           )}
-        </div>
-      )}
+          </>
+        )}
+      </div>
     </div>
   );
 };
