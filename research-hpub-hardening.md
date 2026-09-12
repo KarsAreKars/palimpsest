@@ -82,3 +82,19 @@ Your current design (stderr progress protocol, containment gate, targeted cleanu
 1. Check whether killing the sidecar orphans `llama-server` on macOS (`pgrep -f llama-server` after a kill); if so, spawn with process-group + group kill, or pre-job stale-server reaping.
 2. Grep marker's installed source for `class BaseService` / `timeout` defaults to pin down Finding 4's default.
 3. Instrument one week of cleanup-chunk validation-failure logs before tuning retry count (the 8% base rate is a hosted-API number; local endpoints differ).
+
+---
+
+## Appendix: OCR-engine evaluations
+
+### baidu/Unlimited-OCR (evaluated 2026-09-12) — REJECTED for Palimpsest
+
+Baidu's June-2026 "one-shot long-horizon parsing" model (arXiv 2606.23050, MIT license, HF weights `baidu/Unlimited-OCR`), positioned as a step past DeepSeek-OCR. Strong points: multi-page one-shot parsing (32k ctx), <|det|> bbox markers in output, OmniDocBench lineage, vLLM/SGLang/Transformers paths.
+
+Why not for us:
+1. **Hardware**: every inference path is NVIDIA/CUDA (tested py3.12+CUDA12.9, CUDA docker images). No MLX/llama.cpp/GGUF build. Our box is Apple Silicon — it simply does not run locally.
+2. **Constraint #1 makes full-page OCR unnecessary**: we REJECT scanned PDFs; every admitted book has a perfect embedded text layer. OCR-everything would discard a perfect signal to re-read pixels — strictly worse prose (OCR confusions on clean text) at VLM prices.
+3. **Our garbage problem was never an OCR-quality problem** — it was a ToUnicode-mapping lie, already fixed by glyph-garbage detection + targeted LLM cleanup (Nemotron: 0 FFFD, math spans 31→94).
+4. Alignment: our containment gate/block geometry is built on matching the text layer; OCR output would need the whole alignment story rebuilt.
+
+Revisit only if: (a) an NVIDIA box or acceptable cloud OCR endpoint appears AND (b) the plan amends to admit scanned books — then Unlimited-OCR's one-shot multi-page parsing + bbox markers would make it the leading scan-lane candidate.
