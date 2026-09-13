@@ -8,7 +8,7 @@ import Providers from '@/components/Providers';
 import '../styles/globals.css';
 import '../styles/apothecary.css';
 
-const url = 'https://github.com/palimpsest-app/palimpsest';
+const url = 'https://github.com/KarsAreKars/palimpsest';
 const title = 'Palimpsest — The Book That Reads Aloud';
 const description =
   'Palimpsest is a TTS-first book reader: every book narrates beautifully, ' +
@@ -29,7 +29,7 @@ export const metadata: Metadata = {
   authors: [
     {
       name: 'palimpsest',
-      url: 'https://github.com/palimpsest-app/palimpsest',
+      url: 'https://github.com/KarsAreKars/palimpsest',
     },
   ],
   icons: {

@@ -4,7 +4,7 @@ version = "0.2.2"
 description = "Palimpsest — a TTS-first book reader (Readest fork)"
 authors = ["Palimpsest Contributors"]
 license = "AGPL-3.0-or-later"
-repository = "https://github.com/palimpsest-app/palimpsest"
+repository = "https://github.com/KarsAreKars/palimpsest"
 edition = "2021"
 rust-version = "1.77.2"
 
