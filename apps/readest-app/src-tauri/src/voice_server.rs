@@ -93,12 +93,13 @@ fn resolve_server_script(app: &AppHandle) -> Result<PathBuf, String> {
 /// The same import check bootstrap_voice.sh uses: a TTS interpreter must
 /// import the voice stack. Probing per candidate beats an existence check —
 /// a wrong interpreter spawns, dies on import, and we poll a dead port for
-/// 120 s. The hpub/marker venvs are deliberately NOT candidates: they lack
-/// mlx-audio, and a dead spawn there masks a missing voice venv.
+/// 120 s. `misaki` matters: mlx-audio imports fine without it, then every
+/// Kokoro request 500s (the runaway narration cursor, 2026-09-13). The
+/// hpub/marker venvs are deliberately NOT candidates: they lack mlx-audio.
 #[cfg(all(desktop, not(windows)))]
 fn voice_imports_ok(python: &str) -> bool {
     std::process::Command::new(python)
-        .args(["-c", "import mlx_audio, mlx_whisper"])
+        .args(["-c", "import mlx_audio, mlx_whisper, misaki"])
         .stdin(Stdio::null())
         .stdout(Stdio::null())
         .stderr(Stdio::null())
@@ -108,8 +109,9 @@ fn voice_imports_ok(python: &str) -> bool {
 }
 
 /// Interpreter resolution order: explicit env override, the Palimpsest-managed
-/// voice venv, then `python3` on PATH. Every candidate must pass the import
-/// probe (PATH python3 almost never does — it simply isn't chosen).
+/// voice venv, the dev workspace venv, then `python3` on PATH. Every candidate
+/// must pass the import probe (PATH python3 almost never does — it simply
+/// isn't chosen).
 #[cfg(all(desktop, not(windows)))]
 fn resolve_python() -> Option<String> {
     let mut candidates: Vec<PathBuf> = Vec::new();
@@ -118,6 +120,11 @@ fn resolve_python() -> Option<String> {
     }
     if let Ok(home) = std::env::var("HOME") {
         candidates.push(PathBuf::from(&home).join(".palimpsest/venv/bin/python"));
+        // Dev dogfood machine: the hand-built venv the narration stack was
+        // tuned on. Absent on stranger machines — is_file skips it.
+        candidates.push(
+            PathBuf::from(&home).join("Documents/kimi/workspace/tts-venv/bin/python"),
+        );
     }
     candidates.push(PathBuf::from("python3"));
     candidates

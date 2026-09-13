@@ -18,8 +18,10 @@ VENV="$PALIMPSEST_DIR/venv"
 READY="$PALIMPSEST_DIR/ready"
 
 imports_ok() {
-  # The server dies at runtime without all three; verify together.
-  "$1" -c 'import mlx_audio, mlx_whisper, huggingface_hub' >/dev/null 2>&1
+  # The server dies at runtime without all four; verify together. `misaki`
+  # is Kokoro's phonemizer — mlx-audio imports without it, then every
+  # Kokoro request 500s and the narration cursor races in silence.
+  "$1" -c 'import mlx_audio, mlx_whisper, huggingface_hub, misaki' >/dev/null 2>&1
 }
 
 # 1. Env-provided interpreter (dev machine: a fully working venv).
@@ -42,13 +44,14 @@ echo "CREATING PYTHON VENV AT $VENV"
 mkdir -p "$PALIMPSEST_DIR"
 python3 -m venv "$VENV"
 
-echo "INSTALLING VOICE PACKAGES (MLX-AUDIO, MLX-WHISPER, HUGGINGFACE-HUB)"
+echo "INSTALLING VOICE PACKAGES (MLX-AUDIO, MLX-WHISPER, MISAKI, HUGGINGFACE-HUB)"
 echo "NEURAL MODELS DOWNLOAD ON FIRST NARRATION, NOT NOW"
 "$VENV/bin/pip" install --quiet --upgrade pip
 "$VENV/bin/pip" install --quiet \
   "mlx-audio>=0.1" \
   "mlx-whisper>=0.1" \
-  "huggingface_hub>=0.20"
+  "huggingface_hub>=0.20" \
+  "misaki[en]>=0.7"
 
 if imports_ok "$VENV/bin/python"; then
   echo "VOICE ENVIRONMENT READY"

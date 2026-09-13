@@ -177,7 +177,7 @@ export class NarrationPlayer extends EventTarget {
     const token = ++this.#playToken;
     this.#sink.stop();
     this.dispatchEvent(new CustomEvent('resume')); // unblock any paused wait loop
-    const start = this.#nextSpeakable(index, 1);
+    let start = this.#nextSpeakable(index, 1);
     if (start === null) {
       this.#state = 'stopped';
       return;
@@ -185,6 +185,10 @@ export class NarrationPlayer extends EventTarget {
     this.#state = 'playing';
     this.#index = start;
 
+    // Circuit breaker: an engine that fails EVERY unit (e.g. the voice
+    // server answering 500s) must stop the reading, not sprint through the
+    // book in silence — the pre-breaker behavior was the "runaway train".
+    let consecutiveFailures = 0;
     let i = start;
     while (i < this.#units.length && token === this.#playToken) {
       const speakable = this.#nextSpeakable(i, 1);
@@ -204,6 +208,11 @@ export class NarrationPlayer extends EventTarget {
         // Permanent errors and stale tokens skip the unit at once.
         if (firstError instanceof SpeechSynthesisPermanentError || token !== this.#playToken) {
           nwarn(`narration unit ${i} synthesis failed, skipping`, firstError);
+          if (++consecutiveFailures >= 3) {
+            nwarn('narration: stopping — the voice engine is failing every unit', firstError);
+            this.#state = 'stopped';
+            return;
+          }
           i++;
           continue;
         }
@@ -212,11 +221,17 @@ export class NarrationPlayer extends EventTarget {
           result = await synthesize();
         } catch (secondError) {
           nwarn(`narration unit ${i} synthesis failed twice, skipping`, secondError);
+          if (++consecutiveFailures >= 3) {
+            nwarn('narration: stopping — the voice engine is failing every unit', secondError);
+            this.#state = 'stopped';
+            return;
+          }
           i++;
           continue;
         }
       }
       if (token !== this.#playToken) return; // jumped or stopped mid-synthesis
+      consecutiveFailures = 0; // a spoken unit resets the breaker
       nlog(`narration: audio unit ${i} — ${result.audio.byteLength} bytes`);
       if (this.state === 'paused') {
         // Pause arrived while synthesizing: wait for resume via play loop.
