@@ -57,7 +57,7 @@ fn parse_stage(line: &str) -> Option<String> {
     }
 }
 
-fn python_candidates() -> Vec<PathBuf> {
+pub(crate) fn python_candidates() -> Vec<PathBuf> {
     let mut out = Vec::new();
     if let Ok(p) = std::env::var("PALIMPSEST_PYTHON") {
         out.push(PathBuf::from(p));

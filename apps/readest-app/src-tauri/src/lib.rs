@@ -34,12 +34,15 @@ mod localsend;
 mod macos;
 mod mobi_parser;
 mod nightly_update;
+mod onboarding;
 mod parser_common;
 mod range_file;
 mod screenshot;
 #[cfg(desktop)]
 mod spawn_fresh_browser;
 mod transfer_file;
+#[cfg(desktop)]
+mod voice_server;
 #[cfg(desktop)]
 mod window_state;
 #[cfg(target_os = "windows")]
@@ -334,6 +337,8 @@ pub fn run() {
             mobi_parser::parse_mobi_metadata,
             mobi_parser::extract_mobi_cover_full,
             hpub::hpub_extract,
+            onboarding::onboarding_sample_book,
+            onboarding::onboarding_run_voice_bootstrap,
             screenshot::capture_window_screenshot,
             #[cfg(target_os = "macos")]
             macos::safari_auth::auth_with_safari,
@@ -458,6 +463,11 @@ pub fn run() {
                 app.manage(discord_client);
             }
             app.manage(localsend::LocalSendState::default());
+
+            // Palimpsest: bring the local narration server up (no-op when
+            // something already answers on :8737).
+            #[cfg(desktop)]
+            voice_server::start(app.handle());
 
             #[cfg(desktop)]
             {

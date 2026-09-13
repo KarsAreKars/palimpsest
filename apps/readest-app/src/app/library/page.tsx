@@ -98,6 +98,7 @@ import { fetchAndParseFeed } from '@/services/rss/feedClient';
 import { createFeedBook, ensureFeedBookCover } from '@/services/rss/feedBook';
 import { MigrateDataWindow } from './components/MigrateDataWindow';
 import { BackupWindow } from './components/BackupWindow';
+import OnboardingOverlay from '@/components/onboarding/OnboardingOverlay';
 import { CacheManagerWindow } from './components/CacheManagerWindow';
 import { useDragDropImport } from './hooks/useDragDropImport';
 import { useTransferQueue } from '@/hooks/useTransferQueue';
@@ -2257,6 +2258,7 @@ const LibraryPageContent = ({ searchParams }: { searchParams: ReadonlyURLSearchP
       />
       <ClipSignInAlert />
       <Toast />
+      <OnboardingOverlay />
     </div>
   );
 };
