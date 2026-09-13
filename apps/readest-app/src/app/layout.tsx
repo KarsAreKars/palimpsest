@@ -8,29 +8,28 @@ import Providers from '@/components/Providers';
 import '../styles/globals.css';
 import '../styles/apothecary.css';
 
-const url = 'https://web.readest.com/';
-const title = 'Readest — Where You Read, Digest and Get Insight';
+const url = 'https://github.com/palimpsest-app/palimpsest';
+const title = 'Palimpsest — The Book That Reads Aloud';
 const description =
-  'Discover Readest, the ultimate online ebook reader for immersive and organized reading. ' +
-  'Enjoy seamless access to your digital library, powerful tools for highlighting, bookmarking, ' +
-  'and note-taking, and support for multiple book views. ' +
-  'Perfect for deep reading, analysis, and understanding. Explore now!';
-const previewImage = 'https://cdn.readest.com/images/open_graph_preview_read_now.png';
+  'Palimpsest is a TTS-first book reader: every book narrates beautifully, ' +
+  'and the Prof — an always-present tutor — points at the page, answers questions, ' +
+  'and runs chapter sessions. A fork of Readest (AGPL-3.0).';
+const previewImage = '';
 
 export const metadata: Metadata = {
   metadataBase: new URL(url),
   title: {
     default: title,
-    template: '%s | Readest',
+    template: '%s | Palimpsest',
   },
   description,
   generator: 'Next.js',
   manifest: '/manifest.json',
-  keywords: ['epub', 'pdf', 'ebook', 'reader', 'readest', 'pwa'],
+  keywords: ['pdf', 'audiobook', 'tts', 'reader', 'palimpsest', 'pwa'],
   authors: [
     {
-      name: 'readest',
-      url: 'https://github.com/readest/readest',
+      name: 'palimpsest',
+      url: 'https://github.com/palimpsest-app/palimpsest',
     },
   ],
   icons: {
@@ -39,7 +38,7 @@ export const metadata: Metadata = {
   },
   appleWebApp: {
     capable: true,
-    title: 'Readest',
+    title: 'Palimpsest',
     statusBarStyle: 'default',
   },
   openGraph: {
@@ -57,7 +56,7 @@ export const metadata: Metadata = {
   },
   other: {
     'apple-mobile-web-app-capable': 'yes',
-    'twitter:domain': 'web.readest.com',
+    'twitter:domain': 'github.com',
     'twitter:url': url,
   },
 };
