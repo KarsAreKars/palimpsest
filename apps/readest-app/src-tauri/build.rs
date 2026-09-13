@@ -60,6 +60,8 @@ fn main() {
             "localsend_cancel_send",
             "onboarding_sample_book",
             "onboarding_run_voice_bootstrap",
+            "hpub_extract",
+            "capture_window_screenshot",
         ]),
     ))
     .expect("failed to run tauri-build");
