@@ -1,0 +1,20 @@
+Palimpsest — Copyright (C) Palimpsest Contributors
+
+Palimpsest is a fork of Readest, Copyright (C) Bilingify LLC and the Readest
+contributors, licensed under the GNU Affero General Public License v3.0
+(or later). The upstream source is available at
+https://github.com/readest/readest
+
+This program is free software: you can redistribute it and/or modify it under
+the terms of the GNU Affero General Public License as published by the Free
+Software Foundation, either version 3 of the License, or (at your option) any
+later version. See the LICENSE file for the full text.
+
+Notable modifications by Palimpsest (see git history for details):
+- TTS-first narration layer (Kokoro/Qwen3 via a local MLX sidecar) with
+  word-level synchrony against the rendered PDF.
+- The Prof: an in-book tutor (voice in/out, page-grounded ink annotations,
+  Socratic disclosure ladder, chapter sessions) with a persistent learner model.
+- The .hpub dual-layer import pipeline with math-preserving extraction,
+  glyph-garbage detection, targeted LLM cleanup, and stall-watchdog hardening.
+- The Apothecary design system (UI reskin).

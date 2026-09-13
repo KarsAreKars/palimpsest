@@ -59,3 +59,7 @@ fastlane/metadata-play/android/en-US/changelogs
 
 apps/readest.koplugin/bin/
 apps/readest.koplugin/native/localsend-bin/target/
+
+# publish prep: never track local env or agent memory
+.env
+.claude/
