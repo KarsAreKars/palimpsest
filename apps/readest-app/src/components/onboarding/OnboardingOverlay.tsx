@@ -24,6 +24,8 @@ import {
   saveOnboardingAiConfig,
 } from '@/services/onboarding/onboardingService';
 
+import './onboarding.css';
+
 const HEALTH_URL = 'http://127.0.0.1:8737/health';
 const aiFetch = getAIFetch();
 
@@ -152,12 +154,9 @@ const OnboardingOverlay: React.FC = () => {
       role='dialog'
       aria-modal='true'
       aria-label='Palimpsest setup'
-      className='fixed inset-0 z-[100] flex items-center justify-center bg-[rgba(38,34,27,0.72)] p-4'
+      className='onboarding-scrim fixed inset-0 z-[100] flex items-center justify-center p-4'
     >
-      <div
-        className='paper-bg relative flex max-h-[90vh] w-[min(94vw,580px)] flex-col border border-ink px-6 py-6 sm:px-9 sm:py-8'
-        style={{ boxShadow: 'var(--lift-shadow)' }}
-      >
+      <div className='onboarding-card paper-bg relative flex max-h-[90vh] w-[min(94vw,580px)] flex-col border border-ink px-6 py-6 sm:px-9 sm:py-8'>
         <button
           onClick={() => void finish()}
           className='typed text-mutedink hover:text-stamp absolute top-4 right-5 text-[9px] tracking-[0.08em]'

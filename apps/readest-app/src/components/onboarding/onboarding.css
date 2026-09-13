@@ -1,0 +1,13 @@
+/* Onboarding overlay surfaces. The palette and the lift shadow come from
+ * apothecary.css tokens — this file only names the two overlay-specific
+ * surfaces so the component doesn't carry raw values inline. */
+
+/* fullscreen ink dim behind the paper card */
+.onboarding-scrim {
+  background: rgba(38, 34, 27, 0.72);
+}
+
+/* the one allowed lift: paper card stacked above the scrim */
+.onboarding-card {
+  box-shadow: var(--lift-shadow);
+}

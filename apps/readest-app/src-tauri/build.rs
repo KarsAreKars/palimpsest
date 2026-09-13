@@ -58,6 +58,8 @@ fn main() {
             "localsend_cancel_receive",
             "localsend_send_files",
             "localsend_cancel_send",
+            "onboarding_sample_book",
+            "onboarding_run_voice_bootstrap",
         ]),
     ))
     .expect("failed to run tauri-build");

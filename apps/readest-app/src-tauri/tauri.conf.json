@@ -51,7 +51,11 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ],
-    "resources": [],
+    "resources": {
+    "resources/hpub/*.py": "resources/hpub",
+    "resources/tts/*": "resources/tts",
+    "resources/sample-book.hpub": "resources/sample-book.hpub"
+  },
     "windows": {
       "webviewInstallMode": {
         "type": "embedBootstrapper"

@@ -3,14 +3,22 @@
 //! On launch, probe the local narration server (qwen_server.py, port 8737).
 //! When nothing answers, spawn the bundled server with the best available
 //! Python — the model download stays lazy (first narration), so the child
-//! is cheap to start. The child is reaped on app exit (`kill_on_drop`) and
-//! its stdout/stderr ride the same log pipeline as everything else
+//! is cheap to start.
+//!
+//! Lifetime: the spawned [`tokio::process::Child`] is held in managed state
+//! for the whole app session. It must NOT be a local of the spawning task:
+//! `kill_on_drop` would reap it the moment the task returns (seconds after
+//! /health first passes) and every session's narration would die. The child
+//! is killed explicitly on `ExitRequested` (`stop`) and reaped by
+//! `kill_on_drop` as a fallback when the state drops at process exit.
+//! The child's stdout/stderr ride the same log pipeline as everything else
 //! (tauri_plugin_log -> ~/Library/Logs). If health never passes within
 //! 120 s we give up silently: the narration controller already falls back
 //! to Edge voices and the UI shows its offline state elsewhere.
 
 use std::path::PathBuf;
 use std::process::Stdio;
+use std::sync::Mutex;
 use std::time::Duration;
 use tauri::{AppHandle, Manager};
 use tokio::io::AsyncBufReadExt;
@@ -22,14 +30,42 @@ const HEALTH_POLL: Duration = Duration::from_secs(2);
 /// downloads, cold MLX) — the UI shows its own offline state.
 const HEALTH_LIMIT: Duration = Duration::from_secs(120);
 
+/// The one spawned voice-server child, held for the app lifetime.
+/// `None` before spawn (or after `stop` reaped it).
+#[derive(Default)]
+pub struct VoiceServerState {
+    child: Mutex<Option<tokio::process::Child>>,
+}
+
 pub fn start(app: &AppHandle) {
-    #[cfg(desktop)]
-    tauri::async_runtime::spawn(spawn_voice_server(app.clone()));
-    #[cfg(not(desktop))]
+    #[cfg(all(desktop, not(windows)))]
+    {
+        app.manage(VoiceServerState::default());
+        tauri::async_runtime::spawn(spawn_voice_server(app.clone()));
+    }
+    #[cfg(not(all(desktop, not(windows))))]
     let _ = app;
 }
 
-#[cfg(desktop)]
+/// Kill the voice server on app exit (reaping also happens via
+/// `kill_on_drop` when the managed state drops, this just does it promptly).
+pub fn stop(app: &AppHandle) {
+    #[cfg(all(desktop, not(windows)))]
+    {
+        if let Some(state) = app.try_state::<VoiceServerState>() {
+            if let Ok(mut guard) = state.child.lock() {
+                if let Some(mut child) = guard.take() {
+                    log::info!("voice server: stopping on exit");
+                    let _ = child.start_kill();
+                }
+            }
+        }
+    }
+    #[cfg(not(all(desktop, not(windows))))]
+    let _ = app;
+}
+
+#[cfg(all(desktop, not(windows)))]
 fn resolve_server_script(app: &AppHandle) -> Result<PathBuf, String> {
     if let Ok(p) = std::env::var("PALIMPSEST_TTS_SCRIPT") {
         let path = PathBuf::from(p);
@@ -54,9 +90,27 @@ fn resolve_server_script(app: &AppHandle) -> Result<PathBuf, String> {
     Err("qwen_server.py not found (set PALIMPSEST_TTS_SCRIPT)".to_string())
 }
 
+/// The same import check bootstrap_voice.sh uses: a TTS interpreter must
+/// import the voice stack. Probing per candidate beats an existence check —
+/// a wrong interpreter spawns, dies on import, and we poll a dead port for
+/// 120 s. The hpub/marker venvs are deliberately NOT candidates: they lack
+/// mlx-audio, and a dead spawn there masks a missing voice venv.
+#[cfg(all(desktop, not(windows)))]
+fn voice_imports_ok(python: &str) -> bool {
+    std::process::Command::new(python)
+        .args(["-c", "import mlx_audio, mlx_whisper"])
+        .stdin(Stdio::null())
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .status()
+        .map(|status| status.success())
+        .unwrap_or(false)
+}
+
 /// Interpreter resolution order: explicit env override, the Palimpsest-managed
-/// voice venv, then hpub.rs's candidate list (dev venvs, then PATH python3).
-#[cfg(desktop)]
+/// voice venv, then `python3` on PATH. Every candidate must pass the import
+/// probe (PATH python3 almost never does — it simply isn't chosen).
+#[cfg(all(desktop, not(windows)))]
 fn resolve_python() -> Option<String> {
     let mut candidates: Vec<PathBuf> = Vec::new();
     if let Ok(p) = std::env::var("PALIMPSEST_TTS_PYTHON") {
@@ -65,14 +119,15 @@ fn resolve_python() -> Option<String> {
     if let Ok(home) = std::env::var("HOME") {
         candidates.push(PathBuf::from(&home).join(".palimpsest/venv/bin/python"));
     }
-    candidates.extend(crate::hpub::python_candidates());
+    candidates.push(PathBuf::from("python3"));
     candidates
         .iter()
-        .find(|c| c.components().count() == 1 || c.is_file())
+        .filter(|c| c.components().count() == 1 || c.is_file())
+        .find(|c| voice_imports_ok(&c.to_string_lossy()))
         .map(|c| c.to_string_lossy().into_owned())
 }
 
-#[cfg(desktop)]
+#[cfg(all(desktop, not(windows)))]
 async fn health_up() -> bool {
     match reqwest::Client::builder()
         .timeout(Duration::from_secs(3))
@@ -88,7 +143,7 @@ async fn health_up() -> bool {
     }
 }
 
-#[cfg(desktop)]
+#[cfg(all(desktop, not(windows)))]
 async fn pump_to_log<S: tokio::io::AsyncRead + Unpin + Send + 'static>(stream: Option<S>) {
     let Some(stream) = stream else { return };
     tauri::async_runtime::spawn(async move {
@@ -101,20 +156,27 @@ async fn pump_to_log<S: tokio::io::AsyncRead + Unpin + Send + 'static>(stream: O
     });
 }
 
-#[cfg(desktop)]
+#[cfg(all(desktop, not(windows)))]
 async fn spawn_voice_server(app: AppHandle) {
     if health_up().await {
         log::info!("voice server: already answering at {HEALTH_URL}");
         return;
     }
     let (Ok(script), Some(python)) = (resolve_server_script(&app), resolve_python()) else {
-        log::warn!("voice server: no interpreter or script — skipping auto-start");
+        log::warn!("voice server: no working interpreter or script — skipping auto-start");
         return;
     };
+    // TOCTOU: another process may have started a server while we resolved
+    // the interpreter (each probe costs a python startup).
+    if health_up().await {
+        log::info!("voice server: already answering at {HEALTH_URL} (post-resolve probe)");
+        return;
+    }
     log::info!("voice server: starting {} via {}", script.display(), python);
 
     let mut child = match tokio::process::Command::new(&python)
         .arg(&script)
+        .stdin(Stdio::null())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .kill_on_drop(true)
@@ -129,6 +191,17 @@ async fn spawn_voice_server(app: AppHandle) {
 
     pump_to_log(child.stdout.take()).await;
     pump_to_log(child.stderr.take()).await;
+
+    // Hand the child to app-lifetime state BEFORE waiting on health: this
+    // task returning must not drop (and kill) the server.
+    if let Some(state) = app.try_state::<VoiceServerState>() {
+        match state.child.lock() {
+            Ok(mut guard) => *guard = Some(child),
+            Err(_) => log::error!("voice server: state lock poisoned — child will not survive"),
+        }
+    } else {
+        log::error!("voice server: managed state missing — child will not survive");
+    }
 
     let mut waited = Duration::ZERO;
     while waited < HEALTH_LIMIT {

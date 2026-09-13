@@ -690,6 +690,13 @@ pub fn run() {
         .run(
             #[allow(unused_variables)]
             |app_handle, event| {
+                // Reap the voice server promptly on exit (the managed state's
+                // kill_on_drop is the fallback when it drops at process end).
+                // `matches!` borrows — the macOS match below still owns `event`.
+                #[cfg(all(desktop, not(windows)))]
+                if matches!(event, tauri::RunEvent::ExitRequested { .. }) {
+                    voice_server::stop(app_handle);
+                }
                 #[cfg(target_os = "macos")]
                 match event {
                     tauri::RunEvent::Opened { urls } => {

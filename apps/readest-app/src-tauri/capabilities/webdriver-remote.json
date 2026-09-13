@@ -40,6 +40,8 @@
     "allow-localsend-respond",
     "allow-localsend-cancel-receive",
     "allow-localsend-send-files",
-    "allow-localsend-cancel-send"
+    "allow-localsend-cancel-send",
+    "allow-onboarding-sample-book",
+    "allow-onboarding-run-voice-bootstrap"
   ]
 }

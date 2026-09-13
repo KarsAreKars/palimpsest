@@ -225,6 +225,8 @@
     "allow-parse-mobi-metadata",
     "allow-extract-mobi-cover-full",
     "allow-hpub-extract",
+    "allow-onboarding-sample-book",
+    "allow-onboarding-run-voice-bootstrap",
     "allow-auth-with-safari",
     "allow-start-apple-sign-in",
     "allow-set-traffic-lights",
