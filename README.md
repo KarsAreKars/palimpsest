@@ -58,7 +58,7 @@ First-run downloads (all automatic, cached in `~/.cache/huggingface`, one time e
 | pip packages (mlx-audio, mlx-whisper, misaki…) | ~300 MB | Onboarding “START VOICE SETUP” (builds `~/.palimpsest/venv`) |
 | Kokoro voices | ~160 MB | First playback with a neural voice |
 | Qwen3-TTS (incl. cloned voices) | ~2 GB | First Qwen/cloned-voice playback |
-| Whisper | ~1.5 GB | Only if you use voice input |
+| Whisper | — | **Not shipped.** Voice input is TypeWhisper, a system-level macOS dictator you install yourself — it owns the mic and the STT, Palimpsest never touches the mic. |
 
 The Prof needs an OpenAI-compatible API key (pasted in onboarding, or Settings → AI).
 Built-in/Edge voices work with zero downloads and no key.
