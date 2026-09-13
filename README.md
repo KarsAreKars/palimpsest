@@ -30,7 +30,7 @@ Why Palimpsest instead of Readest upstream
   voice support), Whisper STT, and the Prof through your own OpenAI-compatible
   key. No subscription, no cloud lock-in.
 
-Status: **private→public beta**. macOS only for now (Apple Silicon).
+Status: **public beta**. macOS, Apple Silicon (the neural voice stack is MLX).
 
 Build
 -----
@@ -46,9 +46,22 @@ pnpm --filter @palimpsest/app build
 cd apps/readest-app && pnpm tauri build
 ```
 
-The app loads its Python sidecars from `src-tauri/resources` in release builds;
-the two venvs and the models (Kokoro, Qwen3-TTS, Whisper, marker) are expected on
-the machine — first-launch bootstrap is on the roadmap.
+The app loads its Python sidecars from `src-tauri/resources` in release builds.
+First launch runs an onboarding that builds the voice venv for you and
+auto-starts the voice server; the import sidecar (marker-pdf) venv is still a
+manual prereq for PDF import on fresh machines.
+
+First-run downloads (all automatic, cached in `~/.cache/huggingface`, one time each):
+
+| What | Size | When |
+|---|---|---|
+| pip packages (mlx-audio, mlx-whisper, misaki…) | ~300 MB | Onboarding “START VOICE SETUP” (builds `~/.palimpsest/venv`) |
+| Kokoro voices | ~160 MB | First playback with a neural voice |
+| Qwen3-TTS (incl. cloned voices) | ~2 GB | First Qwen/cloned-voice playback |
+| Whisper | ~1.5 GB | Only if you use voice input |
+
+The Prof needs an OpenAI-compatible API key (pasted in onboarding, or Settings → AI).
+Built-in/Edge voices work with zero downloads and no key.
 
 License
 -------
