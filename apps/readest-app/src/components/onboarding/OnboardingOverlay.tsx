@@ -4,6 +4,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import clsx from 'clsx';
 
 import { useEnv } from '@/context/EnvContext';
+import { useTranslation } from '@/hooks/useTranslation';
 import { useSettingsStore } from '@/store/settingsStore';
 import { StampButton, PaperField } from '@/components/apothecary';
 import { getAIFetch } from '@/services/ai/utils/httpFetch';
@@ -32,24 +33,29 @@ const aiFetch = getAIFetch();
 type VoiceStatus = 'checking' | 'offline' | 'online';
 type BootstrapState = 'idle' | 'running' | 'done' | 'error';
 
-const BEAT_LABELS: Array<{ beat: OnboardingBeat; label: string }> = [
-  { beat: 'welcome', label: 'Welcome' },
-  { beat: 'voice', label: 'Voice Engine' },
-  { beat: 'ai', label: "The Prof's Brain" },
+// Raw English keys; rendered through _() so every user-facing string is
+// translatable. The beat labels stay typed (plate-num) on screen.
+const BEAT_LABELS: Array<{ beat: OnboardingBeat; labelKey: string }> = [
+  { beat: 'welcome', labelKey: 'Welcome' },
+  { beat: 'voice', labelKey: 'Voice Engine' },
+  { beat: 'ai', labelKey: "The Prof's Brain" },
 ];
 
+// Raw English keys; rendered through _().
 const PITCHES = [
   {
-    label: 'Narration',
-    body: 'Every book narrates itself. Free neural voices, generated on-device. Nothing to buy, nothing to subscribe to.',
+    labelKey: 'Narration',
+    bodyKey:
+      'Every book narrates itself. Free neural voices, generated on-device. Nothing to buy, nothing to subscribe to.',
   },
   {
-    label: 'The Prof',
-    body: 'Ask him anything about the page. He answers aloud — and points at the passage.',
+    labelKey: 'The Prof',
+    bodyKey: 'Ask him anything about the page. He answers aloud — and points at the passage.',
   },
   {
-    label: 'Chapter Sessions',
-    body: 'The notebook turns your chapter into objectives, quizzes you aloud, and files a study report. The Feynman review queue resurfaces what you learned.',
+    labelKey: 'Chapter Sessions',
+    bodyKey:
+      'The notebook turns your chapter into objectives, quizzes you aloud, and files a study report. The Feynman review queue resurfaces what you learned.',
   },
 ];
 
@@ -60,6 +66,7 @@ const PITCHES = [
  * verifies the voice engine answers /health.
  */
 const OnboardingOverlay: React.FC = () => {
+  const _ = useTranslation();
   const { envConfig, appService } = useEnv();
   const { settings } = useSettingsStore();
 
@@ -127,7 +134,10 @@ const OnboardingOverlay: React.FC = () => {
       });
       setBootstrap('done');
     } catch {
-      setBootLines((prev) => [...prev, 'SETUP FAILED — SEE LOGS FOR DETAILS']);
+      setBootLines((prev) => [
+        ...prev,
+        _('Setup did not finish — you can retry or skip and set up later.'),
+      ]);
       setBootstrap('error');
     }
     await checkHealth();
@@ -154,20 +164,20 @@ const OnboardingOverlay: React.FC = () => {
     <div
       role='dialog'
       aria-modal='true'
-      aria-label='Palimpsest setup'
+      aria-label={_('Palimpsest setup')}
       className='onboarding-scrim fixed inset-0 z-[100] flex items-center justify-center p-4'
     >
       <div className='onboarding-sheet plate plate-notch relative flex max-h-[90vh] w-[min(94vw,580px)] flex-col px-6 py-6 sm:px-9 sm:py-8'>
         <button
           onClick={() => void finish()}
-          className='plate-meta hover:text-stamp absolute top-4 right-5 transition-colors'
+          className='plate-meta typed hover:text-stamp absolute top-4 right-5 transition-colors'
         >
-          Skip setup
+          {_("Skip setup")}
         </button>
 
         {/* plate numbers for the three beats, joined by a hairline rule */}
         <div className='mb-6 flex items-center gap-3 pe-12'>
-          {BEAT_LABELS.map(({ beat: b, label }, i) => {
+          {BEAT_LABELS.map(({ beat: b, labelKey }, i) => {
             const active = i === beatIndex;
             const past = i < beatIndex;
             return (
@@ -180,7 +190,7 @@ const OnboardingOverlay: React.FC = () => {
                     past && 'text-ink',
                   )}
                 >
-                  № {i + 1} — {label}
+                  № {i + 1} — {_(labelKey)}
                 </span>
               </React.Fragment>
             );
@@ -191,19 +201,19 @@ const OnboardingOverlay: React.FC = () => {
           {beat === 'welcome' && (
             <div>
               <h1 className='onboarding-beat-title text-[clamp(20px,3.4vw,30px)] leading-tight'>
-                The book that reads aloud
+                {_('The book that reads aloud')}
               </h1>
               <p className='text-mutedink mt-2 text-[15px] italic'>
-                Palimpsest turns your library into a conversation. Three things to know:
+                {_('Palimpsest turns your library into a conversation. Three things to know:')}
               </p>
               <div className='mt-5 grid gap-3 sm:grid-cols-3'>
                 {PITCHES.map((pitch) => (
-                  <div key={pitch.label} className='plate flex flex-col p-3 pt-4'>
-                    <span className='plate-title text-[13px] leading-snug'>{pitch.label}</span>
+                  <div key={pitch.labelKey} className='plate flex flex-col p-3 pt-4'>
+                    <span className='plate-title text-[13px] leading-snug'>{_(pitch.labelKey)}</span>
                     <span className='ornament my-2' aria-hidden='true'>
                       ✳
                     </span>
-                    <p className='text-ink text-[13px] leading-snug'>{pitch.body}</p>
+                    <p className='text-ink text-[13px] leading-snug'>{_(pitch.bodyKey)}</p>
                   </div>
                 ))}
               </div>
@@ -212,22 +222,22 @@ const OnboardingOverlay: React.FC = () => {
 
           {beat === 'voice' && (
             <div>
-              <h2 className='onboarding-beat-title text-2xl'>Voice Engine</h2>
+              <h2 className='onboarding-beat-title text-2xl'>{_('Voice Engine')}</h2>
               <p className='text-mutedink mt-2 text-[15px] italic'>
-                Free neural narration, on-device. No account, no subscription.
+                {_('Free neural narration, on-device. No account, no subscription.')}
               </p>
               <div className='plate mt-4 p-3 pt-4'>
                 {voiceStatus === 'checking' && (
-                  <p className='typed text-mutedink text-[11px]'>CHECKING THE VOICE ENGINE…</p>
+                  <p className='typed text-mutedink text-[11px]'>{_('CHECKING THE VOICE ENGINE…')}</p>
                 )}
                 {voiceStatus === 'online' && (
-                  <p className='typed text-stamp text-[11px]'>VOICES READY</p>
+                  <p className='typed text-stamp text-[11px]'>{_('VOICES READY')}</p>
                 )}
                 {voiceStatus === 'offline' && bootstrap !== 'running' && (
                   <div className='flex items-center justify-between gap-3'>
-                    <p className='typed text-ink text-[11px]'>VOICES OFFLINE</p>
+                    <p className='typed text-ink text-[11px]'>{_('VOICES OFFLINE')}</p>
                     <StampButton onClick={() => void startBootstrap()}>
-                      Start voice setup
+                      {_('Start voice setup')}
                     </StampButton>
                   </div>
                 )}
@@ -247,7 +257,7 @@ const OnboardingOverlay: React.FC = () => {
                       <div
                         className='progress-track mt-2 overflow-hidden'
                         role='progressbar'
-                        aria-label='Voice setup in progress'
+                        aria-label={_('Voice setup in progress')}
                       >
                         <div className='onboarding-progress-indeterminate progress-fill w-1/3' />
                       </div>
@@ -257,7 +267,7 @@ const OnboardingOverlay: React.FC = () => {
               </div>
               {voiceStatus === 'offline' && bootstrap === 'idle' && (
                 <p className='typed text-mutedink mt-3 text-[9px]'>
-                  SETUP IS ONE CLICK — MODELS DOWNLOAD ON FIRST NARRATION, NOT NOW.
+                  {_('SETUP IS ONE CLICK — MODELS DOWNLOAD ON FIRST NARRATION, NOT NOW.')}
                 </p>
               )}
             </div>
@@ -265,16 +275,15 @@ const OnboardingOverlay: React.FC = () => {
 
           {beat === 'ai' && (
             <div>
-              <h2 className='onboarding-beat-title text-2xl'>The Prof's Brain</h2>
+              <h2 className='onboarding-beat-title text-2xl'>{_("The Prof's Brain")}</h2>
               <p className='text-mutedink mt-2 text-[15px] italic'>
-                The Prof answers questions about the page, aloud. Any OpenAI-compatible key works —
-                or add one later in Settings.
+                {_('The Prof answers questions about the page, aloud. Any OpenAI-compatible key works — or add one later in Settings.')}
               </p>
               <div className='mt-4 flex flex-col gap-2.5'>
                 <PaperField
                   type='password'
                   autoComplete='off'
-                  placeholder='API KEY — SK-…'
+                  placeholder={_('API KEY — SK-…')}
                   value={aiConfig.apiKey}
                   onChange={(e) => {
                     setAiConfig((c) => ({ ...c, apiKey: e.target.value }));
@@ -284,7 +293,7 @@ const OnboardingOverlay: React.FC = () => {
                   className='w-full text-sm'
                 />
                 <PaperField
-                  placeholder='BASE URL'
+                  placeholder={_('BASE URL')}
                   value={aiConfig.baseUrl}
                   onChange={(e) => {
                     setAiConfig((c) => ({ ...c, baseUrl: e.target.value }));
@@ -294,7 +303,7 @@ const OnboardingOverlay: React.FC = () => {
                   className='w-full text-sm'
                 />
                 <PaperField
-                  placeholder='MODEL — OPTIONAL'
+                  placeholder={_('MODEL — OPTIONAL')}
                   value={aiConfig.model}
                   onChange={(e) => {
                     setAiConfig((c) => ({ ...c, model: e.target.value }));
@@ -304,7 +313,7 @@ const OnboardingOverlay: React.FC = () => {
                   className='w-full text-sm'
                 />
                 <p className='plate-meta ps-4'>
-                  Any OpenAI-compatible key works. Leave the model blank to use the default.
+                  {_('Any OpenAI-compatible key works. Leave the model blank to use the default.')}
                 </p>
               </div>
               <div className='mt-3 flex items-center gap-3'>
@@ -312,19 +321,19 @@ const OnboardingOverlay: React.FC = () => {
                   onClick={() => void handleTest()}
                   disabled={!isAiConfigComplete(aiConfig)}
                 >
-                  Test
+                  {_('Test')}
                 </StampButton>
                 {testState === 'testing' && (
-                  <span className='typed text-mutedink text-[10px]'>TESTING…</span>
+                  <span className='typed text-mutedink text-[10px]'>{_('TESTING…')}</span>
                 )}
                 {testState === 'pass' && (
                   <span className='typed text-stamp border-stamp border px-2 py-0.5 text-[10px]'>
-                    TEST PASS
+                    {_('TEST PASS')}
                   </span>
                 )}
                 {testState === 'fail' && (
                   <span className='typed border border-dashed border-ink/60 px-2 py-0.5 text-[10px] text-ink'>
-                    TEST FAIL — CHECK KEY AND URL
+                    {_('TEST FAIL — CHECK KEY AND URL')}
                   </span>
                 )}
               </div>
@@ -336,13 +345,12 @@ const OnboardingOverlay: React.FC = () => {
               <span className='ornament' aria-hidden='true'>
                 ✦
               </span>
-              <p className='plate-title mt-3 text-xl'>All set</p>
+              <p className='plate-title mt-3 text-xl'>{_('All set')}</p>
               <p className='text-ink mt-3 max-w-sm text-[16px] leading-snug'>
-                Your first book is already on the shelf. Open it, press play — it reads to you. Ask
-                the Prof anything.
+                {_('Your first book is already on the shelf. Open it, press play — it reads to you. Ask the Prof anything.')}
               </p>
               <StampButton className='mt-6' onClick={() => void finish()}>
-                Open your first book
+                {_('Open your first book')}
               </StampButton>
             </div>
           )}
@@ -355,7 +363,7 @@ const OnboardingOverlay: React.FC = () => {
               <div>
                 {beat !== 'welcome' && (
                   <StampButton variant='ink' onClick={() => setBeat((b) => prevBeat(b))}>
-                    ← Back
+                    {_('← Back')}
                   </StampButton>
                 )}
               </div>
@@ -363,9 +371,9 @@ const OnboardingOverlay: React.FC = () => {
                 {beat === 'ai' && (
                   <button
                     onClick={() => setBeat('open')}
-                    className='plate-meta hover:text-stamp transition-colors'
+                    className='plate-meta typed hover:text-stamp transition-colors'
                   >
-                    Add later in Settings
+                    {_("Add later in Settings")}
                   </button>
                 )}
                 {beat === 'ai' ? (
@@ -374,16 +382,16 @@ const OnboardingOverlay: React.FC = () => {
                     onClick={() => void handleSaveAi()}
                     disabled={!isAiConfigComplete(aiConfig)}
                   >
-                    {saved ? 'Saved' : 'Save'}
+                    {saved ? _('Saved') : _('Save')}
                   </StampButton>
                 ) : null}
                 {beat !== 'ai' && (
                   <StampButton onClick={() => setBeat((b) => nextBeat(b))}>
-                    {beat === 'welcome' ? 'Set up voices' : 'Continue'}
+                    {beat === 'welcome' ? _('Set up voices') : _('Continue')}
                   </StampButton>
                 )}
                 {beat === 'ai' && (
-                  <StampButton onClick={() => setBeat('open')}>Continue</StampButton>
+                  <StampButton onClick={() => setBeat('open')}>{_('Continue')}</StampButton>
                 )}
               </div>
             </div>

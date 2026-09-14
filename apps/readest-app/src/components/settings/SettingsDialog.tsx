@@ -108,12 +108,12 @@ const SettingsDialog: React.FC<{ bookKey: string }> = ({ bookKey }) => {
       label: _('Language'),
     },
     {
-      // UX spec C: Connectors = everything that talks to the outside world —
+      // UX spec C: Integrations = everything that talks to the outside world —
       // LLM providers, the local voice server, ElevenLabs, sync, OPDS.
       // The AI and Narration tabs fold into this one panel below.
       tab: 'Integrations',
       icon: RiShareLine,
-      label: _('Connectors'),
+      label: _('Integrations'),
     },
     {
       tab: 'TTS',

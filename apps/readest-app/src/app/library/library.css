@@ -62,7 +62,7 @@
   border-color: var(--ink);
 }
 
-/* ---------- disabled without the attribute (was `chrome-chrome-chrome-chrome-chrome-chrome-chrome-ghost-disabled`) ---------- */
+/* ---------- disabled without the attribute (was `chrome-ghost-disabled`) ---------- */
 .chrome-ghost-disabled,
 .chrome-ghost-disabled:hover {
   color: color-mix(in srgb, var(--ink) 40%, transparent) !important;

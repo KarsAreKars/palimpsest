@@ -1,4 +1,5 @@
 import clsx from 'clsx';
+import dayjs from 'dayjs';
 import React, { useRef } from 'react';
 import { FaChevronDown, FaSearch } from 'react-icons/fa';
 import { MdManageSearch } from 'react-icons/md';
@@ -105,7 +106,9 @@ const LibraryHeader: React.FC<LibraryHeaderProps> = ({
             <span className='ornament' aria-hidden='true'>
               ✳
             </span>
-            {_('{{count}} volumes', { count: currentBooksCount })}
+            <span>
+              {_('No. {{count}} volumes', { count: currentBooksCount })} · {dayjs().format('YYYY-MM-DD')}
+            </span>
           </span>
         </div>
         <div className='exclude-title-bar-mousedown relative flex min-w-0 flex-1 items-center pl-4'>
@@ -205,7 +208,7 @@ const LibraryHeader: React.FC<LibraryHeaderProps> = ({
                   buttonClassName='p-0 min-h-0 flex touch-target items-center justify-center !bg-transparent'
                   toggleButton={
                     <span className='stamp-btn flex items-center gap-1' role='none'>
-                      + Add Book
+                      {_('+ Add Book')}
                     </span>
                   }
                 >
