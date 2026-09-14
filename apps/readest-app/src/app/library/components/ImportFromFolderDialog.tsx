@@ -167,7 +167,7 @@ const DEFAULT_MIN_SIZE_KB = 20;
  * the user's intent and hand it back via {@link onConfirm}.
  *
  * Renders inside the project's shared `<Dialog>` primitive so it picks
- * up the standard chassis (modal-box, eink-aware borders, mobile bottom
+ * up the standard chassis (plate-modal, eink-aware borders, mobile bottom
  * sheet, RTL direction, focus management) instead of reimplementing
  * them locally.
  */
