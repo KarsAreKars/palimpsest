@@ -52,6 +52,10 @@ export interface LearnerExchange {
   question_kind: QuestionKind;
   question: string; // the reader's own words
   resolved: boolean;
+  /** The Prof's graded verdict when this exchange was a check-me the Prof
+   *  graded ([PASS]/[RETRY]). Ground truth for Bloom credit — without it a
+   *  failed check-me counted as resolved (review finding, 2026-09-13). */
+  verdict?: 'pass' | 'retry';
 }
 
 export interface ConceptState {
@@ -84,7 +88,10 @@ export function applyExchange(state: LearnerState, ex: LearnerExchange): Learner
   let bloom: number;
   if (!prev) {
     bloom = 2; // first contact: engaged, not yet mastered
-  } else if (ex.question_kind === 'check-me' && ex.resolved) {
+  } else if (
+    ex.question_kind === 'check-me' &&
+    (ex.verdict ? ex.verdict === 'pass' : ex.resolved)
+  ) {
     bloom = Math.min(6, prev.bloom + 1);
   } else {
     bloom = Math.max(1, prev.bloom - 1); // re-asking = the last explanation failed

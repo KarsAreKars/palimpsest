@@ -73,9 +73,12 @@ export const withAnnotationPages = (
 };
 
 // The body group is optional: the chapter-session verdict tags ([PASS],
-// [RETRY]) carry none.
+// [RETRY]) carry none. WRITE/CAPTION bodies may legitimately contain ']'
+// (LaTeX intervals like 'f: [0,1] → ℝ'), so those capture to the LAST ']' on
+// the line — the model emits them as the final tag — while the block-id tags
+// keep strict first-']' termination.
 const TAG_RE =
-  /\[(POINT|HIGHLIGHT|BOX|ARROW|WRITE|CAPTION|PAGE|CONCEPT|QKIND|PASS|RETRY)(?::([^\]\n]*))?\]/g;
+  /\[(WRITE|CAPTION):([^\n]*)\](?=\n|$)|\[(POINT|HIGHLIGHT|BOX|ARROW|PAGE|CONCEPT|QKIND|PASS|RETRY)(?::([^\]\n]*))?\]/g;
 
 const BLOCK_PREFIX = 'block:';
 
@@ -93,8 +96,8 @@ export function slugifyConcept(text: string): string {
 export function parseAnnotations(text: string): ProfessorAnnotation[] {
   const out: ProfessorAnnotation[] = [];
   for (const match of text.matchAll(TAG_RE)) {
-    const tag = match[1];
-    const body = (match[2] ?? '').trim();
+    const tag = match[1] ?? match[3];
+    const body = (match[2] ?? match[4] ?? '').trim();
     switch (tag) {
       case 'POINT':
       case 'HIGHLIGHT':

@@ -71,7 +71,16 @@ export async function extractHpubPackage(source: File | Blob): Promise<HpubPacka
       const name = entry.filename;
       if (name === HPUB_BOOK_ENTRY) continue;
       const isKnownSidecar = (HPUB_KNOWN_SIDECARS as readonly string[]).includes(name);
-      const isAsset = name.startsWith(HPUB_ASSETS_PREFIX);
+      // Zip-slip guard: asset entries must be single path components — no
+      // subdirectories, no '..', no backslashes. A crafted
+      // 'assets/../../../settings.json' entry would otherwise pass the
+      // prefix check and get written outside the book dir (security audit
+      // P0, 2026-09-13).
+      const isAsset =
+        name.startsWith(HPUB_ASSETS_PREFIX) &&
+        !name.slice(HPUB_ASSETS_PREFIX.length).includes('/') &&
+        !name.includes('..') &&
+        !name.includes('\\');
       if (!isKnownSidecar && !isAsset) continue;
       sidecars.push({ path: name, data: await readEntry(entry) });
     }

@@ -263,6 +263,11 @@ export class NarrationPlayer extends EventTarget {
         nlog(`narration: played unit ${i} to completion`);
       }
       if (token !== this.#playToken) return; // stopped or jumped during playback
+      // Keep RAM flat on multi-hour listens: a played unit never re-buffers
+      // (backward seeks just re-synthesize); only the prefetch window stays.
+      for (const key of this.#audioCache.keys()) {
+        if (key < i) this.#audioCache.delete(key);
+      }
       i++;
     }
     if (token === this.#playToken) {

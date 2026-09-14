@@ -197,6 +197,7 @@ export const useNarration = ({ bookKey }: { bookKey: string }) => {
       if (state.rate !== prev.rate) controller.player.setRate(state.rate);
       const voiceFieldsChanged =
         state.provider !== prev.provider ||
+        state.qwenVoiceId !== prev.qwenVoiceId ||
         state.elevenlabsApiKey !== prev.elevenlabsApiKey ||
         state.elevenlabsVoiceId !== prev.elevenlabsVoiceId ||
         state.elevenlabsTier !== prev.elevenlabsTier ||

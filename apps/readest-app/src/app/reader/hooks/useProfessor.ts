@@ -383,6 +383,12 @@ export const useProfessor = ({ bookKey }: { bookKey: string }) => {
                 (a): a is Extract<ProfessorAnnotation, { kind: 'qkind' }> => a.kind === 'qkind',
               )?.qkind,
             );
+            // A graded verdict ([PASS]/[RETRY]) is the ground truth for
+            // check-me Bloom credit — persist it or a failed check-me counts
+            // as resolved (review finding, 2026-09-13).
+            const verdict = parsed.find(
+              (a): a is Extract<ProfessorAnnotation, { kind: 'verdict' }> => a.kind === 'verdict',
+            )?.verdict;
             const book = getBookData(bookKey)?.book;
             if (appService && book) {
               const ts = new Date();
@@ -393,6 +399,7 @@ export const useProfessor = ({ bookKey }: { bookKey: string }) => {
                 question_kind: qkind,
                 question: q,
                 resolved: true, // settled by the NEXT exchange (learner.ts)
+                verdict,
               })
                 .then((state) => learnerByBook.set(bookKey, state))
                 .catch((e) => console.warn('[professor] learner log failed', e));

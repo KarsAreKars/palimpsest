@@ -87,7 +87,7 @@ const NarrationPanel: React.FC<SettingsPanelPanelProp> = ({ onRegisterReset }) =
               checked={settings.provider === 'edge'}
               onChange={() => settings.setProvider('edge')}
             />
-            <span className='text-sm'>Built-in voices — free, works offline</span>
+            <span className='text-sm'>Built-in voices — free (streams from Microsoft’s service)</span>
           </label>
           <label className='flex cursor-pointer items-center gap-2'>
             <input

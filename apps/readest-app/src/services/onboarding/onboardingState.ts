@@ -79,7 +79,10 @@ export const testChatCompletion = async (
         Authorization: `Bearer ${cfg.apiKey}`,
       },
       body: JSON.stringify({
-        model: cfg.model || 'gpt-4o-mini',
+        // Empty model = the endpoint's server-side default; the old
+        // hardcoded 'gpt-4o-mini' 404s on valid endpoints without that
+        // exact model (review finding, 2026-09-13).
+        ...(cfg.model.trim() ? { model: cfg.model.trim() } : {}),
         max_tokens: 1,
         messages: [{ role: 'user', content: 'Ping.' }],
       }),

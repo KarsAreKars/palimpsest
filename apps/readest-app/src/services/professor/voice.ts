@@ -260,7 +260,10 @@ export class ProfessorVoice {
     const request = () =>
       speech.provider.synthesize(
         { lang: speech.lang, text, voice: speech.voice, pitch: 0, instruct: PROFESSOR_INSTRUCT },
-        new AbortController().signal,
+        // A hung provider socket must not wedge the voice loop forever —
+        // same 30 s lesson the narration player learned (review finding,
+        // 2026-09-13). Each attempt gets a fresh signal.
+        AbortSignal.timeout(30_000),
       );
     try {
       return await request();

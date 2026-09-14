@@ -326,7 +326,12 @@ class Handler(BaseHTTPRequestHandler):
             return
         voice = (payload.get("voice") or "af_heart").lower()
         kokoro_ids = {v["id"] for v in KOKORO_VOICES}
-        if voice not in kokoro_ids and voice not in {v["id"] for v in VOICES}:
+        clone_ids = set(_CLONE_REFS)
+        if (
+            voice not in kokoro_ids
+            and voice not in {v["id"] for v in VOICES}
+            and voice not in clone_ids
+        ):
             voice = "af_heart"
         # Cascade breaker (2026-09-05): a degenerate generation once produced
         # 96s of audio for 303 chars; the client gave up at ~30s but the

@@ -744,6 +744,9 @@ export async function importBook(
       }
       const TEXT_SIDECAR_RE = /\.(md|json|jsonl|txt)$/i;
       for (const sidecar of hpubSidecars) {
+        // Defense in depth next to utils/hpub.ts's entry filter: never write
+        // outside the book dir, whatever the caller passed.
+        if (sidecar.path.includes('..') || sidecar.path.startsWith('/')) continue;
         // Text artifacts are stored as strings so readFile('text') round-trips
         // on every AppService (web keeps the stored type as-is).
         const data = TEXT_SIDECAR_RE.test(sidecar.path)
