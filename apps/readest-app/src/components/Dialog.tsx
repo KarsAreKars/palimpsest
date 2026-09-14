@@ -215,7 +215,7 @@ const Dialog: React.FC<DialogProps> = ({
       />
       <div
         className={clsx(
-          'modal-box settings-content absolute z-20 flex flex-col rounded-none rounded-tl-2xl rounded-tr-2xl p-0 sm:rounded-2xl',
+          'modal-box settings-content absolute z-20 flex flex-col rounded-none p-0 sm:rounded-sm',
           'h-full max-h-full w-full max-w-full',
           window.innerWidth < window.innerHeight
             ? 'sm:h-[50%] sm:w-3/4'
