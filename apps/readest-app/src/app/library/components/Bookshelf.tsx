@@ -27,7 +27,6 @@ import { useSettingsStore } from '@/store/settingsStore';
 import { useLibraryStore } from '@/store/libraryStore';
 import { selectActiveBookDownloadProgress, useTransferStore } from '@/store/transferStore';
 import { useTranslation } from '@/hooks/useTranslation';
-import { useResponsiveSize } from '@/hooks/useResponsiveSize';
 import { navigateToLibrary, navigateToReader, showReaderWindow } from '@/utils/nav';
 import {
   createBookFilter,
@@ -36,17 +35,13 @@ import {
   createGroupSorter,
   createWithinGroupSorter,
   ensureLibraryGroupByType,
-  ensureLibrarySortByType,
-  ensureLibrarySecondarySortByType,
   expandBookshelfSelection,
   getBookSortValue,
   getGroupSortValue,
   compareSortValues,
-  resolveEffectivePrimarySort,
   resolveEffectiveSecondarySort,
   resolveCurrentShelfBooks,
   selectDownloadableBooks,
-  selectRecentShelfBooks,
   withReadingStatus,
   withTimeRemainingLast,
 } from '../utils/libraryUtils';
@@ -61,14 +56,11 @@ import { splitLibraryOpenIds } from '@/utils/audiobook';
 import { useSpatialNavigation } from '../hooks/useSpatialNavigation';
 import DeleteConfirmAlert from '@/components/DeleteConfirmAlert';
 import Spinner from '@/components/Spinner';
-import ModalPortal from '@/components/ModalPortal';
 import BookshelfItem, { generateBookshelfItems } from './BookshelfItem';
 import SelectModeActions from './SelectModeActions';
 import ShareBookDialog from './ShareBookDialog';
 import { useAuth } from '@/context/AuthContext';
-import GroupingModal from './GroupingModal';
 import SetStatusAlert from './SetStatusAlert';
-import RecentShelf, { RECENT_SHELF_BOOK_COUNT } from './RecentShelf';
 import { useOpenBook } from '../hooks/useOpenBook';
 import LibrarySearchResults from './LibrarySearchResults';
 
@@ -108,15 +100,6 @@ interface BookshelfProps {
  * every Bookshelf render (which would break Virtuoso's component identity).
  */
 type BookshelfListContext = {
-  autoColumns: boolean;
-  fixedColumns: number;
-  /**
-   * The recently-read shelf, rendered in the Virtuoso header so it scrolls with
-   * the shelf content (not sticky). `null` when hidden. Passed through context
-   * (rather than recreating the Header component) so Virtuoso keeps the Header
-   * identity stable and does not reset its scroller on every Bookshelf render.
-   */
-  recentShelfHeader: React.ReactNode;
   /**
    * Height (px) of the trailing Footer spacer. Defaults to the baseline
    * breathing room, but grows to clear the fixed select-mode action bar so the
@@ -131,27 +114,23 @@ const BookshelfFooter = ({ context }: { context?: BookshelfListContext }) => (
   <div style={{ height: context?.footerHeight ?? DEFAULT_FOOTER_HEIGHT }} />
 );
 
+// The catalogue grid: ten plates per row on a desktop shelf, eight on a
+// small one, six below. Fixed-cell discipline — plates never break their
+// column under resize (direction contract, split-flap donation).
 const BOOKSHELF_GRID_CLASSES =
-  'bookshelf-items transform-wrapper grid gap-x-4 px-4 sm:gap-x-0 sm:px-2 ' +
-  'grid-cols-3 sm:grid-cols-4 md:grid-cols-6 xl:grid-cols-8 2xl:grid-cols-12';
+  'bookshelf-items transform-wrapper catalogue-grid grid gap-x-[14px] px-4 sm:px-6';
 
 const BOOKSHELF_LIST_CLASSES = 'bookshelf-items transform-wrapper flex flex-col';
 
 const BookshelfGridList: GridComponents<BookshelfListContext>['List'] = React.forwardRef<
   HTMLDivElement,
   GridListProps & { context?: BookshelfListContext }
->(({ children, className, style, context, 'data-testid': testId }, ref) => (
+>(({ children, className, style, 'data-testid': testId }, ref) => (
   <div
     ref={ref}
     data-testid={testId}
     className={clsx(BOOKSHELF_GRID_CLASSES, className)}
-    style={{
-      ...style,
-      gridTemplateColumns:
-        context && !context.autoColumns
-          ? `repeat(${context.fixedColumns}, minmax(0, 1fr))`
-          : undefined,
-    }}
+    style={style}
   >
     {children}
   </div>
@@ -168,9 +147,7 @@ const BookshelfLinearList: Components<unknown, BookshelfListContext>['List'] = R
 ));
 BookshelfLinearList.displayName = 'BookshelfLinearList';
 
-const BookshelfHeader = ({ context }: { context?: BookshelfListContext }) => (
-  <>{context?.recentShelfHeader ?? null}</>
-);
+const BookshelfHeader = (_props: { context?: BookshelfListContext }) => null;
 
 const GRID_VIRTUOSO_COMPONENTS: GridComponents<BookshelfListContext> = {
   List: BookshelfGridList,
@@ -212,23 +189,19 @@ const Bookshelf: React.FC<BookshelfProps> = ({
 
   const groupId = searchParams?.get('group') || '';
   const queryTerm = searchParams?.get('q')?.trim() || null;
-  const viewMode = searchParams?.get('view') || settings.libraryViewMode;
-  const storedSortBy = ensureLibrarySortByType(searchParams?.get('sort'), settings.librarySortBy);
-  const sortOrder = searchParams?.get('order') || (settings.librarySortAscending ? 'asc' : 'desc');
+  // Palimpsest: the shelf is a catalogue — grid is the only view. The view
+  // search-param and the stored setting are ignored (storage untouched).
+  const viewMode: LibraryViewModeType = 'grid';
+  // One internal order only: most recently read first. No sort control is
+  // exposed; URL sort params are ignored.
+  const sortBy = LibrarySortByType.Updated;
+  const sortOrder = 'desc' as 'asc' | 'desc';
   const groupBy = ensureLibraryGroupByType(searchParams?.get('groupBy'), settings.libraryGroupBy);
-  const sortByAuto = settings.librarySortByAuto ?? true;
-  const sortBy = resolveEffectivePrimarySort(storedSortBy, groupBy, sortByAuto);
-  const thenSortByRaw = ensureLibrarySecondarySortByType(
-    searchParams?.get('thenSort'),
-    settings.libraryThenSortBy ?? 'none',
-  );
-  const thenSortBy = resolveEffectiveSecondarySort(thenSortByRaw, groupBy);
-  const thenSortOrder =
-    searchParams?.get('thenOrder') ||
-    ((settings.libraryThenSortAscending ?? true) ? 'asc' : 'desc');
-  const showTimeRemaining =
-    sortBy === LibrarySortByType.TimeRemaining || thenSortBy === LibrarySortByType.TimeRemaining;
-  const coverFit = searchParams?.get('cover') || settings.libraryCoverFit;
+  const thenSortBy = resolveEffectiveSecondarySort('none', groupBy);
+  const thenSortOrder = 'asc' as 'asc' | 'desc';
+  const showTimeRemaining = false;
+  // Covers are always cropped to the plate — the fit path is gone from the grid.
+  const coverFit: LibraryCoverFitType = 'crop';
 
   const [loading, setLoading] = useState(false);
   const [showSelectModeActions, setShowSelectModeActions] = useState(false);
@@ -236,21 +209,15 @@ const Bookshelf: React.FC<BookshelfProps> = ({
   const [bookIdsToDelete, setBookIdsToDelete] = useState<string[]>([]);
   const [showDeleteAlert, setShowDeleteAlert] = useState(false);
   const [showStatusAlert, setShowStatusAlert] = useState(false);
-  const [showGroupingModal, setShowGroupingModal] = useState(false);
   const [importBookUrl] = useState(searchParams?.get('url') || '');
 
   const abortDeletionRef = useRef(false);
   const isImportingBook = useRef(false);
-  const iconSize15 = useResponsiveSize(15);
   const autofocusRef = useAutoFocus<HTMLDivElement>();
   useSpatialNavigation(autofocusRef);
 
   const { setCurrentBookshelf, setLibrary, updateBooks } = useLibraryStore();
   const { setSelectedBooks, getSelectedBooks, toggleSelectedBook } = useLibraryStore();
-  // The raw Set from the store: its identity only changes when the selection
-  // does, so memos keyed on it stay stable across unrelated re-renders
-  // (getSelectedBooks() allocates a fresh array per call).
-  const { selectedBooks: selectedBookSet } = useLibraryStore();
   const { getGroupName } = useLibraryStore();
 
   const uiLanguage = localStorage?.getItem('i18nextLng') || '';
@@ -273,6 +240,7 @@ const Bookshelf: React.FC<BookshelfProps> = ({
       if (params.get('groupBy') === LibraryGroupByType.Group) params.delete('groupBy');
       if (params.get('cover') === 'crop') params.delete('cover');
       if (params.get('view') === 'grid') params.delete('view');
+      if (params.get('thenSort')) params.delete('thenSort');
 
       const newParamString = params.toString();
       const currentParamString = window.location.search.slice(1);
@@ -323,6 +291,7 @@ const Bookshelf: React.FC<BookshelfProps> = ({
 
   const sortedBookshelfItems = useMemo(() => {
     const sortOrderMultiplier = sortOrder === 'asc' ? 1 : -1;
+    void thenSortOrder;
 
     // Separate into ungrouped books and groups
     const ungroupedBooks = currentBookshelfItems.filter((item): item is Book => 'format' in item);
@@ -517,11 +486,6 @@ const Bookshelf: React.FC<BookshelfProps> = ({
     setBookIdsToDelete(expandBookshelfSelection(getSelectedBooks(), sortedBookshelfItems));
     setShowSelectModeActions(false);
     setShowDeleteAlert(true);
-  };
-
-  const groupSelectedBooks = () => {
-    setShowSelectModeActions(false);
-    setShowGroupingModal(true);
   };
 
   const showStatusSelection = () => {
@@ -808,86 +772,25 @@ const Bookshelf: React.FC<BookshelfProps> = ({
     }
   };
 
-  const isGridMode = viewMode === 'grid';
+  const isGridMode = true;
   const hasItems = sortedBookshelfItems.length > 0;
-  // In grid mode the Import-Books "+" tile is rendered as an extra grid cell
-  // after all books. We represent it to Virtuoso as an extra index past the
-  // last book; list mode doesn't have an import tile.
+  // The import tile is an extra grid cell after the last plate.
   const gridTotalCount = hasItems ? sortedBookshelfItems.length + 1 : 0;
 
-  // Recently-read shelf: shares the availability-aware open path with per-item
-  // taps so cloud-only synced books download before opening. `openBook` is
-  // memoized inside the hook, keeping `openRecentBook` -> `recentShelfHeader`
-  // -> `listContext` identities stable (no full-grid re-render churn).
   const { openBook } = useOpenBook({ setLoading, handleBookDownload });
-  const openRecentBook = useCallback((book: Book) => openBook(book), [openBook]);
   const openSearchResult = useCallback(
     (book: Book, cfi: string) => openBook(book, cfi, { highlightSearchResult: true }),
     [openBook],
   );
 
-  // Flat recency slice of the whole library, independent of the main shelf's
-  // sort/grouping. Built from `libraryBooks` (not the sorted/filtered items).
-  const recentBooks = useMemo(
-    () => selectRecentShelfBooks(libraryBooks, RECENT_SHELF_BOOK_COUNT),
-    [libraryBooks],
-  );
-
   // Cover transfer overlay progress for every book on screen, from both
   // sources: queued downloads live in the transfer store, direct ones in
   // `booksTransferProgress`. Merged on read so neither has to reconcile
-  // against the other's lifecycle, and so the recent strip and the grid
-  // cannot disagree about the same book. Selecting `transfers` keeps the
-  // subscription off the store's unrelated UI fields.
+  // against the other's lifecycle.
   const transfers = useTransferStore((state) => state.transfers);
   const transferProgress = useMemo(
     () => ({ ...selectActiveBookDownloadProgress(transfers), ...booksTransferProgress }),
     [transfers, booksTransferProgress],
-  );
-
-  // A top-level quick-resume strip: hidden while searching, inside a group, or
-  // when nothing has been read yet. It stays up in select mode so shelf books
-  // can be selected in place, just like the grid.
-  const showRecentShelf =
-    settings.libraryRecentShelfEnabled && !queryTerm && !groupId && recentBooks.length > 0;
-
-  const recentShelfHeader = useMemo(
-    () =>
-      showRecentShelf ? (
-        <RecentShelf
-          books={recentBooks}
-          coverFit={coverFit as LibraryCoverFitType}
-          autoColumns={settings.libraryAutoColumns}
-          fixedColumns={settings.libraryColumns}
-          isSelectMode={isSelectMode}
-          selectedBooks={selectedBookSet}
-          onOpenBook={openRecentBook}
-          toggleSelection={toggleSelection}
-          handleSetSelectMode={handleSetSelectMode}
-          handleBookUpload={handleBookUpload}
-          handleBookDownload={handleBookDownload}
-          showBookDetailsModal={handleShowDetailsBook}
-          showTimeRemaining={showTimeRemaining}
-          transferProgress={transferProgress}
-        />
-      ) : null,
-    [
-      showRecentShelf,
-      recentBooks,
-      transferProgress,
-      coverFit,
-      settings.libraryAutoColumns,
-      settings.libraryColumns,
-      isSelectMode,
-      selectedBookSet,
-      openRecentBook,
-      toggleSelection,
-      handleSetSelectMode,
-      handleBookUpload,
-      handleBookDownload,
-      handleShowDetailsBook,
-      showTimeRemaining,
-    ],
   );
 
   // Reserve enough trailing space for the fixed select-mode action bar so the
@@ -901,40 +804,23 @@ const Bookshelf: React.FC<BookshelfProps> = ({
 
   const listContext = useMemo<BookshelfListContext>(
     () => ({
-      autoColumns: settings.libraryAutoColumns,
-      fixedColumns: settings.libraryColumns,
-      recentShelfHeader,
       showTimeRemaining,
       footerHeight,
     }),
-    [
-      settings.libraryAutoColumns,
-      settings.libraryColumns,
-      recentShelfHeader,
-      showTimeRemaining,
-      footerHeight,
-    ],
+    [showTimeRemaining, footerHeight],
   );
 
   const renderBookshelfItem = useCallback(
     (index: number) => {
       if (isGridMode && index === sortedBookshelfItems.length) {
         return (
-          <div
-            className={clsx('bookshelf-import-item mx-0 my-2 sm:mx-4 sm:my-4')}
-            style={
-              coverFit === 'fit'
-                ? { display: 'flex', paddingBottom: `${iconSize15 + 24}px` }
-                : undefined
-            }
-          >
+          <div className='bookshelf-import-item catalogue-plate-cell my-2 sm:my-3'>
             <button
               aria-label={_('Import Books')}
               aria-haspopup='menu'
               className={clsx(
-                'bookitem-main border-faint bg-paperlight hover:border-stamp',
-                'flex items-center justify-center border border-dashed',
-                'aspect-[28/41] w-full',
+                'plate plate-notch plate-interactive flex aspect-[2/3] w-full items-center justify-center',
+                'border-dashed-[color-mix(in_srgb,var(--ink)_35%,transparent)]',
               )}
               onClick={(event) => handleImportBooks(event.currentTarget)}
             >
@@ -954,13 +840,13 @@ const Bookshelf: React.FC<BookshelfProps> = ({
       return (
         <BookshelfItem
           item={item}
-          mode={viewMode as LibraryViewModeType}
+          plateNumber={index + 1}
+          mode={viewMode}
           coverFit={coverFit as LibraryCoverFitType}
           isSelectMode={isSelectMode}
           itemSelected={itemSelected}
           setLoading={setLoading}
           toggleSelection={toggleSelection}
-          handleGroupBooks={groupSelectedBooks}
           handleBookUpload={handleBookUpload}
           handleBookDownload={handleBookDownload}
           handleBookDelete={handleBookDelete}
@@ -982,7 +868,6 @@ const Bookshelf: React.FC<BookshelfProps> = ({
       coverFit,
       isSelectMode,
       transferProgress,
-      iconSize15,
       handleImportBooks,
       toggleSelection,
       handleBookUpload,
@@ -1077,7 +962,7 @@ const Bookshelf: React.FC<BookshelfProps> = ({
           <Spinner loading />
         </div>
       )}
-      {!showGroupingModal && isSelectMode && showSelectModeActions && (
+      {isSelectMode && showSelectModeActions && (
         <SelectModeActions
           selectedBooks={selectedBooks}
           safeAreaBottom={safeAreaInsets?.bottom || 0}
@@ -1097,7 +982,6 @@ const Bookshelf: React.FC<BookshelfProps> = ({
           onSendNearby={sendSelectedNearby}
           canDownload={downloadableBooks.length > 0}
           onOpen={openSelectedBooks}
-          onGroup={groupSelectedBooks}
           onDetails={openBookDetails}
           onStatus={showStatusSelection}
           onDownload={downloadSelectedBooks}
@@ -1105,23 +989,6 @@ const Bookshelf: React.FC<BookshelfProps> = ({
           onDelete={deleteSelectedBooks}
           onCancel={() => handleSetSelectMode(false)}
         />
-      )}
-      {showGroupingModal && selectedBooks.length > 0 && (
-        <ModalPortal>
-          <GroupingModal
-            libraryBooks={libraryBooks}
-            selectedBooks={selectedBooks}
-            parentGroupName={getGroupName(groupId) || ''}
-            onCancel={() => {
-              setShowGroupingModal(false);
-              setShowSelectModeActions(true);
-            }}
-            onConfirm={() => {
-              setShowGroupingModal(false);
-              handleSetSelectMode(false);
-            }}
-          />
-        </ModalPortal>
       )}
       {showDeleteAlert && (
         <div

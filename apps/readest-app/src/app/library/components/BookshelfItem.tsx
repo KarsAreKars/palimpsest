@@ -126,9 +126,10 @@ interface BookshelfItemProps {
   isSelectMode: boolean;
   itemSelected: boolean;
   transferProgress: number | null;
+  /** The book's position in the catalogue (1-based) — typed on the plate. */
+  plateNumber?: number;
   setLoading: React.Dispatch<React.SetStateAction<boolean>>;
   toggleSelection: (hash: string) => void;
-  handleGroupBooks: () => void;
   handleBookDownload: (
     book: Book,
     options?: { redownload?: boolean; queued?: boolean },
@@ -149,9 +150,9 @@ const BookshelfItem: React.FC<BookshelfItemProps> = ({
   isSelectMode,
   itemSelected,
   transferProgress,
+  plateNumber,
   setLoading,
   toggleSelection,
-  handleGroupBooks,
   handleBookUpload,
   handleBookDownload,
   handleSetSelectMode,
@@ -207,16 +208,6 @@ const BookshelfItem: React.FC<BookshelfItemProps> = ({
         action: async () => {
           if (!isSelectMode) handleSetSelectMode(true);
           toggleSelection(book.hash);
-        },
-      },
-      group: {
-        text: _('Group Books'),
-        action: async () => {
-          if (!isSelectMode) handleSetSelectMode(true);
-          if (!itemSelected) {
-            toggleSelection(book.hash);
-          }
-          handleGroupBooks();
         },
       },
       markFinished: {
@@ -310,16 +301,6 @@ const BookshelfItem: React.FC<BookshelfItemProps> = ({
         action: async () => {
           if (!isSelectMode) handleSetSelectMode(true);
           toggleSelection(group.id);
-        },
-      },
-      {
-        text: _('Group Books'),
-        action: async () => {
-          if (!isSelectMode) handleSetSelectMode(true);
-          if (!itemSelected) {
-            toggleSelection(group.id);
-          }
-          handleGroupBooks();
         },
       },
       {
@@ -470,8 +451,7 @@ const BookshelfItem: React.FC<BookshelfItemProps> = ({
       <div
         className={clsx(
           'visible-focus-inset-2 group',
-          mode === 'grid' &&
-            'sm:hover:bg-paperlight/50 flex h-full flex-col px-0 py-2 sm:rounded-[2px] sm:px-4 sm:py-4',
+          mode === 'grid' && 'plate-interactive flex h-full flex-col px-0 py-2 sm:py-3',
           mode === 'list' && 'border-ink/20 flex flex-col border-b py-2',
           appService?.isMobileApp && 'no-context-menu',
           pressing && mode === 'grid' ? 'not-eink:scale-95' : 'scale-100',
@@ -498,6 +478,7 @@ const BookshelfItem: React.FC<BookshelfItemProps> = ({
               isSelectMode={isSelectMode}
               bookSelected={itemSelected}
               transferProgress={transferProgress}
+              plateNumber={plateNumber}
               handleBookUpload={handleBookUpload}
               handleBookDownload={handleBookDownload}
               showBookDetailsModal={showBookDetailsModal}

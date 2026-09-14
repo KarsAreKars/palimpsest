@@ -23,7 +23,6 @@ import { isAudiobook } from '@/utils/audiobook';
 import { formatAuthors, formatDescription, formatSeries } from '@/utils/book';
 import { formatCompactTime } from '@/utils/time';
 import { INDETERMINATE_PROGRESS } from '@/utils/transfer';
-import ReadingProgress from './ReadingProgress';
 import BookCover from '@/components/BookCover';
 import { ClothCover } from '@/components/apothecary';
 import { useExtractionStatus } from '@/services/hpub/useExtractionStatus';
@@ -35,6 +34,8 @@ interface BookItemProps {
   isSelectMode: boolean;
   bookSelected: boolean;
   transferProgress: number | null;
+  /** The book's position in the catalogue (1-based) — typed on the plate. */
+  plateNumber?: number;
   handleBookUpload: (book: Book) => void;
   handleBookDownload: (book: Book, options?: { redownload?: boolean; queued?: boolean }) => void;
   showBookDetailsModal: (book: Book) => void;
@@ -48,10 +49,10 @@ const BookItem: React.FC<BookItemProps> = ({
   isSelectMode,
   bookSelected,
   transferProgress,
+  plateNumber,
   handleBookUpload,
   handleBookDownload,
   showBookDetailsModal,
-  showTimeRemaining,
 }) => {
   const _ = useTranslation();
   const router = useRouter();
@@ -60,7 +61,7 @@ const BookItem: React.FC<BookItemProps> = ({
   const { settings } = useSettingsStore();
   const iconSize15 = useResponsiveSize(15);
 
-  const [coverAspect, setCoverAspect] = useState<number | null>(null);
+  const [, setCoverAspect] = useState<number | null>(null);
   useEffect(() => {
     setCoverAspect(null);
   }, [book.hash, book.metadata?.coverImageUrl, book.coverImageUrl]);
@@ -68,17 +69,14 @@ const BookItem: React.FC<BookItemProps> = ({
   // Real cover art when the book has it; cloth + typed label otherwise.
   const hasCoverArt = !!(book.metadata?.coverImageUrl || book.coverImageUrl);
 
-  const CELL_ASPECT_RATIO = 28 / 41;
-  const fitCoverInGrid = mode === 'grid' && coverFit === 'fit' && coverAspect !== null;
-  const shouldShrinkWidth = fitCoverInGrid && coverAspect! < CELL_ASPECT_RATIO;
-  const bookitemMainStyle = fitCoverInGrid
-    ? {
-        aspectRatio: coverAspect!,
-        ...(shouldShrinkWidth ? { width: `${(coverAspect! / CELL_ASPECT_RATIO) * 100}%` } : {}),
-      }
-    : undefined;
-
+  // The catalogue plate: covers are always cropped to a uniform 2:3 frame —
+  // every book carries equal visual weight. The fit path is gone from the grid.
   const seriesText = formatSeries(book.metadata?.series, book.metadata?.seriesIndex);
+  const progressPercentage =
+    book.progress && book.progress[1] > 0
+      ? Math.max(0, Math.min(100, Math.round((book.progress[0] / book.progress[1]) * 100)))
+      : null;
+  const plateLabel = plateNumber ? `№ ${String(plateNumber).padStart(3, '0')}` : '';
 
   // One condition drives both the cover overlay and the hiding of the row's
   // transfer buttons, so the cover can never end up showing neither. The
@@ -144,24 +142,23 @@ const BookItem: React.FC<BookItemProps> = ({
       <div
         className={clsx(
           'bookitem-main relative flex justify-center overflow-hidden',
-          !fitCoverInGrid && 'aspect-[28/41]',
-          coverFit === 'crop' && 'shadow-[var(--lift-shadow)]',
-          mode === 'grid' && 'items-end',
+          mode === 'grid' && 'plate plate-notch aspect-[2/3] items-end',
           mode === 'list' && 'min-w-20 items-center',
         )}
-        style={bookitemMainStyle}
       >
+        {mode === 'grid' && plateLabel && (
+          <span className='plate-num catalogue-plate-num'>{plateLabel}</span>
+        )}
         {/* Apothecary: real cover art is a must — the cloth + typed label is
             the fallback for books that have none. */}
         {hasCoverArt ? (
           <BookCover
             mode={mode}
             book={book}
-            coverFit={coverFit}
-            showSpine={settings.librarySkeuomorphicCovers}
+            coverFit={mode === 'grid' ? 'crop' : coverFit}
+            showSpine={mode === 'list' && settings.librarySkeuomorphicCovers}
             imageClassName={clsx(
-              'shadow-[var(--lift-shadow)]',
-              settings.librarySkeuomorphicCovers ? 'rounded-none' : 'rounded-sm',
+              mode === 'grid' ? 'rounded-none' : 'shadow-[var(--lift-shadow)] rounded-sm',
             )}
             onAspectRatioChange={setCoverAspect}
           />
@@ -203,7 +200,7 @@ const BookItem: React.FC<BookItemProps> = ({
           // silently lacks its content.md — running, failed, or rejected.
           <div
             className={clsx(
-              'absolute bottom-1 left-1 right-1 flex items-center gap-1 rounded-[2px] px-1.5 py-1',
+              'absolute bottom-1 left-1 right-1 flex items-center gap-1 px-1.5 py-1',
               'text-[0.6rem] leading-tight text-white',
               extractionBadge.tone === 'running' && 'bg-black/60',
               extractionBadge.tone === 'failed' && 'bg-stamp/85',
@@ -226,140 +223,133 @@ const BookItem: React.FC<BookItemProps> = ({
           </div>
         )}
       </div>
-      <div
-        className={clsx(
-          'flex w-full flex-col p-0',
-          mode === 'grid' && 'pt-2',
-          mode === 'list' && 'gap-1 py-0',
-        )}
-      >
-        <div className={clsx('min-w-0 flex-1', mode === 'list' && 'flex flex-col gap-1')}>
-          <h4
-            className={clsx(
-              'typed overflow-hidden text-ellipsis text-ink',
-              mode === 'grid' && 'block whitespace-nowrap text-[9px]',
-              mode === 'list' && 'line-clamp-1 text-[11px]',
-            )}
-          >
+      {mode === 'grid' && (
+        // The specimen label: three lines under the plate, outside the frame.
+        <div className='catalogue-label flex w-full flex-col gap-[3px] pt-2'>
+          <h4 className='plate-title text-[13px] leading-tight' title={book.title}>
             {book.title}
           </h4>
-          {mode === 'list' && (
+          <p className='plate-meta truncate leading-tight'>
+            {[formatAuthors(book.author, book.primaryLanguage), progressPercentage !== null
+              ? `${progressPercentage}%`
+              : null]
+              .filter(Boolean)
+              .join(' · ')}
+          </p>
+          <p className='plate-num'>
+            {[plateLabel, book.format].filter(Boolean).join(' · ')}
+          </p>
+        </div>
+      )}
+      {mode === 'list' && (
+        <div className='flex w-full flex-col gap-1 py-0'>
+          <div className='min-w-0 flex-1'>
+            <h4 className='typed overflow-hidden text-ellipsis whitespace-nowrap text-[11px] text-ink'>
+              {book.title}
+            </h4>
             <p className='text-paperlight line-clamp-1 text-sm'>
               {formatAuthors(book.author, book.primaryLanguage) || ''}
             </p>
-          )}
-        </div>
-        {mode === 'list' && seriesText && (
-          <p className='text-paperlight line-clamp-1 text-sm'>{seriesText}</p>
-        )}
-        {mode === 'list' && (
+          </div>
+          {seriesText && <p className='text-paperlight line-clamp-1 text-sm'>{seriesText}</p>}
           <h4 className='text-paperlight line-clamp-1 text-sm'>
             {formatDescription(book.metadata?.description)}
           </h4>
-        )}
-        <div
-          className={clsx(
-            'flex items-center',
-            book.progress || book.readingStatus || isAbsBook ? 'justify-between' : 'justify-end',
-          )}
-          style={{
-            height: `${iconSize15}px`,
-            minHeight: `${iconSize15}px`,
-          }}
-        >
-          {isAbsBook ? (
-            <div
-              className='text-paperlight/70 flex min-w-0 justify-between text-xs'
-              role='status'
-            >
-              <span className='truncate tabular-nums'>
-                {isPodcastShow ? episodeCountLabel : absTimeLabel}
-              </span>
-            </div>
-          ) : (
-            (book.progress || book.readingStatus) && (
-              <div className='w-full'>
-                {/* the progress hairline: faint track, ink fill, typed % */}
-                {book.progress && book.progress[1] > 1 && book.readingStatus !== 'finished' && (
-                  <div className='progress-track mb-1 w-full'>
-                    <div
-                      className='progress-fill'
-                      style={{
-                        width: `${Math.min(100, Math.round((book.progress[0] / book.progress[1]) * 100))}%`,
-                      }}
-                    />
-                  </div>
-                )}
-                <div className='typed text-mutedink text-[8.5px]'>
-                  <ReadingProgress book={book} showTimeRemaining={showTimeRemaining} />
-                </div>
-              </div>
-            )
-          )}
-          <div className='flex shrink-0 items-center justify-center gap-x-2'>
-            {!appService?.isMobile && (
-              <button
-                aria-label={_('Show Book Details')}
-                className='show-detail-button -m-2 p-2 sm:opacity-0 sm:group-hover:opacity-100'
-                onPointerDown={(e) => e.stopPropagation()}
-                onClick={() => {
-                  showBookDetailsModal(book);
-                }}
-              >
-                <div className='pt-[2px] sm:pt-[1px]'>
-                  <LiaInfoCircleSolid size={iconSize15} />
-                </div>
-              </button>
+          <div
+            className={clsx(
+              'flex items-center',
+              book.progress || book.readingStatus || isAbsBook ? 'justify-between' : 'justify-end',
             )}
-            {(book.hasNarration || isAbsBook) && (
+            style={{
+              height: `${iconSize15}px`,
+              minHeight: `${iconSize15}px`,
+            }}
+          >
+            {isAbsBook ? (
               <div
-                className='pt-[2px] sm:pt-[1px]'
-                title={isAbsBook ? _('Audiobook') : _('Includes narration')}
-                aria-label={isAbsBook ? _('Audiobook') : _('Includes narration')}
+                className='text-paperlight/70 flex min-w-0 justify-between text-xs'
+                role='status'
               >
-                <LiaHeadphonesSolid size={iconSize15} />
+                <span className='truncate tabular-nums'>
+                  {isPodcastShow ? episodeCountLabel : absTimeLabel}
+                </span>
               </div>
+            ) : (
+              (book.progress || book.readingStatus) && (
+                <div className='w-full'>
+                  {book.progress && book.progress[1] > 1 && book.readingStatus !== 'finished' && (
+                    <div className='progress-track mb-1 w-full'>
+                      <div
+                        className='progress-fill'
+                        style={{
+                          width: `${Math.min(100, Math.round((book.progress[0] / book.progress[1]) * 100))}%`,
+                        }}
+                      />
+                    </div>
+                  )}
+                  <div className='typed text-mutedink text-[8.5px]'>
+                    {progressPercentage !== null ? `${progressPercentage}%` : ''}
+                  </div>
+                </div>
+              )
             )}
-            {isTransferring
-              ? // Progress is rendered as a cover overlay; keep the row's action
-                // buttons hidden while a transfer is active. Same condition as
-                // the overlay, so a book can never show neither.
-                null
-              : // A feed book has no file to move either way, so it never gets a
-                // cloud badge — it would only queue a transfer that fails (#5307).
-                // Same for an ABS book: it streams from the server and never has
-                // uploadedAt/downloadedAt set, so without this check the badge
-                // would render forever and Upload would always fail.
-                !isFeedBook(book) &&
-                !isAudiobook(book) &&
-                (!book.uploadedAt || (book.uploadedAt && !book.downloadedAt)) && (
-                  <button
-                    aria-label={!book.uploadedAt ? _('Upload Book') : _('Download Book')}
-                    className='show-cloud-button -m-2 p-2'
-                    onPointerDown={(e) => e.stopPropagation()}
-                    onClick={() => {
-                      if (!user) {
-                        navigateToLogin(router);
-                        return;
-                      }
-                      if (!book.uploadedAt) {
-                        handleBookUpload(book);
-                      } else if (!book.downloadedAt) {
-                        handleBookDownload(book, { queued: true });
-                      }
-                    }}
-                  >
-                    {!book.uploadedAt && isReadestCloudStorageActive(settings) && (
-                      <LiaCloudUploadAltSolid size={iconSize15} />
-                    )}
-                    {book.uploadedAt && !book.downloadedAt && (
-                      <LiaCloudDownloadAltSolid size={iconSize15} />
-                    )}
-                  </button>
-                )}
+            <div className='flex shrink-0 items-center justify-center gap-x-2'>
+              {!appService?.isMobile && (
+                <button
+                  aria-label={_('Show Book Details')}
+                  className='show-detail-button -m-2 p-2 sm:opacity-0 sm:group-hover:opacity-100'
+                  onPointerDown={(e) => e.stopPropagation()}
+                  onClick={() => {
+                    showBookDetailsModal(book);
+                  }}
+                >
+                  <div className='pt-[2px] sm:pt-[1px]'>
+                    <LiaInfoCircleSolid size={iconSize15} />
+                  </div>
+                </button>
+              )}
+              {(book.hasNarration || isAbsBook) && (
+                <div
+                  className='pt-[2px] sm:pt-[1px]'
+                  title={isAbsBook ? _('Audiobook') : _('Includes narration')}
+                  aria-label={isAbsBook ? _('Audiobook') : _('Includes narration')}
+                >
+                  <LiaHeadphonesSolid size={iconSize15} />
+                </div>
+              )}
+              {isTransferring
+                ? null
+                : !isFeedBook(book) &&
+                  !isAudiobook(book) &&
+                  (!book.uploadedAt || (book.uploadedAt && !book.downloadedAt)) && (
+                    <button
+                      aria-label={!book.uploadedAt ? _('Upload Book') : _('Download Book')}
+                      className='show-cloud-button -m-2 p-2'
+                      onPointerDown={(e) => e.stopPropagation()}
+                      onClick={() => {
+                        if (!user) {
+                          navigateToLogin(router);
+                          return;
+                        }
+                        if (!book.uploadedAt) {
+                          handleBookUpload(book);
+                        } else if (!book.downloadedAt) {
+                          handleBookDownload(book, { queued: true });
+                        }
+                      }}
+                    >
+                      {!book.uploadedAt && isReadestCloudStorageActive(settings) && (
+                        <LiaCloudUploadAltSolid size={iconSize15} />
+                      )}
+                      {book.uploadedAt && !book.downloadedAt && (
+                        <LiaCloudDownloadAltSolid size={iconSize15} />
+                      )}
+                    </button>
+                  )}
+            </div>
           </div>
         </div>
-      </div>
+      )}
     </div>
   );
 };

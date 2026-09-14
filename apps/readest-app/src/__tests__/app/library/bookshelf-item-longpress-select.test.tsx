@@ -87,8 +87,7 @@ const Harness = ({ onToggle }: { onToggle: (id: string) => void }) => {
         setSelected((prev) => !prev);
         onToggle(id);
       }}
-      handleGroupBooks={vi.fn()}
-      handleBookDownload={vi.fn(async () => true)}
+          handleBookDownload={vi.fn(async () => true)}
       handleBookUpload={vi.fn(async () => true)}
       handleBookDelete={vi.fn(async () => true)}
       handleSetSelectMode={setIsSelectMode}

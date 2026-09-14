@@ -176,3 +176,60 @@
 }
 
 } /* @layer components */
+
+/* ---------- the antiquarian catalogue (direction-library.md) ---------- */
+/* Ten plates per row on a desktop shelf, eight on a small one, six below.
+   Fixed-cell discipline: plates never break their column under resize. */
+.catalogue-grid {
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  row-gap: 20px;
+}
+@media (min-width: 1024px) {
+  .catalogue-grid {
+    grid-template-columns: repeat(8, minmax(0, 1fr));
+  }
+}
+@media (min-width: 1280px) {
+  .catalogue-grid {
+    grid-template-columns: repeat(10, minmax(0, 1fr));
+  }
+}
+/* the typed catalogue number, top-left inside the plate frame */
+.catalogue-plate-num {
+  position: absolute;
+  top: 7px;
+  left: 9px;
+  z-index: 2;
+  /* legible over any cover, on paper and on dark */
+  color: var(--paper-light);
+  text-shadow:
+    0 0 3px rgba(0, 0, 0, 0.85),
+    0 0 6px rgba(0, 0, 0, 0.5);
+}
+[data-theme='apothecary-dark'] .catalogue-plate-num {
+  text-shadow:
+    0 0 3px rgba(0, 0, 0, 0.9),
+    0 0 6px rgba(0, 0, 0, 0.6);
+}
+/* the specimen label: three lines under the plate, outside the frame */
+.catalogue-label {
+  padding-left: 1px;
+  padding-right: 1px;
+}
+/* the masthead: wordmark left, typed catalogue line right */
+.catalogue-masthead-wordmark {
+  gap: 14px;
+}
+.catalogue-masthead-wordmark .font-display {
+  font-family: 'Fraunces', Georgia, serif;
+  font-size: 20px;
+  letter-spacing: 0.06em;
+  color: var(--ink);
+  white-space: nowrap;
+}
+.catalogue-masthead-count {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+}

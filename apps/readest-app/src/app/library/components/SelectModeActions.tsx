@@ -10,7 +10,6 @@ import {
   MdWifiTethering,
 } from 'react-icons/md';
 import { IoShareSocialOutline } from 'react-icons/io5';
-import { LuFolderPlus } from 'react-icons/lu';
 import { useKeyDownActions } from '@/hooks/useKeyDownActions';
 import { useTranslation } from '@/hooks/useTranslation';
 import { isMd5 } from '@/utils/md5';
@@ -28,7 +27,6 @@ interface SelectModeActionsProps {
   // selected book is either already on this device or was never uploaded.
   canDownload?: boolean;
   onOpen: () => void;
-  onGroup: () => void;
   onDetails: () => void;
   onStatus: () => void;
   // Queues every cloud-only book in the selection, groups included (#5244).
@@ -57,7 +55,6 @@ const SelectModeActions: React.FC<SelectModeActionsProps> = ({
   sendEnabled = true,
   canDownload = false,
   onOpen,
-  onGroup,
   onDetails,
   onStatus,
   onDownload,
@@ -119,16 +116,6 @@ const SelectModeActions: React.FC<SelectModeActionsProps> = ({
         >
           <MdOpenInNew />
           <div>{_('Open')}</div>
-        </button>
-        <button
-          onClick={onGroup}
-          className={clsx(
-            'flex flex-col items-center justify-center gap-1',
-            !hasSelection && 'chrome-ghost-disabled opacity-50',
-          )}
-        >
-          <LuFolderPlus />
-          <div>{_('Group')}</div>
         </button>
         <button
           onClick={onStatus}

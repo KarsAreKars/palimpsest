@@ -107,7 +107,6 @@ import { Toast } from '@/components/Toast';
 import {
   createBookGroups,
   ensureLibraryGroupByType,
-  findGroupById,
   getBreadcrumbs,
 } from './utils/libraryUtils';
 import Spinner from '@/components/Spinner';
@@ -115,7 +114,6 @@ import LibraryHeader from './components/LibraryHeader';
 import Bookshelf from './components/Bookshelf';
 import LibraryEmptyState from './components/LibraryEmptyState';
 import ImportMenuPopup from './components/ImportMenuPopup';
-import GroupHeader from './components/GroupHeader';
 import FailedImportsDialog, { FailedImport } from './components/FailedImportsDialog';
 import ImportFromFolderDialog, {
   ImportFromFolderResult,
@@ -302,14 +300,6 @@ const LibraryPageContent = ({ searchParams }: { searchParams: ReadonlyURLSearchP
     initialAutoImport?: boolean;
   } | null>(null);
   const [currentGroupPath, setCurrentGroupPath] = useState<string | undefined>(undefined);
-  const [currentVirtualGroup, setCurrentVirtualGroup] = useState<{
-    groupBy:
-      | typeof LibraryGroupByType.Series
-      | typeof LibraryGroupByType.Author
-      | typeof LibraryGroupByType.Tag
-      | typeof LibraryGroupByType.Subject;
-    groupName: string;
-  } | null>(null);
   // Direct (non-queued) download progress, keyed by book hash. Entries are
   // added and removed by useBookTransferActions, its only writer.
   const [booksTransferProgress, setBooksTransferProgress] = useState<{
@@ -902,39 +892,6 @@ const LibraryPageContent = ({ searchParams }: { searchParams: ReadonlyURLSearchP
     const group = searchParams?.get('group') || '';
     restoreScrollPosition(group);
   }, [searchParams, restoreScrollPosition]);
-
-  // Track the current virtual group for the navigation header.
-  useEffect(() => {
-    const groupId = searchParams?.get('group') || '';
-    const groupByParam = searchParams?.get('groupBy');
-    const groupBy = ensureLibraryGroupByType(groupByParam, settings.libraryGroupBy);
-
-    if (
-      groupId &&
-      (groupBy === LibraryGroupByType.Series ||
-        groupBy === LibraryGroupByType.Author ||
-        groupBy === LibraryGroupByType.Tag ||
-        groupBy === LibraryGroupByType.Subject)
-    ) {
-      // Find the group to get its name
-      const allGroups = createBookGroups(
-        libraryBooks.filter((b) => !b.deletedAt),
-        groupBy,
-      );
-      const targetGroup = findGroupById(allGroups, groupId);
-
-      if (targetGroup) {
-        setCurrentVirtualGroup({
-          groupBy,
-          groupName: targetGroup.displayName || targetGroup.name,
-        });
-      } else {
-        setCurrentVirtualGroup(null);
-      }
-    } else {
-      setCurrentVirtualGroup(null);
-    }
-  }, [libraryBooks, searchParams, settings.libraryGroupBy]);
 
   useEffect(() => {
     if (demoBooks.length > 0 && libraryLoaded) {
@@ -2079,12 +2036,6 @@ const LibraryPageContent = ({ searchParams }: { searchParams: ReadonlyURLSearchP
             })}
           </div>
         </div>
-      )}
-      {currentVirtualGroup && (
-        <GroupHeader
-          groupBy={currentVirtualGroup.groupBy}
-          groupName={currentVirtualGroup.groupName}
-        />
       )}
       {showBookshelf &&
         (libraryBooks.some((book) => !book.deletedAt) ? (

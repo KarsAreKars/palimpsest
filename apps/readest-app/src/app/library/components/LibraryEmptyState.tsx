@@ -1,6 +1,5 @@
 import * as React from 'react';
 import clsx from 'clsx';
-import { PiBooks } from 'react-icons/pi';
 
 import { useEnv } from '@/context/EnvContext';
 import { useAuth } from '@/context/AuthContext';
@@ -22,13 +21,13 @@ const LibraryEmptyState: React.FC<LibraryEmptyStateProps> = ({ onImport }) => {
   return (
     <div className='hero-content text-paperlight text-center'>
       <div className='flex max-w-md flex-col items-center'>
-        <PiBooks aria-hidden className='text-ink/60 mb-10 size-16' />
-        <h1 className='mb-5 text-balance text-4xl font-semibold leading-tight tracking-tight'>
-          {_('Start your library')}
-        </h1>
-        <p className='text-ink/70 mb-12 text-pretty text-base leading-relaxed'>
+        <span className='ornament mb-6' aria-hidden='true'>
+          ✳
+        </span>
+        <h1 className='plate-title mb-3 text-2xl'>{_('The shelf awaits its first volume')}</h1>
+        <p className='plate-meta mb-12 text-pretty leading-relaxed'>
           {isMobile
-            ? _('Pick a book from your device to add it to your library.')
+            ? _('Pick a book from your device to add it to the catalogue.')
             : _('Drop a book anywhere on this window, or pick one from your computer.')}
         </p>
         <div className='flex w-full max-w-xs flex-col gap-3'>

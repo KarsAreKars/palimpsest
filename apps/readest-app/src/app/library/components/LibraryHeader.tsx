@@ -3,7 +3,6 @@ import React, { useRef } from 'react';
 import { FaChevronDown, FaSearch } from 'react-icons/fa';
 import { MdManageSearch } from 'react-icons/md';
 import { PiSelectionAll, PiSelectionAllFill } from 'react-icons/pi';
-import { PiDotsThreeCircle } from 'react-icons/pi';
 import { MdOutlineMenu } from 'react-icons/md';
 import { IoMdCloseCircle } from 'react-icons/io';
 
@@ -13,14 +12,12 @@ import { useTranslation } from '@/hooks/useTranslation';
 import type { LibrarySearchConfig, LibrarySearchTarget } from '@/types/book';
 import { useLibraryStore } from '@/store/libraryStore';
 import { useTrafficLight } from '@/hooks/useTrafficLight';
-import { useResponsiveSize } from '@/hooks/useResponsiveSize';
 import useShortcuts from '@/hooks/useShortcuts';
 import WindowButtons from '@/components/WindowButtons';
 import Dropdown from '@/components/Dropdown';
 import SettingsMenu from './SettingsMenu';
 import ImportMenu from './ImportMenu';
 import LibrarySearchOptionsMenu from './LibrarySearchOptionsMenu';
-import ViewMenu from './ViewMenu';
 
 interface LibraryHeaderProps {
   isSelectMode: boolean;
@@ -70,7 +67,6 @@ const LibraryHeader: React.FC<LibraryHeaderProps> = ({
 
   const headerRef = useRef<HTMLDivElement>(null);
   const { isTrafficLightVisible } = useTrafficLight(headerRef);
-  const iconSize18 = useResponsiveSize(18);
   const { safeAreaInsets: insets } = useThemeStore();
 
   useShortcuts({
@@ -103,7 +99,16 @@ const LibraryHeader: React.FC<LibraryHeaderProps> = ({
       }}
     >
       <div className='flex w-full items-center justify-between space-x-6 sm:space-x-12'>
-        <div className='exclude-title-bar-mousedown relative flex w-full items-center pl-4'>
+        <div className='catalogue-masthead-wordmark exclude-title-bar-mousedown flex shrink-0 items-baseline pl-4'>
+          <span className='font-display'>Palimpsest</span>
+          <span className='plate-num catalogue-masthead-count'>
+            <span className='ornament' aria-hidden='true'>
+              ✳
+            </span>
+            {_('{{count}} volumes', { count: currentBooksCount })}
+          </span>
+        </div>
+        <div className='exclude-title-bar-mousedown relative flex min-w-0 flex-1 items-center pl-4'>
           <div className='relative flex h-9 w-full items-center sm:h-7'>
             {/* The icon doubles as the mode indicator and toggle: magnifier
                 for book search, full-text glyph for content search. */}
@@ -252,18 +257,10 @@ const LibraryHeader: React.FC<LibraryHeaderProps> = ({
         ) : (
           <div className='flex h-full items-center gap-x-2 sm:gap-x-4'>
             <Dropdown
-              label={_('View Menu')}
-              className='exclude-title-bar-mousedown dropdown-bottom dropdown-end'
-              buttonClassName='chrome-ghost h-8 min-h-8 w-8 p-0'
-              toggleButton={<PiDotsThreeCircle role='none' size={iconSize18} />}
-            >
-              <ViewMenu />
-            </Dropdown>
-            <Dropdown
               label={_('Settings Menu')}
               className='exclude-title-bar-mousedown dropdown-bottom dropdown-end'
               buttonClassName='chrome-ghost h-8 min-h-8 w-8 p-0'
-              toggleButton={<MdOutlineMenu role='none' size={iconSize18} />}
+              toggleButton={<MdOutlineMenu role='none' size={18} />}
             >
               <SettingsMenu onPullLibrary={onPullLibrary} />
             </Dropdown>

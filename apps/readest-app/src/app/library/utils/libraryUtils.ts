@@ -838,7 +838,6 @@ export const createGroupSorter =
 
 export type BookContextMenuItemId =
   | 'select'
-  | 'group'
   | 'markFinished'
   | 'markUnread'
   | 'markAbandoned'
@@ -965,7 +964,7 @@ export const getBookContextMenuItemIds = (
   book: Book,
   opts?: { localSend?: boolean },
 ): BookContextMenuItemId[] => {
-  const ids: BookContextMenuItemId[] = ['select', 'group'];
+  const ids: BookContextMenuItemId[] = ['select'];
   ids.push(book.readingStatus === 'finished' ? 'markUnread' : 'markFinished');
   if (book.readingStatus !== 'abandoned') ids.push('markAbandoned');
   // "Clear Status" is offered only when the book has an explicit status set.
