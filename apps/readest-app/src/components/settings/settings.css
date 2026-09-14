@@ -379,6 +379,22 @@
   border-radius: 2px;
   box-shadow: var(--lift-shadow);
 }
+/* The daisyUI contract the markup was written against: a dropdown's menu is
+   hidden until the wrapper gains focus (click) or a submenu is hovered.
+   Without this gate every font menu rendered at once — the overlapping
+   lists in the font sheet. */
+.settings-dropdown > ul.settings-menu {
+  visibility: hidden;
+  opacity: 0;
+  transition:
+    opacity 120ms ease,
+    visibility 120ms;
+}
+.settings-dropdown:focus-within > ul.settings-menu,
+.settings-dropdown > li.settings-dropdown:hover > ul.settings-menu {
+  visibility: visible;
+  opacity: 1;
+}
 
 /* ---------- dropdown wrapper + placement (was daisyui `dropdown` / `-top` / `-bottom` / `-left` / `-end`) ---------- */
 .settings-dropdown {

@@ -10,11 +10,12 @@
  * surface that had it.
  */
 
-
-
-
 /* ---------- ghost button (was `chrome-btn`) ---------- */
-.chrome-btn {
+/* `chrome-ghost` is the alias the reader chrome markup actually uses — keep
+   both names on one rule so header/footer buttons never fall back to bare
+   UA styles (that was the misaligned library icon). */
+.chrome-btn,
+.chrome-ghost {
   font-family: 'Special Elite', 'Courier New', monospace;
   text-transform: uppercase;
   letter-spacing: 0.08em;
@@ -35,6 +36,14 @@
 }
 .chrome-btn:hover {
   background: color-mix(in srgb, var(--ink) 8%, transparent);
+}
+/* icon-only buttons: react-icons size to 1em, and the chrome typeface runs
+   at 10px — without this the reader chrome icons shrink to specks. */
+.chrome-btn > svg,
+.chrome-btn > * > svg {
+  width: 16px;
+  height: 16px;
+  flex: none;
 }
 .chrome-btn:disabled,
 .chrome-btn:disabled:hover {
@@ -252,3 +261,12 @@
   accent-color: var(--stamp);
 }
 
+/* ---------- footer always visible (Palimpsest round-7) ---------- */
+/* The reader footer carries the only always-on progress chrome. Hover-gating
+   it (opacity/transform utilities) read as a bug, so pin it visible here —
+   unlayered on purpose, above the Tailwind utilities it overrides. */
+.footer-bar {
+  opacity: 1 !important;
+  transform: none !important;
+  pointer-events: auto !important;
+}

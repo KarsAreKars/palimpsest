@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-onboarding-run-voice-bootstrap"
+description = "Enables the onboarding_run_voice_bootstrap command without any pre-configured scope."
+commands.allow = ["onboarding_run_voice_bootstrap"]
+
+[[permission]]
+identifier = "deny-onboarding-run-voice-bootstrap"
+description = "Denies the onboarding_run_voice_bootstrap command without any pre-configured scope."
+commands.deny = ["onboarding_run_voice_bootstrap"]

@@ -34,7 +34,15 @@ const NavButton: React.FC<{
     aria-label={label}
     onClick={disabled ? undefined : onClick}
   >
-    {icon}
+    {/* react-icons size to 1em; the chrome typeface runs at 10px, so force
+        explicit dimensions + colour here instead of relying on CSS that can
+        lose to specificity. */}
+    {React.isValidElement(icon)
+      ? React.cloneElement(icon as React.ReactElement<{ size?: number | string; color?: string }>, {
+          size: 16,
+          color: 'currentColor',
+        })
+      : icon}
   </button>
 );
 

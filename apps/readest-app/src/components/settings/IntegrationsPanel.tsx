@@ -83,7 +83,9 @@ const IntegrationsPanel: React.FC = () => {
       <div className='w-full px-4'>
         <h2 className='mb-1.5 text-lg font-semibold tracking-tight'>{_('Integrations')}</h2>
         <p className='text-ink/70 text-sm leading-relaxed'>
-          {_('The services that power the Prof and the narrator. Everything else stays on this device.')}
+          {_(
+            'The services that power the Prof and the narrator. Everything else stays on this device.',
+          )}
         </p>
       </div>
 
@@ -144,11 +146,13 @@ const ProfEndpointForm: React.FC<{ onBack: () => void }> = ({ onBack }) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [enabled]);
   useEffect(() => {
-    if (baseUrl !== (aiSettings.openrouterBaseUrl ?? '')) void saveAiSetting('openrouterBaseUrl', baseUrl);
+    if (baseUrl !== (aiSettings.openrouterBaseUrl ?? ''))
+      void saveAiSetting('openrouterBaseUrl', baseUrl);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [baseUrl]);
   useEffect(() => {
-    if (apiKey !== (aiSettings.openrouterApiKey ?? '')) void saveAiSetting('openrouterApiKey', apiKey);
+    if (apiKey !== (aiSettings.openrouterApiKey ?? ''))
+      void saveAiSetting('openrouterApiKey', apiKey);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [apiKey]);
   useEffect(() => {
@@ -280,6 +284,9 @@ const ElevenLabsForm: React.FC<{ onBack: () => void }> = ({ onBack }) => {
   const [keyStatus, setKeyStatus] = useState<'idle' | 'checking' | 'ok' | 'bad'>(
     settings.elevenlabsApiKey ? 'ok' : 'idle',
   );
+  // Set when a stored key fails to restore its voice library — without this
+  // the Voice box vanished with no explanation ("it's not showing").
+  const [restoreError, setRestoreError] = useState<string | null>(null);
 
   // A stored key must restore its voice library on mount — otherwise the
   // Voice box stays hidden until the user re-Connects every single time.
@@ -295,16 +302,25 @@ const ElevenLabsForm: React.FC<{ onBack: () => void }> = ({ onBack }) => {
     provider
       .init()
       .then(async (ok) => {
-        if (!alive || !ok) return;
+        if (!alive) return;
+        if (!ok) {
+          setKeyStatus('bad');
+          setRestoreError(_('Saved key was not accepted — reconnect it.'));
+          return;
+        }
         const [voiceList, q] = await Promise.all([provider.getAllVoices(), provider.getQuota()]);
         if (!alive) return;
         setVoices(voiceList);
         setQuota(q);
+        setRestoreError(null);
         if (!useNarrationSettings.getState().elevenlabsVoiceId && voiceList[0]) {
           useNarrationSettings.getState().setElevenlabsVoiceId(voiceList[0].id);
         }
       })
-      .catch(() => {});
+      .catch(() => {
+        if (!alive) return;
+        setRestoreError(_('Could not reach ElevenLabs — check your connection.'));
+      });
     return () => {
       alive = false;
     };
@@ -383,6 +399,12 @@ const ElevenLabsForm: React.FC<{ onBack: () => void }> = ({ onBack }) => {
             <span className='text-stamp flex items-center gap-1 text-sm'>
               <PiWarningCircle className='size-4 shrink-0' />
               {_('Could not connect. Check the key and your connection.')}
+            </span>
+          )}
+          {restoreError && keyStatus !== 'bad' && (
+            <span className='text-stamp flex items-center gap-1 text-sm'>
+              <PiWarningCircle className='size-4 shrink-0' />
+              {restoreError}
             </span>
           )}
           <span className='text-mutedink text-xs'>

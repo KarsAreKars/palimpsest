@@ -74,7 +74,10 @@ const ProgressBar: React.FC<ProgressBarProps> = ({
     : formatProgress(pageInfo?.current, pageInfo?.total, template, localize, lang);
 
   // Sticky progress bar is horizontal-only; vertical mode keeps its side footer.
-  const stickyBarActive = viewSettings.showStickyProgressBar && !isVertical;
+  // Palimpsest: the reader footer is always visible on desktop and carries
+  // the progress rule, so the sticky bar is disabled outright — leaving it
+  // on produced two stacked progress bars (the double-track mess).
+  const stickyBarActive = false;
   const tickFractions = useMemo(
     () => (stickyBarActive ? getChapterTickFractions(view, bookData?.bookDoc?.toc) : []),
     [stickyBarActive, view, bookData?.bookDoc?.toc],

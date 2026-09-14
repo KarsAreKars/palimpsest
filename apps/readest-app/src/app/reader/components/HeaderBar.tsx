@@ -245,7 +245,7 @@ const HeaderBar: React.FC<HeaderBarProps> = ({
             )}
             <button
               title={_('Go to Library')}
-              className='chrome-ghost hidden h-8 min-h-8 w-8 p-0 sm:flex'
+              className='chrome-ghost hidden h-8 min-h-8 w-8 items-center justify-center p-0 sm:flex'
               onClick={onGoToLibrary}
             >
               <VscLibrary size={iconSize18} className='fill-ink' />

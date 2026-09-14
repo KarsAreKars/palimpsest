@@ -11,9 +11,6 @@
  * surface that had it.
  */
 
-
-
-
 /* ---------- ghost button (was `chrome-btn`) ---------- */
 .chrome-btn {
   font-family: 'Special Elite', 'Courier New', monospace;
@@ -202,7 +199,6 @@
   accent-color: var(--stamp);
 }
 
-
 /* ---------- the antiquarian catalogue (direction-library.md) ---------- */
 /* Ten plates per row on a desktop shelf, eight on a small one, six below.
    Fixed-cell discipline: plates never break their column under resize. */
@@ -242,6 +238,34 @@
 .catalogue-label {
   padding-left: 1px;
   padding-right: 1px;
+}
+/* Plate geometry is non-negotiable: every plate is a 2:3 portrait and every
+   cover CROPS to fill it (never fits at intrinsic size). These rules are
+   deliberately unlayered — a layered utility can be beaten by component
+   CSS; these cannot. */
+.catalogue-grid .book-item {
+  width: 100%;
+  min-width: 0;
+}
+.catalogue-grid .book-item > .bookitem-main.plate {
+  width: 100%;
+  aspect-ratio: 2 / 3;
+  height: auto;
+  flex: none;
+}
+.catalogue-grid .bookitem-main .book-cover-container {
+  position: relative;
+  display: block;
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+}
+.catalogue-grid .bookitem-main .cover-image {
+  position: absolute !important;
+  inset: 0;
+  height: 100%;
+  width: 100%;
+  object-fit: cover;
 }
 /* the masthead: wordmark left, typed catalogue line right */
 .catalogue-masthead-wordmark {

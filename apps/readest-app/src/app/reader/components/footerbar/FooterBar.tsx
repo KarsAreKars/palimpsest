@@ -43,7 +43,13 @@ const FooterBar: React.FC<FooterBarProps> = ({
   const viewSettings = getViewSettings(bookKey);
 
   const actionTab = hoveredBookKey === bookKey ? bottomBarTab : '';
-  const isVisible = hoveredBookKey === bookKey;
+  // The footer carries the reading progress rule, so on desktop it stays
+  // on screen permanently — the user should never have to hunt for their
+  // place. Mobile keeps the hover/tap reveal so the page keeps its room.
+  // Palimpsest: desktop app — the footer (progress rule + transport) is
+  // always on screen. Hover-gating hid the only always-visible progress
+  // chrome and read as a bug (#round-7 hotfix).
+  const isVisible = true;
 
   const docs = view?.renderer.getContents() ?? [];
   const pointerInDoc = docs.some(({ doc }) => doc?.body?.style.cursor === 'pointer');
