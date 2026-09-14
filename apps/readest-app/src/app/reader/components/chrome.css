@@ -10,7 +10,7 @@
  * surface that had it.
  */
 
-@layer components {
+
 
 
 /* ---------- ghost button (was `chrome-btn`) ---------- */
@@ -221,4 +221,3 @@
   accent-color: var(--stamp);
 }
 
-} /* @layer components */

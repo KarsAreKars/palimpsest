@@ -11,7 +11,7 @@
  * surface that had it.
  */
 
-@layer components {
+
 
 
 /* ---------- ghost button (was `chrome-btn`) ---------- */
@@ -175,7 +175,6 @@
   accent-color: var(--stamp);
 }
 
-} /* @layer components */
 
 /* ---------- the antiquarian catalogue (direction-library.md) ---------- */
 /* Ten plates per row on a desktop shelf, eight on a small one, six below.
