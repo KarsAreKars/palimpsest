@@ -111,7 +111,7 @@ const RecentSlide: React.FC<RecentSlideProps> = ({
           title, progress and badges render identically. */}
       <div
         className={clsx(
-          'visible-focus-inset-2 group flex h-full cursor-pointer select-none flex-col',
+          'group flex h-full cursor-pointer select-none flex-col',
           'sm:hover:bg-paperlight/50 px-0 py-2 sm:rounded-[2px] sm:px-4 sm:py-4',
           pressing ? 'not-eink:scale-95' : 'scale-100',
         )}

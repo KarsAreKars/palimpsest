@@ -63,7 +63,7 @@ const AnnotationsFilterPanel: React.FC<AnnotationsFilterPanelProps> = ({
   return (
     <div
       className={clsx(
-        'annotations-filter-panel dropdown-content eink-bordered bg-paper z-20 min-w-56 max-w-72 rounded-[2px] p-3 shadow-2xl',
+        'annotations-filter-panel dropdown-content eink-bordered bg-paper z-20 min-w-56 max-w-72 rounded-[2px] p-3',
         menuClassName,
       )}
       role='group'

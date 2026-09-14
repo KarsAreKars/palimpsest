@@ -61,7 +61,7 @@ const DialogMenu: React.FC<DialogMenuProps> = ({
   };
 
   return (
-    <Menu className={clsx('dialog-menu no-triangle z-20 mt-2 settings-lift')}>
+    <Menu className={clsx('settings-menu dropdown-content no-triangle z-20 mt-2')}>
       <MenuItem
         label={_('Global Settings')}
         tooltip={isSettingsGlobal ? _('Apply to All Books') : _('Apply to This Book')}

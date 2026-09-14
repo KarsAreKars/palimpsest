@@ -311,7 +311,7 @@ const SettingsMenu: React.FC<SettingsMenuProps> = ({ onPullLibrary, setIsDropdow
     <Menu
       className={clsx(
         'settings-menu dropdown-content no-triangle',
-        'z-20 mt-2 max-w-[90vw] shadow-2xl',
+        'z-20 mt-2 max-w-[90vw]',
       )}
       onCancel={() => setIsDropdownOpen?.(false)}
     >

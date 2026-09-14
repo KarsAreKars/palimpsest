@@ -450,7 +450,7 @@ const BookshelfItem: React.FC<BookshelfItemProps> = ({
     <div className={clsx(mode === 'grid' ? 'h-full' : 'sm:hover:bg-paperlight/50 px-4 sm:px-6')}>
       <div
         className={clsx(
-          'visible-focus-inset-2 group',
+          'group',
           mode === 'grid' && 'plate-interactive flex h-full flex-col px-0 py-2 sm:py-3',
           mode === 'list' && 'border-ink/20 flex flex-col border-b py-2',
           appService?.isMobileApp && 'no-context-menu',

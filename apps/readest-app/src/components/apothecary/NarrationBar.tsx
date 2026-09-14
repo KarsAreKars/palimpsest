@@ -11,6 +11,7 @@
  */
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { useTranslation } from 'react-i18next';
 import clsx from 'clsx';
 import {
   getActiveNarration,
@@ -96,6 +97,7 @@ const NarrationBar: React.FC<NarrationBarProps> = ({ bookKey, bookTitle, bookAut
   const setQwenVoiceId = useNarrationSettings((s) => s.setQwenVoiceId);
   const settingsRate = useNarrationSettings((s) => s.rate);
   const setSettingsRate = useNarrationSettings((s) => s.setRate);
+  const _ = useTranslation().t;
   const [, force] = useState(0);
   const [entry, setEntry] = useState<NarrationEntry | undefined>(undefined);
   // The cataloguer's clock: seconds this session has actually been
@@ -193,7 +195,7 @@ const NarrationBar: React.FC<NarrationBarProps> = ({ bookKey, bookTitle, bookAut
         onClick={cycleVoice}
         className='narration-chip shrink-0'
         aria-label='Switch voice'
-        title='Voice (point of use — more in Connectors)'
+        title={_('Voice (point of use — more in Integrations)')}
       >
         {VOICE_LABELS[voice] ?? voice.toUpperCase()}
       </button>

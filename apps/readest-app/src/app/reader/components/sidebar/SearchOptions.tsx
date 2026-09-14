@@ -72,7 +72,7 @@ const SearchOptions: React.FC<SearchOptionsProps> = ({
   return (
     <div
       className={clsx(
-        'search-options dropdown-content border-ink/15 z-20 border shadow-2xl',
+        'search-options dropdown-content border-ink/15 z-20 border',
         // No fixed width: a device text scale (Android system font size) scales
         // every font-size but not a `w-56` box, so labels wrapped onto a second
         // line. `.dropdown-content` sizes the box to its content and caps it at

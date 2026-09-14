@@ -119,7 +119,7 @@ const GroupItem: React.FC<GroupItemProps> = ({ mode, group, isSelectMode, groupS
             className={clsx(
               mode === 'grid' && 'grid w-full grid-cols-2 grid-rows-2 gap-1 overflow-hidden',
               mode === 'list' && 'flex h-28 gap-2 overflow-x-auto overflow-y-hidden',
-              mode === 'list' ? 'library-list-item' : 'library-grid-item',
+              
             )}
             style={
               mode === 'list'
