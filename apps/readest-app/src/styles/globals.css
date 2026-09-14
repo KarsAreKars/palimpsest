@@ -584,6 +584,13 @@ input[type='range'].slider-input {
   display: none;
 }
 
+/* search field: the unlayered .paper-field padding shorthand would beat the
+   layered ps/pe utilities — pin the icon gutters with specificity instead */
+input.search-input.paper-field {
+  padding-inline-start: 44px;
+  padding-inline-end: 40px;
+}
+
 [data-eink='true'] input.search-input,
 [data-eink='true'] input.search-input:focus {
   border-width: 1px !important;

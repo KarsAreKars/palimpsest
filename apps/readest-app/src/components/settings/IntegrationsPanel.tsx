@@ -53,6 +53,8 @@ const IntegrationsPanel: React.FC = () => {
     setRequestedSubPage(null);
   }, [requestedSubPage, setRequestedSubPage]);
 
+  const narration = useNarrationSettings();
+
   if (subPage === 'prof')
     return (
       <div className='my-4 w-full'>
@@ -67,7 +69,6 @@ const IntegrationsPanel: React.FC = () => {
     );
 
   const aiSettings: AISettings = settings.aiSettings ?? DEFAULT_AI_SETTINGS;
-  const narration = useNarrationSettings();
   const profStatus = aiSettings.enabled
     ? aiSettings.openrouterModel || aiSettings.ollamaModel || _('Connected')
     : _('Not connected');

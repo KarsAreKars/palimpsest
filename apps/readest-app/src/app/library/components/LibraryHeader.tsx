@@ -1,5 +1,4 @@
 import clsx from 'clsx';
-import dayjs from 'dayjs';
 import React, { useRef } from 'react';
 import { FaChevronDown, FaSearch } from 'react-icons/fa';
 import { MdManageSearch } from 'react-icons/md';
@@ -99,20 +98,12 @@ const LibraryHeader: React.FC<LibraryHeaderProps> = ({
           : '0px',
       }}
     >
-      <div className='flex w-full items-center justify-between space-x-6 sm:space-x-12'>
-        <div className='catalogue-masthead-wordmark exclude-title-bar-mousedown flex shrink-0 items-baseline pl-4'>
+      <div className='relative flex w-full items-center'>
+        <div className='catalogue-masthead-wordmark exclude-title-bar-mousedown flex shrink-0 items-center ps-4'>
           <span className='font-display'>Palimpsest</span>
-          <span className='plate-num catalogue-masthead-count'>
-            <span className='ornament' aria-hidden='true'>
-              ✳
-            </span>
-            <span>
-              {_('No. {{count}} volumes', { count: currentBooksCount })} · {dayjs().format('YYYY-MM-DD')}
-            </span>
-          </span>
         </div>
-        <div className='exclude-title-bar-mousedown relative flex min-w-0 flex-1 items-center pl-4'>
-          <div className='relative flex h-9 w-full items-center sm:h-7'>
+        <div className='exclude-title-bar-mousedown relative flex min-w-0 flex-1 items-center px-4'>
+          <div className='relative mx-auto h-9 w-full max-w-xl sm:h-7'>
             {/* The icon doubles as the mode indicator and toggle: magnifier
                 for book search, full-text glyph for content search. */}
             <div className='absolute inset-y-0 start-0 z-10 flex items-center'>
@@ -123,7 +114,7 @@ const LibraryHeader: React.FC<LibraryHeaderProps> = ({
                 title={searchTarget === 'text' ? _('Full Text Search') : _('Search Books')}
                 className={clsx(
                   'text-mutedink hover:text-ink',
-                  'not-eink:transition-colors ms-1.5 flex h-7 min-h-7 items-center justify-center',
+                  'not-eink:transition-colors ms-2.5 flex h-7 min-h-7 items-center justify-center',
                   'touch-target w-8 rounded-full bg-transparent duration-150',
                 )}
                 onClick={() => onSearchTargetChange(searchTarget === 'text' ? 'books' : 'text')}
@@ -150,10 +141,23 @@ const LibraryHeader: React.FC<LibraryHeaderProps> = ({
               onChange={handleSearchChange}
               spellCheck='false'
               className={clsx(
-                'search-input paper-field h-9 w-full pe-[30%] ps-10 sm:h-7',
+                'search-input paper-field h-9 w-full pe-10 ps-11',
                 'truncate text-sm',
               )}
             />
+            {searchQuery && (
+              <button
+                type='button'
+                onClick={() => onSearchQueryChange('')}
+                className={clsx(
+                  'text-mutedink hover:text-ink absolute inset-y-0 z-10 flex items-center',
+                  searchTarget === 'text' ? 'end-10' : 'end-2',
+                )}
+                aria-label={_('Clear Search')}
+              >
+                <IoMdCloseCircle className='h-4 w-4' />
+              </button>
+            )}
             {searchTarget === 'text' && (
               <div
                 className={clsx(
@@ -181,63 +185,47 @@ const LibraryHeader: React.FC<LibraryHeaderProps> = ({
               </div>
             )}
           </div>
-          <div
-            className={clsx(
-              'text-mutedink absolute flex items-center space-x-2 sm:space-x-4',
-              searchTarget === 'text' ? 'end-14' : 'right-4',
-            )}
-          >
-            {searchQuery && (
-              <button
-                type='button'
-                onClick={() => onSearchQueryChange('')}
-                className='text-ink/40 hover:text-mutedink pe-1'
-                aria-label={_('Clear Search')}
-              >
-                <IoMdCloseCircle className='h-4 w-4' />
-              </button>
-            )}
-            {searchTarget !== 'text' && (
-              <>
-                <span className='bg-ink/50 mx-2 h-4 w-[0.5px]'></span>
-                <Dropdown
-                  label={_('Import Books')}
-                  className={clsx(
-                    'exclude-title-bar-mousedown dropdown-bottom dropdown-center cursor-pointer',
-                  )}
-                  buttonClassName='p-0 min-h-0 flex touch-target items-center justify-center !bg-transparent'
-                  toggleButton={
-                    <span className='stamp-btn flex items-center gap-1' role='none'>
-                      {_('+ Add Book')}
-                    </span>
-                  }
-                >
-                  <ImportMenu
-                    onImportBooksFromFiles={onImportBooksFromFiles}
-                    onImportBooksFromDirectory={onImportBooksFromDirectory}
-                    onImportBookFromUrl={onImportBookFromUrl}
-                    onImportBookFromNovelUrl={onImportBookFromNovelUrl}
-                    onOpenCatalogManager={onOpenCatalogManager}
-                    onOpenFeeds={onOpenFeeds}
-                  />
-                </Dropdown>
-                {isMobile ? null : (
-                  <button
-                    onClick={onToggleSelectMode}
-                    aria-label={_('Select Books')}
-                    title={_('Select Books')}
-                    className='h-6'
-                  >
-                    {isSelectMode ? (
-                      <PiSelectionAllFill role='button' className='text-mutedink h-6 w-6' />
-                    ) : (
-                      <PiSelectionAll role='button' className='text-mutedink h-6 w-6' />
-                    )}
-                  </button>
+        </div>
+        <div className='flex shrink-0 items-center gap-x-2 pe-4 sm:gap-x-4'>
+          {searchTarget !== 'text' && (
+            <>
+              <Dropdown
+                label={_('Import Books')}
+                className={clsx(
+                  'exclude-title-bar-mousedown dropdown-bottom dropdown-end cursor-pointer',
                 )}
-              </>
-            )}
-          </div>
+                buttonClassName='p-0 min-h-0 flex touch-target items-center justify-center !bg-transparent'
+                toggleButton={
+                  <span className='stamp-btn flex items-center gap-1' role='none'>
+                    {_('+ Add Book')}
+                  </span>
+                }
+              >
+                <ImportMenu
+                  onImportBooksFromFiles={onImportBooksFromFiles}
+                  onImportBooksFromDirectory={onImportBooksFromDirectory}
+                  onImportBookFromUrl={onImportBookFromUrl}
+                  onImportBookFromNovelUrl={onImportBookFromNovelUrl}
+                  onOpenCatalogManager={onOpenCatalogManager}
+                  onOpenFeeds={onOpenFeeds}
+                />
+              </Dropdown>
+              {isMobile ? null : (
+                <button
+                  onClick={onToggleSelectMode}
+                  aria-label={_('Select Books')}
+                  title={_('Select Books')}
+                  className='h-6'
+                >
+                  {isSelectMode ? (
+                    <PiSelectionAllFill role='button' className='text-mutedink h-6 w-6' />
+                  ) : (
+                    <PiSelectionAll role='button' className='text-mutedink h-6 w-6' />
+                  )}
+                </button>
+              )}
+            </>
+          )}
         </div>
         {isSelectMode ? (
           <div

@@ -10,6 +10,7 @@
  * which is why the old bottom bar looked dead.
  */
 import React, { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useRouter } from 'next/navigation';
 import { useTranslation } from 'react-i18next';
 import clsx from 'clsx';
@@ -154,7 +155,12 @@ const NarrationBar: React.FC<NarrationBarProps> = ({ bookKey, bookTitle, bookAut
     setQwenVoiceId(next);
   };
 
-  return (
+  // Portal to body: the reader chrome wrappers animate with transforms,
+  // and a transformed ancestor turns `position: fixed` into absolute-relative-
+  // to-that-ancestor — the bar would stick to the chrome, not the viewport.
+  // Body has no transformed ancestors; bottom-3 means bottom-3.
+  if (typeof document === 'undefined') return null;
+  return createPortal(
     <div
       className='plate narration-bar pointer-events-auto fixed inset-x-3 bottom-3 z-50 flex h-12 items-center gap-3 px-4'
       data-testid='narration-bar'
@@ -243,7 +249,8 @@ const NarrationBar: React.FC<NarrationBarProps> = ({ bookKey, bookTitle, bookAut
           ✕
         </button>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 };
 

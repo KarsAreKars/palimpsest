@@ -130,6 +130,9 @@ export const useTheme = ({
   useEffect(() => {
     const colorScheme = isDarkMode ? 'dark' : 'light';
     document.documentElement.setAttribute('data-theme', `${themeColor}-${colorScheme}`);
+    // Palimpsest surfaces read apothecary CSS vars, which must flip with the
+    // OS-level scheme under ANY daisy theme name, not just apothecary-*.
+    document.documentElement.setAttribute('data-colorscheme', colorScheme);
     document.documentElement.style.setProperty('color-scheme', colorScheme);
     document.documentElement.style.setProperty('--scroll-bg-opacity', isBwEink ? '1.0' : '0.5');
     document.documentElement.style.setProperty(

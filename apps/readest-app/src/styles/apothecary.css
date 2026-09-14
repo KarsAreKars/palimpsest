@@ -61,8 +61,10 @@
 }
 
 /* ---------- shelf-at-night: the same room after closing ----------
-   Dark must survive every surface; apothecary vars flip here. */
-[data-theme='apothecary-dark'] {
+   Dark must survive every surface; apothecary vars flip here. Bound to the
+   app-wide colorscheme (not the theme name) so the flip holds under any
+   daisy theme the reader has chosen. */
+[data-colorscheme='dark'] {
   --paper: #1c1915;
   --paper-light: #26221b;
   --ink: #f3ede0;
