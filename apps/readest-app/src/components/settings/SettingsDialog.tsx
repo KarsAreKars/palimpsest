@@ -32,7 +32,6 @@ import DialogMenu from './DialogMenu';
 import ControlPanel from './ControlPanel';
 import LangPanel from './LangPanel';
 import MiscPanel from './MiscPanel';
-import AIPanel from './AIPanel';
 import TTSPanel from './TTSPanel';
 import NarrationPanel from './NarrationPanel';
 
@@ -44,7 +43,6 @@ export type SettingsPanelType =
   | 'TTS'
   | 'Narration'
   | 'Language'
-  | 'AI'
   | 'Integrations'
   | 'Custom';
 export type SettingsPanelPanelProp = {
@@ -179,7 +177,6 @@ const SettingsDialog: React.FC<{ bookKey: string }> = ({ bookKey }) => {
     TTS: null,
     Narration: null,
     Language: null,
-    AI: null,
     Integrations: null,
     Custom: null,
   });
@@ -214,7 +211,6 @@ const SettingsDialog: React.FC<{ bookKey: string }> = ({ bookKey }) => {
         tts: 'TTS',
         narration: 'Narration',
         language: 'Language',
-        ai: 'AI',
         integrations: 'Integrations',
         custom: 'Custom',
       };
@@ -480,23 +476,9 @@ const SettingsDialog: React.FC<{ bookKey: string }> = ({ bookKey }) => {
         )}
         {activePanel === 'Integrations' && (
           <div className='flex flex-col gap-6'>
-            {/* voice + LLM connectors sit beside sync/OPDS — one rule:
-                if it talks to the outside world, it lives here */}
-            <section>
-              <h2 className='typed text-mutedink mb-2 text-[10px]'>Narration voices</h2>
-              <NarrationPanel
-                bookKey={bookKey}
-                onRegisterReset={(fn) => registerResetFunction('Narration', fn)}
-              />
-            </section>
-            <section>
-              <h2 className='typed text-mutedink mb-2 text-[10px]'>The Prof's brain (LLM)</h2>
-              <AIPanel />
-            </section>
-            <section>
-              <h2 className='typed text-mutedink mb-2 text-[10px]'>Sync & catalogs</h2>
-              <IntegrationsPanel />
-            </section>
+            {/* AI providers only — sync/cloud/share integrations are removed
+                from the product surface (PRODUCT.md: Integrations = AI only). */}
+            <IntegrationsPanel />
           </div>
         )}
         {activePanel === 'Custom' && (

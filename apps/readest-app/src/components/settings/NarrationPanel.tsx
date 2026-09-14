@@ -14,8 +14,6 @@ import {
   MIN_NARRATION_RATE,
   MAX_NARRATION_RATE,
 } from '@/services/narration/settings';
-import { ElevenLabsProvider, type ElevenLabsQuota } from '@/services/tts/providers/elevenlabs';
-import { getAIFetch } from '@/services/ai/utils/httpFetch';
 import { EdgeSpeechTTS } from '@/libs/edgeTTS';
 import { NarrationQwenProvider } from '@/services/narration/narrationQwenProvider';
 import type { TTSVoice } from '@/services/tts/types';
@@ -23,10 +21,6 @@ import type { SettingsPanelPanelProp } from './SettingsDialog';
 
 const NarrationPanel: React.FC<SettingsPanelPanelProp> = ({ onRegisterReset }) => {
   const settings = useNarrationSettings();
-  const [keyDraft, setKeyDraft] = useState(settings.elevenlabsApiKey);
-  const [voices, setVoices] = useState<TTSVoice[]>([]);
-  const [quota, setQuota] = useState<ElevenLabsQuota | null>(null);
-  const [keyStatus, setKeyStatus] = useState<'idle' | 'checking' | 'ok' | 'bad'>('idle');
 
   useEffect(() => {
     onRegisterReset(() => {
@@ -36,39 +30,9 @@ const NarrationPanel: React.FC<SettingsPanelPanelProp> = ({ onRegisterReset }) =
       settings.setElevenlabsVoiceId(null);
       settings.setElevenlabsTier('flash');
       settings.setRate(1);
-      setKeyDraft('');
-      setVoices([]);
-      setQuota(null);
-      setKeyStatus('idle');
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  const validateKey = async () => {
-    const key = keyDraft.trim();
-    if (!key) return;
-    setKeyStatus('checking');
-    const provider = new ElevenLabsProvider({
-      apiKey: key,
-      tier: settings.elevenlabsTier,
-      fetchImpl: getAIFetch(),
-    });
-    const ok = await provider.init();
-    if (!ok) {
-      setKeyStatus('bad');
-      setVoices([]);
-      setQuota(null);
-      return;
-    }
-    settings.setElevenlabsApiKey(key);
-    setKeyStatus('ok');
-    const [voiceList, q] = await Promise.all([provider.getAllVoices(), provider.getQuota()]);
-    setVoices(voiceList);
-    setQuota(q);
-    if (!settings.elevenlabsVoiceId && voiceList[0]) {
-      settings.setElevenlabsVoiceId(voiceList[0].id);
-    }
-  };
 
   const edgeVoices: TTSVoice[] = EdgeSpeechTTS.voices;
 
@@ -102,6 +66,11 @@ const NarrationPanel: React.FC<SettingsPanelPanelProp> = ({ onRegisterReset }) =
             />
             <span className='text-sm'>ElevenLabs — premium voices, uses your API key</span>
           </label>
+          {settings.provider === 'elevenlabs' && (
+            <p className='mt-1 text-xs text-ink/60'>
+              The key and voice live under Settings → Integrations → ElevenLabs voice.
+            </p>
+          )}
           <label className='flex cursor-pointer items-center gap-2'>
             <input
               type='radio'
@@ -147,95 +116,6 @@ const NarrationPanel: React.FC<SettingsPanelPanelProp> = ({ onRegisterReset }) =
             instructions. Runs on your Mac via the local server (port 8737). If narration silently
             uses a built-in voice instead, the server isn't running.
           </p>
-        </div>
-      )}
-
-      {settings.provider === 'elevenlabs' && (
-        <div className='flex flex-col gap-4'>
-          <div>
-            <h3 className='mb-2 text-sm font-semibold'>API key</h3>
-            <div className='flex items-center gap-2'>
-              <input
-                type='password'
-                className='paper-field w-full max-w-xs'
-                placeholder='sk_…'
-                aria-label='ElevenLabs API key'
-                value={keyDraft}
-                onChange={(e) => {
-                  setKeyDraft(e.target.value);
-                  setKeyStatus('idle');
-                }}
-              />
-              <button
-                type='button'
-                className='stamp-btn settings-btn-sm'
-                disabled={!keyDraft.trim() || keyStatus === 'checking'}
-                onClick={validateKey}
-              >
-                {keyStatus === 'checking' ? 'Checking…' : 'Connect'}
-              </button>
-            </div>
-            {keyStatus === 'ok' && (
-              <p className='mt-1 text-xs text-emerald-600'>Connected — voice library loaded.</p>
-            )}
-            {keyStatus === 'bad' && (
-              <p className='mt-1 text-xs text-stamp'>
-                Could not connect. Check the key and your connection.
-              </p>
-            )}
-            <p className='mt-1 text-xs text-ink/50'>
-              Stored locally on this device. Audio is cached, so re-listening never re-bills.
-            </p>
-          </div>
-
-          {voices.length > 0 && (
-            <div>
-              <h3 className='mb-2 text-sm font-semibold'>Voice</h3>
-              <select
-                className='settings-select w-full max-w-xs'
-                value={settings.elevenlabsVoiceId ?? ''}
-                onChange={(e) => settings.setElevenlabsVoiceId(e.target.value || null)}
-                aria-label='ElevenLabs voice'
-              >
-                {voices.map((v) => (
-                  <option key={v.id} value={v.id}>
-                    {v.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
-
-          <div>
-            <h3 className='mb-2 text-sm font-semibold'>Model tier</h3>
-            <div className='flex flex-col gap-2'>
-              {(
-                [
-                  ['flash', 'Flash — fastest; best for click-to-speak and skipping'],
-                  ['turbo', 'Turbo — balanced'],
-                  ['quality', 'Multilingual v2 — highest quality; best for long listens'],
-                ] as const
-              ).map(([tier, label]) => (
-                <label key={tier} className='flex cursor-pointer items-center gap-2'>
-                  <input
-                    type='radio'
-                    name='elevenlabs-tier'
-                    className='settings-check'
-                    checked={settings.elevenlabsTier === tier}
-                    onChange={() => settings.setElevenlabsTier(tier)}
-                  />
-                  <span className='text-sm'>{label}</span>
-                </label>
-              ))}
-            </div>
-          </div>
-
-          {quota && (
-            <p className='text-xs text-ink/60'>
-              Character usage: {quota.used.toLocaleString()} / {quota.limit.toLocaleString()} this
-              cycle.
-            </p>
-          )}
         </div>
       )}
 

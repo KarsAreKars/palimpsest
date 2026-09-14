@@ -4,7 +4,7 @@ import { RiFontSize, RiDashboardLine, RiTranslate, RiShareLine } from 'react-ico
 import { VscSymbolColor } from 'react-icons/vsc';
 import { LiaHandPointerSolid } from 'react-icons/lia';
 import { IoAccessibilityOutline } from 'react-icons/io5';
-import { PiRobot, PiSpeakerHigh, PiSun, PiMoon, PiWaveform } from 'react-icons/pi';
+import { PiSpeakerHigh, PiSun, PiMoon, PiWaveform } from 'react-icons/pi';
 import { TbSunMoon } from 'react-icons/tb';
 import { MdRefresh } from 'react-icons/md';
 import { IconType } from 'react-icons';
@@ -154,7 +154,6 @@ const panelIcons: Record<SettingsPanelType, IconType> = {
   TTS: PiSpeakerHigh,
   Narration: PiWaveform,
   Language: RiTranslate,
-  AI: PiRobot,
   Integrations: RiShareLine,
   Custom: IoAccessibilityOutline,
 };
@@ -557,64 +556,6 @@ const languagePanelItems = [
   },
 ];
 
-// ai panel items
-const aiPanelItems = [
-  {
-    id: 'settings.ai.enableAssistant',
-    labelKey: _('Enable AI Assistant'),
-    keywords: ['ai', 'assistant', 'enable', 'chatbot', 'llm'],
-    section: 'AI',
-  },
-  {
-    id: 'settings.ai.provider',
-    labelKey: _('AI Provider'),
-    keywords: ['ai', 'provider', 'ollama', 'gateway', 'service'],
-    section: 'AI',
-  },
-  {
-    id: 'settings.ai.ollamaUrl',
-    labelKey: _('Ollama URL'),
-    keywords: ['ollama', 'url', 'server', 'endpoint', 'api'],
-    section: 'Ollama',
-  },
-  {
-    id: 'settings.ai.ollamaModel',
-    labelKey: _('Ollama Model'),
-    keywords: ['ollama', 'model', 'llama', 'mistral', 'gemma'],
-    section: 'Ollama',
-  },
-  {
-    id: 'settings.ai.gatewayApiKey',
-    labelKey: _('API Key'),
-    keywords: ['api', 'key', 'gateway', 'token', 'secret'],
-    section: 'AI Gateway',
-  },
-  {
-    id: 'settings.ai.gatewayModel',
-    labelKey: _('AI Gateway Model'),
-    keywords: ['gateway', 'model', 'openai', 'gpt', 'claude'],
-    section: 'AI Gateway',
-  },
-  {
-    id: 'settings.ai.openrouterApiKey',
-    labelKey: _('OpenRouter API Key'),
-    keywords: ['openrouter', 'api', 'key', 'token', 'secret'],
-    section: 'OpenRouter',
-  },
-  {
-    id: 'settings.ai.openrouterBaseUrl',
-    labelKey: _('OpenRouter Base URL'),
-    keywords: ['openrouter', 'base', 'url', 'endpoint', 'openai', 'compatible'],
-    section: 'OpenRouter',
-  },
-  {
-    id: 'settings.ai.openrouterModel',
-    labelKey: _('OpenRouter Model'),
-    keywords: ['openrouter', 'model', 'claude', 'gpt', 'llama', 'deepseek'],
-    section: 'OpenRouter',
-  },
-];
-
 // custom panel items
 const customPanelItems = [
   {
@@ -728,13 +669,6 @@ export const buildCommandRegistry = (options: CommandRegistryOptions): CommandIt
   // add language panel items
   for (const def of languagePanelItems) {
     items.push(createSettingsItem(def, 'Language'));
-  }
-
-  // add ai panel items (only in dev, as of now atleast)
-  if (process.env.NODE_ENV !== 'production') {
-    for (const def of aiPanelItems) {
-      items.push(createSettingsItem(def, 'AI'));
-    }
   }
 
   // add custom panel items

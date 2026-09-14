@@ -173,13 +173,6 @@ describe('buildCommandRegistry', () => {
     expect(new Set(ids).size).toBe(ids.length);
   });
 
-  it('should include AI panel items in non-production', () => {
-    const items = buildCommandRegistry(createMockOptions());
-    const aiItems = items.filter((i) => i.panel === 'AI');
-    // In test environment (not production), AI items should be included
-    expect(aiItems.length).toBeGreaterThan(0);
-  });
-
   it('should give each settings item keywords and section', () => {
     const items = buildCommandRegistry(createMockOptions());
     const settingsItems = items.filter((i) => i.category === 'settings');
