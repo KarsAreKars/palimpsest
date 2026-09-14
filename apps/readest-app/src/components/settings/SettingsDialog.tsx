@@ -1,3 +1,4 @@
+import './settings.css';
 import clsx from 'clsx';
 import React, { useEffect, useRef, useState } from 'react';
 import { useEnv } from '@/context/EnvContext';
@@ -315,14 +316,14 @@ const SettingsDialog: React.FC<{ bookKey: string }> = ({ bookKey }) => {
         onClick={handleOpenCommandPalette}
         aria-label={_('Search Settings')}
         title={`${_('Search Settings')} (${getCommandPaletteShortcut()})`}
-        className='btn btn-ghost flex h-8 min-h-8 w-8 items-center justify-center p-0'
+        className='settings-btn flex h-8 min-h-8 w-8 items-center justify-center p-0'
       >
         <FiSearch />
       </button>
       <Dropdown
         label={_('Settings Menu')}
-        className='dropdown-bottom dropdown-end'
-        buttonClassName='btn btn-ghost h-8 min-h-8 w-8 p-0 flex items-center justify-center'
+        className='settings-dropdown-bottom settings-dropdown-end'
+        buttonClassName='settings-btn h-8 min-h-8 w-8 p-0 flex items-center justify-center'
         toggleButton={<PiDotsThreeVerticalBold />}
       >
         <DialogMenu
@@ -337,7 +338,7 @@ const SettingsDialog: React.FC<{ bookKey: string }> = ({ bookKey }) => {
       <button
         onClick={handleClose}
         aria-label={_('Close')}
-        className={'bg-base-300/65 btn btn-ghost btn-circle hidden h-6 min-h-6 w-6 p-0 sm:flex'}
+        className={'bg-paperlight/65 settings-btn rounded-full hidden h-6 min-h-6 w-6 p-0 sm:flex'}
       >
         <MdClose size={closeIconSize} />
       </button>
@@ -353,10 +354,10 @@ const SettingsDialog: React.FC<{ bookKey: string }> = ({ bookKey }) => {
       // inside one shows on top instead of behind it (#3235), and below the
       // modal layer (z-120) so a modal opened from inside Settings (e.g. Add
       // OPDS Catalog) renders on top. !important beats the Dialog's hardcoded z-50.
-      className='modal-open !z-[110]'
+      className='!z-[110]'
       bgClassName={bookKey ? 'sm:!bg-black/20' : 'sm:!bg-black/50'}
       boxClassName={clsx(
-        'sm:min-w-[520px] overflow-hidden not-eink:bg-base-200',
+        'sm:min-w-[520px] overflow-hidden not-eink:bg-paperlight',
         appService?.isMobile && 'sm:max-w-[90%] sm:w-3/4',
       )}
       snapHeight={appService?.isMobile ? 0.7 : undefined}
@@ -372,14 +373,12 @@ const SettingsDialog: React.FC<{ bookKey: string }> = ({ bookKey }) => {
               aria-label={_('Close')}
               onClick={handleClose}
               className={
-                'btn btn-ghost btn-circle absolute left-3 flex h-8 min-h-8 w-8 hover:bg-transparent focus:outline-none'
+                'settings-btn rounded-full absolute left-3 flex h-8 min-h-8 w-8 hover:bg-transparent focus:outline-none'
               }
             >
               {isRtl ? <MdArrowForwardIos /> : <MdArrowBackIosNew />}
             </button>
-            <div className='tab-title flex text-base font-semibold'>
-              {currentPanel?.label || ''}
-            </div>
+            <div className='flex text-base font-semibold'>{currentPanel?.label || ''}</div>
             <div className='absolute right-3'>{windowControls}</div>
           </div>
           <div className='flex w-full flex-row items-center justify-between'>
@@ -401,8 +400,8 @@ const SettingsDialog: React.FC<{ bookKey: string }> = ({ bookKey }) => {
                     tabIndex={0}
                     title={label}
                     className={clsx(
-                      'btn btn-ghost text-base-content btn-sm gap-1 px-2 max-[350px]:px-1',
-                      activePanel === tab ? 'btn-active' : '',
+                      'settings-btn text-ink settings-btn-sm gap-1 px-2 max-[350px]:px-1',
+                      activePanel === tab ? 'settings-btn-active' : '',
                     )}
                     onClick={() => handleSetActivePanel(tab)}
                   >
@@ -425,7 +424,7 @@ const SettingsDialog: React.FC<{ bookKey: string }> = ({ bookKey }) => {
                 aria-label={_('Scroll tabs')}
                 title={_('Scroll tabs')}
                 tabIndex={-1}
-                className='btn btn-ghost btn-circle flex h-8 min-h-8 w-8 shrink-0 items-center justify-center p-0'
+                className='settings-btn rounded-full flex h-8 min-h-8 w-8 shrink-0 items-center justify-center p-0'
               >
                 {isRtl ? <MdChevronLeft /> : <MdChevronRight />}
               </button>

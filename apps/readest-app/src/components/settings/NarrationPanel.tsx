@@ -1,3 +1,4 @@
+import './settings.css';
 /**
  * Settings → Narration (master plan §5).
  *
@@ -75,7 +76,7 @@ const NarrationPanel: React.FC<SettingsPanelPanelProp> = ({ onRegisterReset }) =
     <div className='flex flex-col gap-6 px-4 py-4'>
       <div>
         <h3 className='mb-2 text-sm font-semibold'>Narrator</h3>
-        <p className='mb-3 text-xs text-base-content/60'>
+        <p className='mb-3 text-xs text-ink/60'>
           The voice that reads your books aloud. Changes apply on the fly — your place is kept.
         </p>
         <div className='flex flex-col gap-2'>
@@ -83,17 +84,19 @@ const NarrationPanel: React.FC<SettingsPanelPanelProp> = ({ onRegisterReset }) =
             <input
               type='radio'
               name='narration-provider'
-              className='radio radio-sm'
+              className='settings-check'
               checked={settings.provider === 'edge'}
               onChange={() => settings.setProvider('edge')}
             />
-            <span className='text-sm'>Built-in voices — free (streams from Microsoft’s service)</span>
+            <span className='text-sm'>
+              Built-in voices — free (streams from Microsoft’s service)
+            </span>
           </label>
           <label className='flex cursor-pointer items-center gap-2'>
             <input
               type='radio'
               name='narration-provider'
-              className='radio radio-sm'
+              className='settings-check'
               checked={settings.provider === 'elevenlabs'}
               onChange={() => settings.setProvider('elevenlabs')}
             />
@@ -103,7 +106,7 @@ const NarrationPanel: React.FC<SettingsPanelPanelProp> = ({ onRegisterReset }) =
             <input
               type='radio'
               name='narration-provider'
-              className='radio radio-sm'
+              className='settings-check'
               checked={settings.provider === 'qwen-local'}
               onChange={() => settings.setProvider('qwen-local')}
             />
@@ -118,7 +121,7 @@ const NarrationPanel: React.FC<SettingsPanelPanelProp> = ({ onRegisterReset }) =
         <div>
           <h3 className='mb-2 text-sm font-semibold'>Built-in voice</h3>
           <select
-            className='select select-sm w-full max-w-xs'
+            className='settings-select w-full max-w-xs'
             value={settings.edgeVoiceId ?? ''}
             onChange={(e) => settings.setEdgeVoiceId(e.target.value || null)}
             aria-label='Built-in narrator voice'
@@ -139,7 +142,7 @@ const NarrationPanel: React.FC<SettingsPanelPanelProp> = ({ onRegisterReset }) =
         <div>
           <h3 className='mb-2 text-sm font-semibold'>Local neural voice</h3>
           <QwenVoicePicker />
-          <p className='mt-1 text-xs text-base-content/50'>
+          <p className='mt-1 text-xs text-ink/50'>
             Kokoro voices (Heart, Adam…) are the long-form pick; Qwen3 voices follow style
             instructions. Runs on your Mac via the local server (port 8737). If narration silently
             uses a built-in voice instead, the server isn't running.
@@ -154,7 +157,7 @@ const NarrationPanel: React.FC<SettingsPanelPanelProp> = ({ onRegisterReset }) =
             <div className='flex items-center gap-2'>
               <input
                 type='password'
-                className='input input-sm w-full max-w-xs'
+                className='paper-field w-full max-w-xs'
                 placeholder='sk_…'
                 aria-label='ElevenLabs API key'
                 value={keyDraft}
@@ -165,7 +168,7 @@ const NarrationPanel: React.FC<SettingsPanelPanelProp> = ({ onRegisterReset }) =
               />
               <button
                 type='button'
-                className='btn btn-primary btn-sm'
+                className='stamp-btn settings-btn-sm'
                 disabled={!keyDraft.trim() || keyStatus === 'checking'}
                 onClick={validateKey}
               >
@@ -176,11 +179,11 @@ const NarrationPanel: React.FC<SettingsPanelPanelProp> = ({ onRegisterReset }) =
               <p className='mt-1 text-xs text-emerald-600'>Connected — voice library loaded.</p>
             )}
             {keyStatus === 'bad' && (
-              <p className='mt-1 text-xs text-error'>
+              <p className='mt-1 text-xs text-stamp'>
                 Could not connect. Check the key and your connection.
               </p>
             )}
-            <p className='mt-1 text-xs text-base-content/50'>
+            <p className='mt-1 text-xs text-ink/50'>
               Stored locally on this device. Audio is cached, so re-listening never re-bills.
             </p>
           </div>
@@ -189,7 +192,7 @@ const NarrationPanel: React.FC<SettingsPanelPanelProp> = ({ onRegisterReset }) =
             <div>
               <h3 className='mb-2 text-sm font-semibold'>Voice</h3>
               <select
-                className='select select-sm w-full max-w-xs'
+                className='settings-select w-full max-w-xs'
                 value={settings.elevenlabsVoiceId ?? ''}
                 onChange={(e) => settings.setElevenlabsVoiceId(e.target.value || null)}
                 aria-label='ElevenLabs voice'
@@ -217,7 +220,7 @@ const NarrationPanel: React.FC<SettingsPanelPanelProp> = ({ onRegisterReset }) =
                   <input
                     type='radio'
                     name='elevenlabs-tier'
-                    className='radio radio-sm'
+                    className='settings-check'
                     checked={settings.elevenlabsTier === tier}
                     onChange={() => settings.setElevenlabsTier(tier)}
                   />
@@ -228,7 +231,7 @@ const NarrationPanel: React.FC<SettingsPanelPanelProp> = ({ onRegisterReset }) =
           </div>
 
           {quota && (
-            <p className='text-xs text-base-content/60'>
+            <p className='text-xs text-ink/60'>
               Character usage: {quota.used.toLocaleString()} / {quota.limit.toLocaleString()} this
               cycle.
             </p>
@@ -242,7 +245,7 @@ const NarrationPanel: React.FC<SettingsPanelPanelProp> = ({ onRegisterReset }) =
         </h3>
         <input
           type='range'
-          className='range range-sm w-full max-w-xs'
+          className='settings-range w-full max-w-xs'
           min={MIN_NARRATION_RATE}
           max={MAX_NARRATION_RATE}
           step={0.05}
@@ -250,7 +253,7 @@ const NarrationPanel: React.FC<SettingsPanelPanelProp> = ({ onRegisterReset }) =
           onChange={(e) => settings.setRate(Number(e.target.value))}
           aria-label='Narration speed'
         />
-        <p className='mt-1 text-xs text-base-content/50'>
+        <p className='mt-1 text-xs text-ink/50'>
           Applies from the next sentence; remembered across sessions.
         </p>
       </div>
@@ -278,7 +281,7 @@ function QwenVoicePicker() {
   }, []);
   return (
     <select
-      className='select select-sm w-full max-w-xs'
+      className='settings-select w-full max-w-xs'
       value={settings.qwenVoiceId ?? ''}
       onChange={(e) => settings.setQwenVoiceId(e.target.value || null)}
       aria-label='Qwen3-TTS narrator voice'

@@ -1,3 +1,4 @@
+import './settings.css';
 import clsx from 'clsx';
 import React, { useMemo } from 'react';
 import { FixedSizeList as List } from 'react-window';
@@ -54,9 +55,7 @@ const FontItem: React.FC<FontItemProps> = ({ index, style, data }) => {
         className='flex w-full items-center overflow-hidden !px-0 text-sm'
       >
         <span style={{ minWidth: `${iconSize16}px` }}>
-          {selected === option.option && (
-            <MdCheck className='text-base-content' size={iconSize16} />
-          )}
+          {selected === option.option && <MdCheck className='text-ink' size={iconSize16} />}
         </span>
         <span
           className='line-clamp-1 overflow-visible break-all leading-loose'
@@ -113,10 +112,10 @@ const FontDropdown: React.FC<DropdownProps> = ({
   );
 
   return (
-    <div className='dropdown dropdown-top'>
+    <div className='settings-dropdown settings-dropdown-top'>
       <button
         tabIndex={0}
-        className='btn btn-sm flex items-center px-[10px] font-normal normal-case sm:px-[20px]'
+        className='settings-btn settings-btn-sm flex items-center px-[10px] font-normal normal-case sm:px-[20px]'
         onClick={(e) => e.currentTarget.focus()}
       >
         <div className='flex items-center gap-x-1'>
@@ -135,7 +134,7 @@ const FontDropdown: React.FC<DropdownProps> = ({
         role='listbox'
         tabIndex={0}
         className={clsx(
-          'dropdown-content bgcolor-base-200 no-triangle menu rounded-box absolute z-[1] mt-4 shadow',
+          'settings-menu no-triangle absolute z-[1] mt-4',
           'right-[-32px] w-[46vw] !px-0 sm:right-0 sm:w-44',
           moreOptions?.length ? '' : 'inline overflow-hidden',
         )}
@@ -155,7 +154,7 @@ const FontDropdown: React.FC<DropdownProps> = ({
 
         {/* More options with nested dropdown */}
         {moreOptions && moreOptions.length > 0 && (
-          <li className='dropdown dropdown-left dropdown-top px-2'>
+          <li className='settings-dropdown settings-dropdown-left settings-dropdown-top px-2'>
             <div className='flex items-center px-0 text-sm'>
               <span style={{ minWidth: `${iconSize}px` }}>
                 <FiChevronLeft size={iconSize} />
@@ -166,7 +165,7 @@ const FontDropdown: React.FC<DropdownProps> = ({
               role='listbox'
               tabIndex={0}
               className={clsx(
-                'dropdown-content bgcolor-base-200 menu rounded-box relative z-[1] shadow',
+                'settings-menu relative z-[1]',
                 '!mr-4 mb-[-46px] inline w-[46vw] overflow-hidden !px-0 sm:w-[200px]',
               )}
             >

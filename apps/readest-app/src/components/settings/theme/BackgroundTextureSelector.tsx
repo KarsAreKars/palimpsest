@@ -1,3 +1,4 @@
+import '../settings.css';
 import clsx from 'clsx';
 import React from 'react';
 import { MdClose, MdPlayCircleOutline } from 'react-icons/md';
@@ -61,7 +62,7 @@ const BackgroundTextureSelector: React.FC<BackgroundTextureSelectorProps> = ({
         <div
           role='radiogroup'
           aria-label={_('Background Image')}
-          className='bg-base-200 eink-bordered inline-flex items-center rounded-full p-0.5'
+          className='bg-paperlight eink-bordered inline-flex items-center rounded-full p-0.5'
         >
           {(
             [
@@ -81,10 +82,10 @@ const BackgroundTextureSelector: React.FC<BackgroundTextureSelectorProps> = ({
                   // em-based like SectionTitle, not rem-based text-sm — the
                   // settings-content wrapper scales 14/16px (DESIGN.md §5).
                   'flex h-9 items-center justify-center rounded-full px-3 text-[0.85em] font-medium transition-colors',
-                  'focus-visible:ring-base-content/15 focus-visible:outline-none focus-visible:ring-2',
+                  'focus-visible:ring-stamp/40 focus-visible:outline-none focus-visible:ring-2',
                   active
-                    ? 'bg-base-300 text-base-content eink-inverted shadow-sm'
-                    : 'text-base-content/60 hover:text-base-content',
+                    ? 'bg-paperlight text-ink eink-inverted shadow-sm'
+                    : 'text-ink/60 hover:text-ink',
                 )}
               >
                 {label}
@@ -114,10 +115,10 @@ const BackgroundTextureSelector: React.FC<BackgroundTextureSelectorProps> = ({
             // Selected texture gets a 2px border in `base-content` (the
             // app's primary text color — white on dark mode, near-black on
             // light mode). Guaranteed contrast against any texture image.
-            // Inactive cards keep `border-base-300` so the slot doesn't
+            // Inactive cards keep `border-ink/30` so the slot doesn't
             // shift on selection change.
-            className={`bg-base-100 relative flex cursor-pointer flex-col items-start justify-between rounded-lg border-2 p-3 shadow-md transition-colors ${
-              selectedTextureId === texture.id ? 'border-base-content' : 'border-base-300'
+            className={`bg-paper relative flex cursor-pointer flex-col items-start justify-between rounded-[2px] border-2 p-3 shadow-md transition-colors ${
+              selectedTextureId === texture.id ? 'border-ink' : 'border-ink/30'
             }`}
             style={{
               backgroundImage: texture.loaded ? `url("${texture.blobUrl || texture.url}")` : 'none',
@@ -147,7 +148,7 @@ const BackgroundTextureSelector: React.FC<BackgroundTextureSelectorProps> = ({
           </div>
         ))}
         <button
-          className='relative flex cursor-pointer flex-col gap-1 items-center justify-end rounded-lg border border-dashed p-3 shadow-md'
+          className='relative flex cursor-pointer flex-col gap-1 items-center justify-end rounded-[2px] border border-dashed p-3 shadow-md'
           onClick={onImportImage}
         >
           <PiPlus size={iconSize24} />
@@ -167,9 +168,9 @@ const BackgroundTextureSelector: React.FC<BackgroundTextureSelectorProps> = ({
                 step='0.05'
                 value={backgroundOpacity}
                 onChange={(e) => onOpacityChange(parseFloat(e.target.value))}
-                className='range range-sm w-32'
+                className='settings-range w-32'
               />
-              <span className='text-base-content/70 w-12 text-end text-sm'>
+              <span className='text-ink/70 w-12 text-end text-sm'>
                 {Math.round(backgroundOpacity * 100)}%
               </span>
             </div>

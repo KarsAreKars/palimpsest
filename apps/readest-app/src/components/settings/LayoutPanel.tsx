@@ -1,3 +1,4 @@
+import './settings.css';
 import React, { useEffect, useState } from 'react';
 import { MdOutlineAutoMode, MdOutlineScreenRotation } from 'react-icons/md';
 import { MdOutlineTextRotationNone, MdTextRotateVertical } from 'react-icons/md';
@@ -467,7 +468,7 @@ const LayoutPanel: React.FC<SettingsPanelPanelProp> = ({ bookKey, onRegisterRese
           <div className='flex gap-4'>
             <button
               title={_('Default')}
-              className={`btn btn-ghost btn-circle btn-sm ${writingMode === 'auto' ? 'btn-active bg-base-300' : ''}`}
+              className={`settings-btn rounded-full settings-btn-sm ${writingMode === 'auto' ? 'settings-btn-active bg-paperlight' : ''}`}
               onClick={() => setWritingMode('auto')}
             >
               <MdOutlineAutoMode />
@@ -475,7 +476,7 @@ const LayoutPanel: React.FC<SettingsPanelPanelProp> = ({ bookKey, onRegisterRese
 
             <button
               title={_('Horizontal Direction')}
-              className={`btn btn-ghost btn-circle btn-sm ${writingMode === 'horizontal-tb' ? 'btn-active bg-base-300' : ''}`}
+              className={`settings-btn rounded-full settings-btn-sm ${writingMode === 'horizontal-tb' ? 'settings-btn-active bg-paperlight' : ''}`}
               onClick={() => setWritingMode('horizontal-tb')}
             >
               <MdOutlineTextRotationNone />
@@ -483,7 +484,7 @@ const LayoutPanel: React.FC<SettingsPanelPanelProp> = ({ bookKey, onRegisterRese
 
             <button
               title={_('Vertical Direction')}
-              className={`btn btn-ghost btn-circle btn-sm ${writingMode === 'vertical-rl' ? 'btn-active bg-base-300' : ''}`}
+              className={`settings-btn rounded-full settings-btn-sm ${writingMode === 'vertical-rl' ? 'settings-btn-active bg-paperlight' : ''}`}
               onClick={() => setWritingMode('vertical-rl')}
             >
               <MdTextRotateVertical />
@@ -491,7 +492,7 @@ const LayoutPanel: React.FC<SettingsPanelPanelProp> = ({ bookKey, onRegisterRese
 
             <button
               title={_('RTL Direction')}
-              className={`btn btn-ghost btn-circle btn-sm ${writingMode === 'horizontal-rl' ? 'btn-active bg-base-300' : ''}`}
+              className={`settings-btn rounded-full settings-btn-sm ${writingMode === 'horizontal-rl' ? 'settings-btn-active bg-paperlight' : ''}`}
               onClick={() => setWritingMode('horizontal-rl')}
             >
               <TbTextDirectionRtl />
@@ -510,11 +511,11 @@ const LayoutPanel: React.FC<SettingsPanelPanelProp> = ({ bookKey, onRegisterRese
           <SettingsRow label={_('Border Color')}>
             <div className='flex gap-4'>
               <button
-                className={`btn btn-circle btn-sm bg-red-300 hover:bg-red-500 ${borderColor === 'red' ? 'btn-active !bg-red-500' : ''}`}
+                className={`settings-btn rounded-full settings-btn-sm bg-red-300 hover:bg-red-500 ${borderColor === 'red' ? 'settings-btn-active !bg-red-500' : ''}`}
                 onClick={() => setBorderColor('red')}
               ></button>
               <button
-                className={`btn btn-circle btn-sm bg-black/50 hover:bg-black ${borderColor === 'black' ? 'btn-active !bg-black' : ''}`}
+                className={`settings-btn rounded-full settings-btn-sm bg-black/50 hover:bg-black ${borderColor === 'black' ? 'settings-btn-active !bg-black' : ''}`}
                 onClick={() => setBorderColor('black')}
               ></button>
             </div>
@@ -786,25 +787,31 @@ const LayoutPanel: React.FC<SettingsPanelPanelProp> = ({ bookKey, onRegisterRese
         <BoxedList title={_('Screen')}>
           <SettingsRow label={_('Orientation')}>
             <div className='flex gap-4'>
-              <div className='lg:tooltip lg:tooltip-bottom' data-tip={_('Auto')}>
+              <div className='lg:settings-tooltip lg:settings-tooltip-bottom' data-tip={_('Auto')}>
                 <button
-                  className={`btn btn-ghost btn-circle btn-sm ${screenOrientation === 'auto' ? 'btn-active bg-base-300' : ''}`}
+                  className={`settings-btn rounded-full settings-btn-sm ${screenOrientation === 'auto' ? 'settings-btn-active bg-paperlight' : ''}`}
                   onClick={() => setScreenOrientation('auto')}
                 >
                   <MdOutlineScreenRotation />
                 </button>
               </div>
-              <div className='lg:tooltip lg:tooltip-bottom' data-tip={_('Portrait')}>
+              <div
+                className='lg:settings-tooltip lg:settings-tooltip-bottom'
+                data-tip={_('Portrait')}
+              >
                 <button
-                  className={`btn btn-ghost btn-circle btn-sm ${screenOrientation === 'portrait' ? 'btn-active bg-base-300' : ''}`}
+                  className={`settings-btn rounded-full settings-btn-sm ${screenOrientation === 'portrait' ? 'settings-btn-active bg-paperlight' : ''}`}
                   onClick={() => setScreenOrientation('portrait')}
                 >
                   <IoPhonePortraitOutline />
                 </button>
               </div>
-              <div className='lg:tooltip lg:tooltip-bottom' data-tip={_('Landscape')}>
+              <div
+                className='lg:settings-tooltip lg:settings-tooltip-bottom'
+                data-tip={_('Landscape')}
+              >
                 <button
-                  className={`btn btn-ghost btn-circle btn-sm ${screenOrientation === 'landscape' ? 'btn-active bg-base-300' : ''}`}
+                  className={`settings-btn rounded-full settings-btn-sm ${screenOrientation === 'landscape' ? 'settings-btn-active bg-paperlight' : ''}`}
                   onClick={() => setScreenOrientation('landscape')}
                 >
                   <IoPhoneLandscapeOutline />

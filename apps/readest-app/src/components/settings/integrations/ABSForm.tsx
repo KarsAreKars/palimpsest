@@ -1,3 +1,4 @@
+import '../settings.css';
 import clsx from 'clsx';
 import React, { useEffect, useState } from 'react';
 import { MdCloudSync } from 'react-icons/md';
@@ -156,7 +157,7 @@ const ABSForm: React.FC<ABSFormProps> = ({ onBack }) => {
                   id='abs-server-url'
                   type='text'
                   placeholder='http://audiobookshelf.local:13378'
-                  className='input input-bordered eink-bordered h-11 w-full text-sm focus:outline-none'
+                  className='paper-field eink-bordered h-11 w-full text-sm focus:outline-none'
                   spellCheck='false'
                   value={url}
                   onChange={(e) => {
@@ -174,7 +175,7 @@ const ABSForm: React.FC<ABSFormProps> = ({ onBack }) => {
                   id='abs-username'
                   type='text'
                   placeholder={_('Your Username')}
-                  className='input input-bordered eink-bordered h-11 w-full text-sm focus:outline-none'
+                  className='paper-field eink-bordered h-11 w-full text-sm focus:outline-none'
                   spellCheck='false'
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
@@ -190,31 +191,27 @@ const ABSForm: React.FC<ABSFormProps> = ({ onBack }) => {
                   id='abs-password'
                   type='password'
                   placeholder={_('Your Password')}
-                  className='input input-bordered eink-bordered h-11 w-full text-sm focus:outline-none'
+                  className='paper-field eink-bordered h-11 w-full text-sm focus:outline-none'
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   autoComplete='current-password'
                 />
               </div>
 
-              {connectError && <p className='text-error px-0.5 text-[0.85em]'>{connectError}</p>}
+              {connectError && <p className='text-stamp px-0.5 text-[0.85em]'>{connectError}</p>}
 
               <div className='flex justify-end pt-1'>
                 <button
                   type='submit'
                   disabled={isConnecting || !url || !username || !password}
                   className={clsx(
-                    'btn btn-contrast',
-                    'h-10 min-h-10 rounded-lg border-0 px-5 text-sm font-medium',
-                    'focus-visible:ring-base-content/40 focus-visible:outline-none focus-visible:ring-2',
+                    'ink-btn',
+                    'h-10 min-h-10 rounded-[2px] border-0 px-5 text-sm font-medium',
+                    'focus-visible:ring-stamp/40 focus-visible:outline-none focus-visible:ring-2',
                     isConnecting && 'opacity-60',
                   )}
                 >
-                  {isConnecting ? (
-                    <span className='loading loading-spinner loading-sm' />
-                  ) : (
-                    _('Connect')
-                  )}
+                  {isConnecting ? <span className='settings-spinner' /> : _('Connect')}
                 </button>
               </div>
             </form>
@@ -339,7 +336,7 @@ const ABSServerDetail: React.FC<ABSServerDetailProps> = ({
       <button
         type='button'
         onClick={onBack}
-        className='text-base-content/70 hover:text-primary -mt-2 px-4 text-[0.85em] transition-colors duration-150 focus-visible:underline focus-visible:outline-none'
+        className='text-ink/70 hover:text-stamp -mt-2 px-4 text-[0.85em] transition-colors duration-150 focus-visible:underline focus-visible:outline-none'
       >
         {_('All Servers')}
       </button>
@@ -351,7 +348,7 @@ const ABSServerDetail: React.FC<ABSServerDetailProps> = ({
         <input
           id='abs-server-name'
           type='text'
-          className='input input-bordered eink-bordered h-11 w-full text-sm focus:outline-none'
+          className='paper-field eink-bordered h-11 w-full text-sm focus:outline-none'
           value={name}
           onChange={(e) => setName(e.target.value)}
           onBlur={handleNameBlur}
@@ -365,18 +362,18 @@ const ABSServerDetail: React.FC<ABSServerDetailProps> = ({
         <input
           type='text'
           disabled
-          className='input input-bordered eink-bordered h-11 w-full text-sm opacity-70'
+          className='paper-field eink-bordered h-11 w-full text-sm opacity-70'
           value={server.url}
         />
       </div>
 
       <div className='space-y-0.5 px-4'>
         {server.serverVersion && (
-          <p className='text-base-content/65 text-[0.85em]'>
+          <p className='text-ink/65 text-[0.85em]'>
             {_('Connected to {{version}}', { version: server.serverVersion })}
           </p>
         )}
-        <p className='text-base-content/65 text-[0.85em]'>
+        <p className='text-ink/65 text-[0.85em]'>
           {server.lastSyncedAt
             ? _('Last synced {{time}}', { time: new Date(server.lastSyncedAt).toLocaleString() })
             : _('Never synced')}
@@ -386,13 +383,13 @@ const ABSServerDetail: React.FC<ABSServerDetailProps> = ({
       <div className='space-y-2'>
         <SectionTitle>{_('Libraries to Sync')}</SectionTitle>
         {libError ? (
-          <p className='text-error px-4 text-[0.85em]'>{libError}</p>
+          <p className='text-stamp px-4 text-[0.85em]'>{libError}</p>
         ) : libraries === null ? (
           <div className='flex justify-center py-4'>
-            <span className='loading loading-spinner loading-sm' />
+            <span className='settings-spinner' />
           </div>
         ) : libraries.length === 0 ? (
-          <p className='text-base-content/65 px-4 text-[0.85em]'>
+          <p className='text-ink/65 px-4 text-[0.85em]'>
             {_('No book libraries found on this server.')}
           </p>
         ) : (
@@ -413,7 +410,7 @@ const ABSServerDetail: React.FC<ABSServerDetailProps> = ({
         <button
           type='button'
           onClick={handleSyncNow}
-          className='btn btn-ghost btn-sm h-9 min-h-9 gap-1.5'
+          className='settings-btn settings-btn-sm h-9 min-h-9 gap-1.5'
         >
           <MdCloudSync className='h-4 w-4' />
           {_('Sync Now')}
@@ -424,10 +421,10 @@ const ABSServerDetail: React.FC<ABSServerDetailProps> = ({
           disabled={isRemoving}
           className={clsx(
             'eink-bordered',
-            'h-9 rounded-lg px-4 text-sm font-medium',
-            'text-error hover:bg-error/10',
+            'h-9 rounded-[2px] px-4 text-sm font-medium',
+            'text-stamp hover:bg-stamp/10',
             'transition-colors duration-150',
-            'focus-visible:ring-error/40 focus-visible:outline-none focus-visible:ring-2',
+            'focus-visible:ring-stamp/40 focus-visible:outline-none focus-visible:ring-2',
             isRemoving && 'opacity-60',
           )}
         >

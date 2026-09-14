@@ -64,7 +64,7 @@ const LabelPopover: React.FC<{
   return (
     <div
       ref={popoverRef}
-      className='bg-base-100 border-base-300 absolute -top-9 start-1/2 z-50 -translate-x-1/2 rounded-md border px-1 py-0.5 shadow-lg'
+      className='bg-paper border-ink absolute -top-9 start-1/2 z-50 -translate-x-1/2 rounded-[2px] border px-1 py-0.5 shadow-lg'
     >
       <input
         ref={inputRef}
@@ -77,7 +77,7 @@ const LabelPopover: React.FC<{
         }}
         placeholder={_('Name')}
         maxLength={20}
-        className='bg-base-100 w-24 text-center text-xs outline-none'
+        className='bg-paper w-24 text-center text-xs outline-none'
       />
     </div>
   );
@@ -103,8 +103,8 @@ const EditableLabel: React.FC<{
         type='button'
         onClick={() => setEditing(true)}
         className={clsx(
-          'hover:text-base-content max-w-full truncate text-xs hover:underline',
-          value ? 'text-base-content/75' : 'text-base-content/40',
+          'hover:text-ink max-w-full truncate text-xs hover:underline',
+          value ? 'text-ink/75' : 'text-ink/40',
         )}
         title={value || placeholder}
       >

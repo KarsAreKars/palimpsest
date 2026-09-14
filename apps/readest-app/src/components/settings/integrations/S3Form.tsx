@@ -1,3 +1,4 @@
+import '../settings.css';
 import clsx from 'clsx';
 import React, { useState } from 'react';
 import { MdVisibility, MdVisibilityOff } from 'react-icons/md';
@@ -121,10 +122,10 @@ const S3Form: React.FC = () => {
             onClick={handleDisconnect}
             className={clsx(
               'eink-bordered',
-              'h-10 rounded-lg px-4 text-sm font-medium',
-              'text-error hover:bg-error/10',
+              'h-10 rounded-[2px] px-4 text-sm font-medium',
+              'text-stamp hover:bg-stamp/10',
               'transition-colors duration-150',
-              'focus-visible:ring-error/40 focus-visible:outline-none focus-visible:ring-2',
+              'focus-visible:ring-stamp/40 focus-visible:outline-none focus-visible:ring-2',
             )}
           >
             {_('Disconnect')}
@@ -150,7 +151,7 @@ const S3Form: React.FC = () => {
           id='s3-endpoint'
           type='text'
           placeholder='https://<account-id>.r2.cloudflarestorage.com'
-          className='input input-bordered eink-bordered h-11 w-full text-sm focus:outline-none'
+          className='paper-field eink-bordered h-11 w-full text-sm focus:outline-none'
           spellCheck='false'
           value={endpoint}
           onChange={(e) => setEndpoint(e.target.value)}
@@ -165,7 +166,7 @@ const S3Form: React.FC = () => {
           id='s3-bucket'
           type='text'
           placeholder='readest'
-          className='input input-bordered eink-bordered h-11 w-full text-sm focus:outline-none'
+          className='paper-field eink-bordered h-11 w-full text-sm focus:outline-none'
           spellCheck='false'
           value={bucket}
           onChange={(e) => setBucket(e.target.value)}
@@ -180,7 +181,7 @@ const S3Form: React.FC = () => {
           id='s3-region'
           type='text'
           placeholder='auto'
-          className='input input-bordered eink-bordered h-11 w-full text-sm focus:outline-none'
+          className='paper-field eink-bordered h-11 w-full text-sm focus:outline-none'
           spellCheck='false'
           value={region}
           onChange={(e) => setRegion(e.target.value)}
@@ -195,7 +196,7 @@ const S3Form: React.FC = () => {
           id='s3-access-key-id'
           type='text'
           placeholder={_('Your Access Key ID')}
-          className='input input-bordered eink-bordered h-11 w-full text-sm focus:outline-none'
+          className='paper-field eink-bordered h-11 w-full text-sm focus:outline-none'
           spellCheck='false'
           value={accessKeyId}
           onChange={(e) => setAccessKeyId(e.target.value)}
@@ -212,7 +213,7 @@ const S3Form: React.FC = () => {
             id='s3-secret-access-key'
             type={showSecret ? 'text' : 'password'}
             placeholder={_('Your Secret Access Key')}
-            className='input input-bordered eink-bordered h-11 w-full pe-11 text-sm focus:outline-none'
+            className='paper-field eink-bordered h-11 w-full pe-11 text-sm focus:outline-none'
             value={secretAccessKey}
             onChange={(e) => setSecretAccessKey(e.target.value)}
             autoComplete='off'
@@ -223,9 +224,9 @@ const S3Form: React.FC = () => {
             className={clsx(
               'absolute end-2 top-1/2 -translate-y-1/2',
               'flex h-8 w-8 items-center justify-center rounded',
-              'text-base-content/60 hover:text-base-content',
-              'hover:bg-base-200/60 transition-colors duration-150',
-              'focus-visible:ring-base-content/15 focus-visible:outline-none focus-visible:ring-2',
+              'text-ink/60 hover:text-ink',
+              'hover:bg-paperlight/60 transition-colors duration-150',
+              'focus-visible:ring-stamp/40 focus-visible:outline-none focus-visible:ring-2',
             )}
             aria-label={showSecret ? _('Hide password') : _('Show password')}
             title={showSecret ? _('Hide password') : _('Show password')}
@@ -245,13 +246,13 @@ const S3Form: React.FC = () => {
           type='submit'
           disabled={isConnecting || !canSubmit}
           className={clsx(
-            'btn btn-contrast',
-            'h-10 min-h-10 rounded-lg border-0 px-5 text-sm font-medium',
-            'focus-visible:ring-base-content/40 focus-visible:outline-none focus-visible:ring-2',
+            'ink-btn',
+            'h-10 min-h-10 rounded-[2px] border-0 px-5 text-sm font-medium',
+            'focus-visible:ring-stamp/40 focus-visible:outline-none focus-visible:ring-2',
             isConnecting && 'opacity-60',
           )}
         >
-          {isConnecting ? <span className='loading loading-spinner loading-sm' /> : _('Connect')}
+          {isConnecting ? <span className='settings-spinner' /> : _('Connect')}
         </button>
       </div>
     </form>

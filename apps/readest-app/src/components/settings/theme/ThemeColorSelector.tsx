@@ -47,7 +47,7 @@ const ThemeColorSelector: React.FC<ThemeColorSelectorProps> = ({
             // background, light or dark. The transparent border on inactive
             // cards reserves the same 2px so selecting/deselecting doesn't
             // shift the grid.
-            className={`relative flex cursor-pointer flex-col items-center justify-end rounded-lg border-2 p-3 shadow-md ${
+            className={`relative flex cursor-pointer flex-col items-center justify-end rounded-[2px] border-2 p-3 shadow-md ${
               themeColor === name ? 'border-current' : 'border-transparent'
             }`}
             style={{
@@ -75,7 +75,7 @@ const ThemeColorSelector: React.FC<ThemeColorSelectorProps> = ({
           </button>
         ))}
         <button
-          className='relative flex cursor-pointer flex-col gap-1 items-center justify-end rounded-lg border border-dashed p-3 shadow-md'
+          className='relative flex cursor-pointer flex-col gap-1 items-center justify-end rounded-[2px] border border-dashed p-3 shadow-md'
           onClick={onCreateTheme}
         >
           <PiPlus size={iconSize24} />

@@ -1,3 +1,4 @@
+import '../settings.css';
 import clsx from 'clsx';
 import React from 'react';
 import { MdOutlineLightMode, MdOutlineDarkMode, MdOutlineSensors } from 'react-icons/md';
@@ -106,7 +107,7 @@ const ThemeModeSelector: React.FC<ThemeModeSelectorProps> = ({
       <div
         role='radiogroup'
         aria-label={_('Theme Mode')}
-        className='bg-base-200 eink-bordered inline-flex items-center rounded-full p-0.5'
+        className='bg-paperlight eink-bordered inline-flex items-center rounded-full p-0.5'
       >
         {segments.map(({ mode, title, onClick, icon }) => {
           const active = themeMode === mode;
@@ -121,14 +122,14 @@ const ThemeModeSelector: React.FC<ThemeModeSelectorProps> = ({
               onClick={onClick}
               className={clsx(
                 'flex h-9 min-w-[2.75rem] items-center justify-center rounded-full px-3 text-lg transition-colors',
-                'focus-visible:ring-base-content/15 focus-visible:outline-none focus-visible:ring-2',
+                'focus-visible:ring-stamp/40 focus-visible:outline-none focus-visible:ring-2',
                 // e-ink: mark the active segment with a solid `eink-inverted`
                 // fill (base-content bg, base-100 icon) instead of a border —
                 // a bordered thumb would nest awkwardly inside the track's own
                 // border. The track keeps its `eink-bordered` outline.
                 active
-                  ? 'bg-base-300 text-base-content eink-inverted shadow-sm'
-                  : 'text-base-content/60 hover:text-base-content',
+                  ? 'bg-paperlight text-ink eink-inverted shadow-sm'
+                  : 'text-ink/60 hover:text-ink',
               )}
             >
               {icon}

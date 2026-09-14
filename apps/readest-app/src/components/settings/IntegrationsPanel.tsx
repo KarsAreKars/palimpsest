@@ -1,3 +1,4 @@
+import './settings.css';
 import clsx from 'clsx';
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -572,15 +573,15 @@ const IntegrationsPanel: React.FC = () => {
     <div className='my-4 w-full space-y-6'>
       <div className='w-full px-4'>
         <h2 className='mb-1.5 text-lg font-semibold tracking-tight'>{_('Integrations')}</h2>
-        <p className='text-base-content/70 text-sm leading-relaxed'>
+        <p className='text-ink/70 text-sm leading-relaxed'>
           {_('Connect Readest to external services for sync, highlights, and catalogs.')}
         </p>
       </div>
 
       <div className='w-full' data-setting-id='settings.integrations.sync'>
         <SectionTitle className='mb-2'>{_('Reading Sync')}</SectionTitle>
-        <div className='card eink-bordered border-base-200 bg-base-100 overflow-hidden border'>
-          <div className='divide-base-200 divide-y'>
+        <div className='settings-card eink-bordered overflow-hidden'>
+          <div className='divide-ink divide-y'>
             <IntegrationRow
               icon={RiBookOpenLine}
               title={_('KOReader')}
@@ -611,12 +612,8 @@ const IntegrationsPanel: React.FC = () => {
 
       <div className='w-full' data-setting-id='settings.integrations.cloudSync'>
         <SectionTitle className='mb-2'>{_('Cloud Sync')}</SectionTitle>
-        <div className='card eink-bordered border-base-200 bg-base-100 overflow-hidden border'>
-          <div
-            className='divide-base-200 divide-y'
-            role='group'
-            aria-label={_('Cloud sync providers')}
-          >
+        <div className='settings-card eink-bordered overflow-hidden'>
+          <div className='divide-ink divide-y' role='group' aria-label={_('Cloud sync providers')}>
             <CloudProviderRow
               icon={RiCloudFill}
               title={_('Readest Cloud')}
@@ -747,8 +744,8 @@ const IntegrationsPanel: React.FC = () => {
 
       <div className='w-full' data-setting-id='settings.integrations.catalogs'>
         <SectionTitle className='mb-2'>{_('Content Sources')}</SectionTitle>
-        <div className='card eink-bordered border-base-200 bg-base-100 overflow-hidden border'>
-          <div className='divide-base-200 divide-y'>
+        <div className='settings-card eink-bordered overflow-hidden'>
+          <div className='divide-ink divide-y'>
             <IntegrationRow
               icon={RiRssLine}
               title={_('OPDS Catalogs')}
@@ -782,8 +779,8 @@ const IntegrationsPanel: React.FC = () => {
       {appService?.isDesktopApp && (
         <div className='w-full' data-setting-id='settings.integrations.discord'>
           <SectionTitle className='mb-2'>{_('Discord')}</SectionTitle>
-          <div className='card eink-bordered border-base-200 bg-base-100 overflow-hidden border'>
-            <div className='divide-base-200 divide-y'>
+          <div className='settings-card eink-bordered overflow-hidden'>
+            <div className='divide-ink divide-y'>
               <IntegrationToggleRow
                 icon={RiDiscordLine}
                 title={_('Show on Discord')}
@@ -814,24 +811,24 @@ const IntegrationRow: React.FC<IntegrationRowProps> = ({ icon: Icon, title, stat
       className={clsx(
         'group flex w-full items-center gap-3 px-4 py-3 text-left',
         'transition-colors duration-150',
-        'focus-visible:ring-base-content/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset',
+        'focus-visible:ring-stamp/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset',
       )}
     >
       <span
         className={clsx(
           'flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full',
-          'bg-base-200 text-base-content/70',
+          'bg-paperlight text-ink/70',
           'transition-colors duration-150',
-          'group-hover:bg-base-300/70',
+          'group-hover:bg-paperlight/70',
         )}
       >
         <Icon className='h-5 w-5' />
       </span>
       <div className='flex min-w-0 flex-1 flex-col gap-0.5'>
         <SettingLabel>{title}</SettingLabel>
-        <span className='text-base-content/65 truncate text-[0.85em]'>{status}</span>
+        <span className='text-ink/65 truncate text-[0.85em]'>{status}</span>
       </div>
-      <MdChevronRight className='text-base-content/50 h-5 w-5 flex-shrink-0' />
+      <MdChevronRight className='text-ink/50 h-5 w-5 flex-shrink-0' />
     </button>
   );
 };
@@ -876,28 +873,28 @@ const CloudProviderRow: React.FC<CloudProviderRowProps> = ({
         onClick={onOpen}
         className={clsx(
           'flex min-w-0 flex-1 items-center gap-3 text-left',
-          'focus-visible:ring-base-content/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset',
+          'focus-visible:ring-stamp/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset',
         )}
       >
         <span
           className={clsx(
             'flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full',
-            'bg-base-200 text-base-content/70',
+            'bg-paperlight text-ink/70',
             'transition-colors duration-150',
-            'group-hover:bg-base-300/70',
+            'group-hover:bg-paperlight/70',
           )}
         >
           <Icon className='h-5 w-5' />
         </span>
         <div className='flex min-w-0 flex-1 flex-col gap-0.5'>
           <SettingLabel>{title}</SettingLabel>
-          <span className='text-base-content/65 truncate text-[0.85em]'>{status}</span>
+          <span className='text-ink/65 truncate text-[0.85em]'>{status}</span>
         </div>
       </button>
-      {badge && <span className='badge badge-sm badge-ghost shrink-0'>{badge}</span>}
+      {badge && <span className='settings-badge settings-badge-ghost shrink-0'>{badge}</span>}
       <input
         type='checkbox'
-        className='checkbox checkbox-sm flex-shrink-0'
+        className='settings-check flex-shrink-0'
         checked={checked}
         disabled={!canToggle}
         onChange={(e) => onToggle(e.target.checked)}
@@ -909,8 +906,8 @@ const CloudProviderRow: React.FC<CloudProviderRowProps> = ({
         onClick={onOpen}
         aria-label={title}
         className={clsx(
-          'text-base-content/50 hover:text-base-content/80 flex-shrink-0 rounded',
-          'focus-visible:ring-base-content/15 focus-visible:outline-none focus-visible:ring-2',
+          'text-ink/50 hover:text-ink/80 flex-shrink-0 rounded',
+          'focus-visible:ring-stamp/40 focus-visible:outline-none focus-visible:ring-2',
         )}
       >
         <MdChevronRight className='h-5 w-5' />
@@ -944,18 +941,18 @@ const IntegrationToggleRow: React.FC<IntegrationToggleRowProps> = ({
       <span
         className={clsx(
           'flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full',
-          'bg-base-200 text-base-content/70',
+          'bg-paperlight text-ink/70',
         )}
       >
         <Icon className='h-5 w-5' />
       </span>
       <div className='flex min-w-0 flex-1 flex-col gap-0.5'>
         <SettingLabel>{title}</SettingLabel>
-        <span className='text-base-content/65 truncate text-[0.85em]'>{description}</span>
+        <span className='text-ink/65 truncate text-[0.85em]'>{description}</span>
       </div>
       <input
         type='checkbox'
-        className='toggle flex-shrink-0'
+        className='settings-toggle flex-shrink-0'
         checked={checked}
         onChange={onChange}
       />

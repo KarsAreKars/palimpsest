@@ -1,3 +1,4 @@
+import '../settings.css';
 import clsx from 'clsx';
 import React, { useState } from 'react';
 import { useEnv } from '@/context/EnvContext';
@@ -107,8 +108,8 @@ const HardcoverForm: React.FC<HardcoverFormProps> = ({ onBack }) => {
 
       {isConfigured ? (
         <div className='space-y-5'>
-          <div className='card eink-bordered border-base-200 bg-base-100 overflow-hidden border'>
-            <div className='divide-base-200 divide-y'>
+          <div className='settings-card eink-bordered overflow-hidden'>
+            <div className='divide-ink divide-y'>
               <label className='flex min-h-14 items-center justify-between px-4'>
                 <SettingLabel>{_('Sync Enabled')}</SettingLabel>
                 <Toggle
@@ -132,10 +133,10 @@ const HardcoverForm: React.FC<HardcoverFormProps> = ({ onBack }) => {
               onClick={handleDisconnect}
               className={clsx(
                 'eink-bordered',
-                'h-10 rounded-lg px-4 text-sm font-medium',
-                'text-error hover:bg-error/10',
+                'h-10 rounded-[2px] px-4 text-sm font-medium',
+                'text-stamp hover:bg-stamp/10',
                 'transition-colors duration-150',
-                'focus-visible:ring-error/40 focus-visible:outline-none focus-visible:ring-2',
+                'focus-visible:ring-stamp/40 focus-visible:outline-none focus-visible:ring-2',
               )}
             >
               {_('Disconnect')}
@@ -152,7 +153,7 @@ const HardcoverForm: React.FC<HardcoverFormProps> = ({ onBack }) => {
               id='hardcover-token'
               type='password'
               placeholder={_('Paste your Hardcover API token')}
-              className='input input-bordered eink-bordered h-11 w-full text-sm focus:outline-none'
+              className='paper-field eink-bordered h-11 w-full text-sm focus:outline-none'
               spellCheck='false'
               value={accessToken}
               onChange={(e) => setAccessToken(e.target.value)}
@@ -165,17 +166,13 @@ const HardcoverForm: React.FC<HardcoverFormProps> = ({ onBack }) => {
               onClick={handleConnect}
               disabled={isConnecting || !accessToken}
               className={clsx(
-                'btn btn-primary',
-                'h-10 min-h-10 rounded-lg border-0 px-5 text-sm font-medium',
-                'focus-visible:ring-primary/40 focus-visible:outline-none focus-visible:ring-2',
+                'stamp-btn',
+                'h-10 min-h-10 rounded-[2px] border-0 px-5 text-sm font-medium',
+                'focus-visible:ring-stamp/40 focus-visible:outline-none focus-visible:ring-2',
                 isConnecting && 'opacity-60',
               )}
             >
-              {isConnecting ? (
-                <span className='loading loading-spinner loading-sm' />
-              ) : (
-                _('Connect')
-              )}
+              {isConnecting ? <span className='settings-spinner' /> : _('Connect')}
             </button>
           </div>
         </div>

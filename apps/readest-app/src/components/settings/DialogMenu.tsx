@@ -1,3 +1,4 @@
+import './settings.css';
 import clsx from 'clsx';
 import React from 'react';
 import { MdCheck } from 'react-icons/md';
@@ -60,12 +61,11 @@ const DialogMenu: React.FC<DialogMenuProps> = ({
   };
 
   return (
-    <Menu className={clsx('dialog-menu dropdown-content no-triangle z-20 mt-2 shadow-2xl')}>
+    <Menu className={clsx('dialog-menu no-triangle z-20 mt-2 settings-lift')}>
       <MenuItem
         label={_('Global Settings')}
         tooltip={isSettingsGlobal ? _('Apply to All Books') : _('Apply to This Book')}
         disabled={!bookKey}
-        buttonClass='lg:tooltip'
         Icon={isSettingsGlobal ? MdCheck : null}
         onClick={handleToggleGlobal}
       />

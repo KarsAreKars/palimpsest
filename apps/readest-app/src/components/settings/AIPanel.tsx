@@ -1,3 +1,4 @@
+import './settings.css';
 import clsx from 'clsx';
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { PiCheckCircle, PiWarningCircle, PiArrowsClockwise, PiSpinner } from 'react-icons/pi';
@@ -418,7 +419,7 @@ const AIPanel: React.FC = () => {
           <input
             type='radio'
             name='ai-provider'
-            className='radio'
+            className='settings-check'
             checked={provider === 'ollama'}
             onChange={() => setProvider('ollama')}
             disabled={!enabled}
@@ -428,7 +429,7 @@ const AIPanel: React.FC = () => {
           <input
             type='radio'
             name='ai-provider'
-            className='radio'
+            className='settings-check'
             checked={provider === 'ai-gateway'}
             onChange={() => setProvider('ai-gateway')}
             disabled={!enabled}
@@ -438,7 +439,7 @@ const AIPanel: React.FC = () => {
           <input
             type='radio'
             name='ai-provider'
-            className='radio'
+            className='settings-check'
             checked={provider === 'openrouter'}
             onChange={() => setProvider('openrouter')}
             disabled={!enabled}
@@ -456,7 +457,7 @@ const AIPanel: React.FC = () => {
             <div className='flex w-full items-center justify-between'>
               <SettingLabel>{_('Server URL')}</SettingLabel>
               <button
-                className='hover:bg-base-200 inline-flex h-7 w-7 items-center justify-center rounded-md transition-colors duration-150'
+                className='hover:bg-paperlight inline-flex h-7 w-7 items-center justify-center rounded-[2px] transition-colors duration-150'
                 onClick={fetchOllamaModels}
                 disabled={!enabled || fetchingModels}
                 title={_('Refresh Models')}
@@ -467,7 +468,7 @@ const AIPanel: React.FC = () => {
             </div>
             <input
               type='text'
-              className='input input-bordered input-sm w-full'
+              className='paper-field w-full'
               value={ollamaUrl}
               onChange={(e) => setOllamaUrl(e.target.value)}
               placeholder='http://127.0.0.1:11434'
@@ -479,7 +480,7 @@ const AIPanel: React.FC = () => {
               <div className='flex flex-col gap-2 py-3 pe-4'>
                 <SettingLabel>{_('AI Model')}</SettingLabel>
                 <select
-                  className='select select-bordered select-sm bg-base-100 text-base-content w-full'
+                  className='settings-select bg-paper text-ink w-full'
                   value={ollamaModel}
                   onChange={(e) => setOllamaModel(e.target.value)}
                   disabled={!enabled}
@@ -494,7 +495,7 @@ const AIPanel: React.FC = () => {
               <div className='flex flex-col gap-2 py-3 pe-4'>
                 <SettingLabel>{_('Embedding Model')}</SettingLabel>
                 <select
-                  className='select select-bordered select-sm bg-base-100 text-base-content w-full'
+                  className='settings-select bg-paper text-ink w-full'
                   value={ollamaEmbeddingModel}
                   onChange={(e) => setOllamaEmbeddingModel(e.target.value)}
                   disabled={!enabled}
@@ -509,7 +510,7 @@ const AIPanel: React.FC = () => {
             </>
           ) : !fetchingModels ? (
             <SettingsRow
-              label={<span className='text-warning text-sm'>{_('No models detected')}</span>}
+              label={<span className='text-stamp text-sm'>{_('No models detected')}</span>}
             />
           ) : null}
         </BoxedList>
@@ -530,14 +531,14 @@ const AIPanel: React.FC = () => {
                 href='https://vercel.com/docs/ai/ai-gateway'
                 target='_blank'
                 rel='noopener noreferrer'
-                className={clsx('link text-xs', !enabled && 'pointer-events-none')}
+                className={clsx('settings-link text-xs', !enabled && 'pointer-events-none')}
               >
                 {_('Get Key')}
               </a>
             </div>
             <input
               type='password'
-              className='input input-bordered input-sm w-full'
+              className='paper-field w-full'
               value={gatewayKey}
               onChange={(e) => setGatewayKey(e.target.value)}
               placeholder='vck_...'
@@ -547,7 +548,7 @@ const AIPanel: React.FC = () => {
           <div className='flex flex-col gap-2 pe-4 py-3'>
             <SettingLabel>{_('Model')}</SettingLabel>
             <select
-              className='select select-bordered select-sm bg-base-100 text-base-content w-full'
+              className='settings-select bg-paper text-ink w-full'
               value={selectedModel}
               onChange={(e) => handleModelChange(e.target.value)}
               disabled={!enabled}
@@ -567,7 +568,7 @@ const AIPanel: React.FC = () => {
               <div className='flex w-full gap-2'>
                 <input
                   type='text'
-                  className='input input-bordered input-sm flex-1'
+                  className='paper-field flex-1'
                   value={customModelInput}
                   onChange={(e) => {
                     setCustomModelInput(e.target.value);
@@ -578,7 +579,7 @@ const AIPanel: React.FC = () => {
                   disabled={!enabled}
                 />
                 <button
-                  className='btn btn-outline btn-sm'
+                  className='stamp-btn settings-btn-sm'
                   onClick={validateCustomModel}
                   disabled={!enabled || customModelStatus === 'validating'}
                 >
@@ -590,14 +591,14 @@ const AIPanel: React.FC = () => {
                 </button>
               </div>
               {customModelStatus === 'valid' && customModelPricing && (
-                <span className='text-success flex items-center gap-1 text-sm'>
+                <span className='settings-success flex items-center gap-1 text-sm'>
                   <PiCheckCircle />
                   {_('Model available')} · ${customModelPricing.input}/M in, $
                   {customModelPricing.output}/M out
                 </span>
               )}
               {customModelStatus === 'invalid' && (
-                <span className='text-error text-sm'>{customModelError}</span>
+                <span className='text-stamp text-sm'>{customModelError}</span>
               )}
             </div>
           )}
@@ -620,14 +621,14 @@ const AIPanel: React.FC = () => {
                 href='https://openrouter.ai/keys'
                 target='_blank'
                 rel='noopener noreferrer'
-                className={clsx('link text-xs', !enabled && 'pointer-events-none')}
+                className={clsx('settings-link text-xs', !enabled && 'pointer-events-none')}
               >
                 {_('Get Key')}
               </a>
             </div>
             <input
               type='password'
-              className='input input-bordered input-sm w-full'
+              className='paper-field w-full'
               value={openrouterKey}
               onChange={(e) => setOpenrouterKey(e.target.value)}
               placeholder='sk-or-...'
@@ -641,7 +642,7 @@ const AIPanel: React.FC = () => {
             <div className='flex w-full items-center justify-between'>
               <SettingLabel>{_('Base URL')}</SettingLabel>
               <button
-                className='hover:bg-base-200 inline-flex h-7 w-7 items-center justify-center rounded-md transition-colors duration-150'
+                className='hover:bg-paperlight inline-flex h-7 w-7 items-center justify-center rounded-[2px] transition-colors duration-150'
                 onClick={fetchOpenrouterModelList}
                 disabled={!enabled || openrouterFetchingModels || !openrouterKey}
                 title={_('Refresh Models')}
@@ -656,7 +657,7 @@ const AIPanel: React.FC = () => {
             </div>
             <input
               type='text'
-              className='input input-bordered input-sm w-full'
+              className='paper-field w-full'
               value={openrouterUrl}
               onChange={(e) => setOpenrouterUrl(e.target.value)}
               placeholder='https://openrouter.ai/api/v1'
@@ -669,7 +670,7 @@ const AIPanel: React.FC = () => {
             <SettingLabel>{_('LLM Model')}</SettingLabel>
             {openrouterModels.length > 0 ? (
               <select
-                className='select select-bordered select-sm bg-base-100 text-base-content w-full'
+                className='settings-select bg-paper text-ink w-full'
                 value={openrouterModel}
                 onChange={(e) => setOpenrouterModel(e.target.value)}
                 disabled={!enabled}
@@ -685,7 +686,7 @@ const AIPanel: React.FC = () => {
               // so the user isn't locked out before refreshing succeeds.
               <input
                 type='text'
-                className='input input-bordered input-sm w-full'
+                className='paper-field w-full'
                 value={openrouterModel}
                 onChange={(e) => setOpenrouterModel(e.target.value)}
                 placeholder='openai/gpt-4o-mini'
@@ -693,10 +694,10 @@ const AIPanel: React.FC = () => {
               />
             )}
             {openrouterModelsError && (
-              <span className='text-error text-xs'>{openrouterModelsError}</span>
+              <span className='text-stamp text-xs'>{openrouterModelsError}</span>
             )}
             {!openrouterModelsError && !openrouterKey && (
-              <span className='text-base-content/60 text-xs'>
+              <span className='text-ink/60 text-xs'>
                 {_('Enter an API key, then refresh to load available models.')}
               </span>
             )}
@@ -711,7 +712,7 @@ const AIPanel: React.FC = () => {
             <SettingLabel>{_('Embedding Model')}</SettingLabel>
             {openrouterModels.length > 0 ? (
               <select
-                className='select select-bordered select-sm bg-base-100 text-base-content w-full'
+                className='settings-select bg-paper text-ink w-full'
                 value={openrouterEmbeddingModel}
                 onChange={(e) => setOpenrouterEmbeddingModel(e.target.value)}
                 disabled={!enabled}
@@ -726,14 +727,14 @@ const AIPanel: React.FC = () => {
             ) : (
               <input
                 type='text'
-                className='input input-bordered input-sm w-full'
+                className='paper-field w-full'
                 value={openrouterEmbeddingModel}
                 onChange={(e) => setOpenrouterEmbeddingModel(e.target.value)}
                 placeholder='openai/text-embedding-3-small'
                 disabled={!enabled}
               />
             )}
-            <span className='text-base-content/60 text-xs'>
+            <span className='text-ink/60 text-xs'>
               {_(
                 'Optional. Leave blank if your endpoint does not support embeddings — chat will still work but RAG features will be unavailable.',
               )}
@@ -784,7 +785,7 @@ const AIPanel: React.FC = () => {
             <SettingLabel>{_('Send Reedy feedback')}</SettingLabel>
           </div>
           <button
-            className='btn btn-outline btn-sm'
+            className='stamp-btn settings-btn-sm'
             disabled={!enabled || !isTauriAppPlatform() || !appService}
             onClick={async () => {
               if (!appService) return;
@@ -812,7 +813,7 @@ const AIPanel: React.FC = () => {
       <BoxedList title={_('Connection')} className={disabledSection}>
         <div className='flex min-h-14 items-center justify-between gap-3 pe-4'>
           <button
-            className='btn btn-outline btn-sm'
+            className='stamp-btn settings-btn-sm'
             onClick={handleTestConnection}
             disabled={!enabled || connectionStatus === 'testing'}
           >
@@ -820,13 +821,13 @@ const AIPanel: React.FC = () => {
           </button>
           <div>
             {connectionStatus === 'success' && (
-              <span className='text-success flex items-center gap-1 text-sm'>
+              <span className='settings-success flex items-center gap-1 text-sm'>
                 <PiCheckCircle className='size-4 shrink-0' />
                 {_('Connected')}
               </span>
             )}
             {connectionStatus === 'error' && (
-              <span className='text-error flex items-center gap-1 text-sm'>
+              <span className='text-stamp flex items-center gap-1 text-sm'>
                 <PiWarningCircle className='size-4 shrink-0' />
                 {errorMessage || _('Failed')}
               </span>

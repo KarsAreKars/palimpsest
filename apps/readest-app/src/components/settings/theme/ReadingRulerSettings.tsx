@@ -1,3 +1,4 @@
+import '../settings.css';
 import React from 'react';
 import { useTranslation } from '@/hooks/useTranslation';
 import { ReadingRulerColor } from '@/types/book';
@@ -61,8 +62,8 @@ const ReadingRulerSettings: React.FC<ReadingRulerSettingsProps> = ({
           {RULER_COLORS.map(({ value, className, hoverClassName }) => (
             <button
               key={value}
-              className={`btn btn-circle btn-sm ${className} ${hoverClassName} ${
-                color === value ? 'ring-base-content ring-2 ring-offset-1' : ''
+              className={`settings-btn rounded-full settings-btn-sm ${className} ${hoverClassName} ${
+                color === value ? 'ring-stamp ring-2 ring-offset-1' : ''
               } ${!enabled ? 'opacity-50' : ''}`}
               onClick={() => enabled && onColorChange(value)}
             />

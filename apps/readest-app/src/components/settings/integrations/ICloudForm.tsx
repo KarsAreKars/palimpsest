@@ -1,3 +1,4 @@
+import '../settings.css';
 import clsx from 'clsx';
 import React, { useEffect, useState } from 'react';
 import { useEnv } from '@/context/EnvContext';
@@ -12,16 +13,16 @@ import { persistCloudProviderEnabled } from './cloudSync';
 
 const turnOffButtonClass = clsx(
   'eink-bordered',
-  'h-10 rounded-lg px-4 text-sm font-medium',
-  'text-error hover:bg-error/10',
+  'h-10 rounded-[2px] px-4 text-sm font-medium',
+  'text-stamp hover:bg-stamp/10',
   'transition-colors duration-150',
-  'focus-visible:ring-error/40 focus-visible:outline-none focus-visible:ring-2',
+  'focus-visible:ring-stamp/40 focus-visible:outline-none focus-visible:ring-2',
 );
 
 const primaryButtonClass = clsx(
-  'btn btn-contrast',
-  'h-10 min-h-10 rounded-lg border-0 px-5 text-sm font-medium',
-  'focus-visible:ring-base-content/40 focus-visible:outline-none focus-visible:ring-2',
+  'ink-btn',
+  'h-10 min-h-10 rounded-[2px] border-0 px-5 text-sm font-medium',
+  'focus-visible:ring-stamp/40 focus-visible:outline-none focus-visible:ring-2',
 );
 
 /**

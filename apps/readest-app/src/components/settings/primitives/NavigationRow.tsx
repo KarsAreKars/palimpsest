@@ -4,7 +4,7 @@ import { MdChevronRight } from 'react-icons/md';
 import SettingLabel from './SettingLabel';
 
 interface NavigationRowProps {
-  /** Optional leading icon. Rendered inside a `bg-base-200` chip. */
+  /** Optional leading icon. Rendered inside a `bg-paperlight` chip. */
   icon?: React.ElementType;
   /** Primary label. */
   title: string;
@@ -44,21 +44,21 @@ const NavigationRow: React.FC<NavigationRowProps> = ({
       className={clsx(
         'group flex w-full items-center gap-3 py-4 pe-4 text-left',
         'transition-colors duration-150',
-        'focus-visible:ring-base-content/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset',
+        'focus-visible:ring-stamp/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset',
         disabled && 'cursor-not-allowed opacity-50',
         className,
       )}
     >
       {Icon && (
-        <span className='bg-base-200 text-base-content/70 group-hover:bg-base-300/70 flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full transition-colors duration-150'>
+        <span className='bg-paperlight text-ink/70 group-hover:bg-paperlight/70 flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full transition-colors duration-150'>
           <Icon className='h-5 w-5' />
         </span>
       )}
       <div className='flex min-w-0 flex-1 flex-col gap-0.5'>
         <SettingLabel>{title}</SettingLabel>
-        {status && <span className='text-base-content/65 truncate text-[0.85em]'>{status}</span>}
+        {status && <span className='text-ink/65 truncate text-[0.85em]'>{status}</span>}
       </div>
-      <MdChevronRight className='text-base-content/50 h-5 w-5 flex-shrink-0' />
+      <MdChevronRight className='text-ink/50 h-5 w-5 flex-shrink-0' />
     </button>
   );
 };

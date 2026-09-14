@@ -150,12 +150,12 @@ const MiscPanel: React.FC<SettingsPanelPanelProp> = ({ bookKey, onRegisterReset 
             textarea owns the whole card surface. Apply button overlays at
             the bottom-trailing corner; visible only when there are unsaved
             edits and no validation error. */}
-        <div className={clsx('relative p-1', error && 'ring-error/60 rounded-2xl ring-1')}>
+        <div className={clsx('relative p-1', error && 'ring-stamp/60 rounded-[2px] ring-1')}>
           <textarea
             ref={textareaRef}
             className={clsx(
-              'textarea textarea-ghost h-48 w-full border-0 p-3 text-base !outline-none sm:text-sm',
-              'placeholder:text-base-content/70',
+              'h-48 w-full border-0 p-3 text-base !outline-none sm:text-sm',
+              'placeholder:text-ink/70',
             )}
             placeholder={_(placeholder)}
             spellCheck='false'
@@ -169,8 +169,8 @@ const MiscPanel: React.FC<SettingsPanelPanelProp> = ({ bookKey, onRegisterReset 
           />
           <button
             className={clsx(
-              'hover:bg-base-300 bg-base-200 absolute bottom-2 end-4 inline-flex h-8 items-center rounded-md px-3 text-xs font-medium transition-colors duration-150',
-              'focus-visible:ring-base-content/15 focus-visible:outline-none focus-visible:ring-2',
+              'hover:bg-faint/60 bg-paperlight absolute bottom-2 end-4 inline-flex h-8 items-center rounded-[2px] px-3 text-xs font-medium transition-colors duration-150',
+              'focus-visible:ring-stamp/40 focus-visible:outline-none focus-visible:ring-2',
               saved ? 'hidden' : '',
               error ? 'pointer-events-none opacity-50' : '',
             )}
@@ -181,7 +181,7 @@ const MiscPanel: React.FC<SettingsPanelPanelProp> = ({ bookKey, onRegisterReset 
           </button>
         </div>
       </BoxedList>
-      {error && <p className='text-error mt-1 ps-4 text-sm'>{error}</p>}
+      {error && <p className='text-stamp mt-1 ps-4 text-sm'>{error}</p>}
     </div>
   );
 

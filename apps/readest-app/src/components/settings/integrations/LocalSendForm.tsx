@@ -1,3 +1,4 @@
+import '../settings.css';
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useLocalSendStore } from '@/store/localsendStore';
@@ -103,9 +104,7 @@ const LocalSendForm: React.FC<LocalSendFormProps> = ({ onBack }) => {
             description={[status.alias, deviceTag(status)].filter(Boolean).join(' · ')}
             asLabel={false}
           >
-            <span className='text-base-content/70 text-sm'>
-              {_('Port {{port}}', { port: status.port })}
-            </span>
+            <span className='text-ink/70 text-sm'>{_('Port {{port}}', { port: status.port })}</span>
           </SettingsRow>
         </BoxedList>
       )}

@@ -1,3 +1,4 @@
+import './settings.css';
 import clsx from 'clsx';
 import React, { useCallback, useRef, useState } from 'react';
 import {
@@ -81,9 +82,9 @@ const ToolChip: React.FC<ToolChipProps> = ({ type, label, variant, onActivate })
         'flex cursor-grab touch-none select-none items-center active:cursor-grabbing',
         isToolbar
           ? // Mirror the live toolbar's AnnotationToolButton: icon-only 32×32.
-            'h-8 min-h-8 w-8 justify-center rounded-md p-0 not-eink:hover:bg-base-200 eink:hover:border'
+            'h-8 min-h-8 w-8 justify-center rounded-[2px] p-0 not-eink:hover:bg-paperlight eink:hover:border'
           : // Available tools are labeled so they're identifiable off the bar.
-            'eink-bordered border-base-300 bg-base-100 gap-1.5 rounded-md border px-2.5 py-1.5 text-sm',
+            'eink-bordered border-ink bg-paper gap-1.5 rounded-[2px] border px-2.5 py-1.5 text-sm',
         isDragging && 'shadow-lg',
       )}
       aria-label={label}
@@ -110,7 +111,7 @@ const Zone: React.FC<{
       <div
         ref={setNodeRef}
         className={clsx(
-          'flex min-h-12 flex-wrap items-center gap-2 rounded-lg p-2',
+          'flex min-h-12 flex-wrap items-center gap-2 rounded-[2px] p-2',
           isToolbar
             ? // A faithful, content-width preview of the real popup, start-aligned
               // with the Available row below it. Off e-ink it mirrors Popup.tsx's
@@ -119,8 +120,8 @@ const Zone: React.FC<{
               // plain div doesn't match — so `eink-bordered` supplies the same
               // thing here (base-100 surface, 1px base-content border) and keeps
               // the row from painting as a solid black bar (#4839).
-              'selection-popup eink-bordered text-base-content w-fit max-w-full border font-sans not-eink:border-base-content/20 not-eink:shadow-2xl bg-base-300 theme-dark:bg-base-100'
-            : 'bg-base-200/60',
+              'selection-popup eink-bordered text-ink w-fit max-w-full border font-sans not-eink:border-ink/20 not-eink:settings-lift bg-paperlight theme-dark:bg-paper'
+            : 'bg-paperlight/60',
         )}
       >
         {items.length === 0 ? (
@@ -130,9 +131,7 @@ const Zone: React.FC<{
               // The toolbar surface is theme-aware (base-300, base-100 on dark
               // themes and in e-ink), so the hint tracks base-content rather
               // than a fixed white; e-ink takes it at full opacity (#4839).
-              isToolbar
-                ? 'not-eink:text-base-content/50 eink:text-base-content'
-                : 'text-base-content/50',
+              isToolbar ? 'not-eink:text-ink/50 eink:text-ink' : 'text-ink/50',
             )}
           >
             {emptyHint}
@@ -323,7 +322,7 @@ const AnnotationToolbarCustomizer: React.FC<AnnotationToolbarCustomizerProps> = 
           <div className='flex shrink-0 items-center gap-1'>
             <button
               type='button'
-              className='btn btn-ghost btn-xs'
+              className='settings-btn settings-btn-xs'
               onClick={addAll}
               disabled={items.available.length === 0}
             >
@@ -331,7 +330,7 @@ const AnnotationToolbarCustomizer: React.FC<AnnotationToolbarCustomizerProps> = 
             </button>
             <button
               type='button'
-              className='btn btn-ghost btn-xs'
+              className='settings-btn settings-btn-xs'
               onClick={clearAll}
               disabled={items.toolbar.length === 0}
             >
@@ -351,7 +350,7 @@ const AnnotationToolbarCustomizer: React.FC<AnnotationToolbarCustomizerProps> = 
         {/* px-4 matches SubPageHeader so the zone labels align with the breadcrumb. */}
         <div className='my-4 space-y-5 px-4'>
           <div className='space-y-2'>
-            <div className='text-base-content/70 text-sm font-medium'>{_('In toolbar')}</div>
+            <div className='text-ink/70 text-sm font-medium'>{_('In toolbar')}</div>
             <Zone
               id='toolbar'
               items={items.toolbar}
@@ -360,7 +359,7 @@ const AnnotationToolbarCustomizer: React.FC<AnnotationToolbarCustomizerProps> = 
             />
           </div>
           <div className='space-y-2'>
-            <div className='text-base-content/70 text-sm font-medium'>{_('Available')}</div>
+            <div className='text-ink/70 text-sm font-medium'>{_('Available')}</div>
             <Zone
               id='available'
               items={items.available}

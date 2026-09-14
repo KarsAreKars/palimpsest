@@ -1,3 +1,4 @@
+import './settings.css';
 import clsx from 'clsx';
 import React, { useEffect, useState } from 'react';
 import { MdAdd, MdDelete, MdDragIndicator, MdEdit, MdInfoOutline } from 'react-icons/md';
@@ -159,35 +160,35 @@ const SortableRow: React.FC<SortableRowProps> = ({
       style={style}
       className={clsx(
         'flex items-center gap-2 px-3 py-2 transition-colors',
-        isDragging ? 'bg-base-200 z-10 shadow-md' : 'hover:bg-base-200/40',
+        isDragging ? 'bg-paperlight z-10 shadow-md' : 'hover:bg-paperlight/40',
       )}
     >
       {/* Drag handle (left). Always present so reorder works for built-ins
-          and imported alike. The handle is the only element that registers
-          drag listeners — clicks on the rest of the row don't initiate a
+ and imported alike. The handle is the only element that registers
+ drag listeners — clicks on the rest of the row don't initiate a
           drag, which keeps the toggle and delete buttons clickable. */}
       <button
         type='button'
-        className='touch-target btn btn-ghost btn-xs h-7 w-5 cursor-grab touch-none p-0 active:cursor-grabbing'
+        className='touch-target settings-btn-xs h-7 w-5 cursor-grab touch-none p-0 active:cursor-grabbing'
         aria-label={_('Drag to reorder')}
         title={_('Drag to reorder')}
         {...attributes}
         {...listeners}
       >
-        <MdDragIndicator className='text-base-content/60 h-4 w-4' />
+        <MdDragIndicator className='text-ink/60 h-4 w-4' />
       </button>
 
       <div className='min-w-0 flex-1'>
         <div className='flex items-center gap-2'>
           <span
-            className={clsx('truncate font-medium', row.disabled && 'text-base-content/60')}
+            className={clsx('truncate font-medium', row.disabled && 'text-ink/60')}
             title={row.label}
           >
             {row.label}
           </span>
         </div>
         {row.reason && (
-          <div className='text-warning mt-1 flex items-start gap-1 text-xs'>
+          <div className='text-stamp mt-1 flex items-start gap-1 text-xs'>
             <MdInfoOutline className='mt-0.5 h-3.5 w-3.5 shrink-0' />
             <span>{row.reason}</span>
           </div>
@@ -195,14 +196,14 @@ const SortableRow: React.FC<SortableRowProps> = ({
       </div>
 
       {/* End-aligned type badge. Sits just before the toggle so all
-          badges form a uniform column regardless of name length, instead
+ badges form a uniform column regardless of name length, instead
           of trailing the truncated name at a ragged x position. */}
-      <span className='badge badge-sm badge-ghost shrink-0'>{row.badge}</span>
+      <span className='settings-badge settings-badge-ghost shrink-0'>{row.badge}</span>
 
       <input
         type='checkbox'
         className={clsx(
-          'toggle toggle-sm shrink-0',
+          'settings-toggle shrink-0',
           lockedBySystem && 'cursor-not-allowed opacity-60',
         )}
         checked={enabled}
@@ -213,8 +214,8 @@ const SortableRow: React.FC<SortableRowProps> = ({
       />
 
       {/* Edit pencil — parity with the trailing delete X, but for the
-          rename / re-template flow. Visible only in edit mode for rows
-          backed by user-mutable metadata (imported dicts and custom web
+ rename / re-template flow. Visible only in edit mode for rows
+ backed by user-mutable metadata (imported dicts and custom web
           searches; built-ins are immutable). */}
       {(row.imported || (row.kind === 'web' && !row.builtinWeb)) && isEditMode && (
         <button
@@ -225,27 +226,27 @@ const SortableRow: React.FC<SortableRowProps> = ({
               onEditWebSearch(row.webSearch);
             }
           }}
-          className='btn btn-ghost btn-sm shrink-0 px-1'
+          className='settings-btn settings-btn-sm shrink-0 px-1'
           aria-label={_('Edit')}
           title={_('Edit')}
         >
-          <MdEdit className='text-base-content/75 h-4 w-4' />
+          <MdEdit className='text-ink/75 h-4 w-4' />
         </button>
       )}
 
       {/* Delete X — for imported dictionaries and custom web searches, only
-          in delete mode. Built-ins (incl. built-in web searches) never show
-          it; deletable rows reserve no width when not in delete mode so the
+ in delete mode. Built-ins (incl. built-in web searches) never show
+ it; deletable rows reserve no width when not in delete mode so the
           toggles align across the list. */}
       {(row.imported || (row.kind === 'web' && !row.builtinWeb)) && isDeleteMode && (
         <button
           type='button'
           onClick={() => onDelete(row)}
-          className='btn btn-ghost btn-sm shrink-0 px-1'
+          className='settings-btn settings-btn-sm shrink-0 px-1'
           aria-label={_('Delete')}
           title={_('Delete')}
         >
-          <IoMdCloseCircleOutline className='text-base-content/75 h-5 w-5' />
+          <IoMdCloseCircleOutline className='text-ink/75 h-5 w-5' />
         </button>
       )}
     </div>
@@ -736,7 +737,7 @@ const CustomDictionaries: React.FC<CustomDictionariesProps> = ({ onBack }) => {
             <div className='-me-4 flex items-center gap-1'>
               <button
                 onClick={toggleEditMode}
-                className='btn btn-ghost btn-sm text-base-content gap-2 px-3'
+                className='settings-btn settings-btn-sm text-ink gap-2 px-3'
                 title={isEditMode ? _('Cancel Edit') : _('Edit Dictionary')}
               >
                 {isEditMode ? (
@@ -752,7 +753,7 @@ const CustomDictionaries: React.FC<CustomDictionariesProps> = ({ onBack }) => {
               </button>
               <button
                 onClick={toggleDeleteMode}
-                className='btn btn-ghost btn-sm text-base-content gap-2 px-3'
+                className='settings-btn settings-btn-sm text-ink gap-2 px-3'
                 title={isDeleteMode ? _('Cancel Delete') : _('Delete Dictionary')}
               >
                 {isDeleteMode ? (
@@ -769,10 +770,10 @@ const CustomDictionaries: React.FC<CustomDictionariesProps> = ({ onBack }) => {
         }
       />
 
-      <div className='card border-base-200 bg-base-100 overflow-hidden border'>
-        <div className='divide-base-200 divide-y'>
+      <div className='settings-card overflow-hidden'>
+        <div className='divide-ink divide-y'>
           {rows.length === 0 && (
-            <div className='text-base-content/60 px-4 py-6 text-center text-sm'>
+            <div className='text-ink/60 px-4 py-6 text-center text-sm'>
               {_('No dictionaries available.')}
             </div>
           )}
@@ -841,14 +842,14 @@ const CustomDictionaries: React.FC<CustomDictionariesProps> = ({ onBack }) => {
           disabled={importing}
           className={clsx(
             'eink-bordered group flex h-11 items-center justify-center gap-2.5',
-            'border-base-200 bg-base-100 rounded-lg border px-4',
-            'text-base-content text-sm font-medium',
+            'border-ink bg-paper rounded-[2px] border px-4',
+            'text-ink text-sm font-medium',
             'transition-colors duration-150',
-            'hover:border-base-300 hover:bg-base-300/40',
-            'active:bg-base-200/80',
-            'focus-visible:ring-base-content/15 focus-visible:outline-none focus-visible:ring-2',
+            'hover:border-ink hover:bg-paperlight/40',
+            'active:bg-paperlight/80',
+            'focus-visible:ring-stamp/40 focus-visible:outline-none focus-visible:ring-2',
             'disabled:cursor-not-allowed disabled:opacity-60',
-            'disabled:hover:border-base-200 disabled:hover:bg-base-100',
+            'disabled:hover:border-ink disabled:hover:bg-paper',
           )}
         >
           <span
@@ -857,10 +858,10 @@ const CustomDictionaries: React.FC<CustomDictionariesProps> = ({ onBack }) => {
               // without it the badge collapses to a solid black spot in eink.
               'eink-inverted',
               'flex h-5 w-5 items-center justify-center rounded-full',
-              'bg-base-200 text-base-content/60',
+              'bg-paperlight text-ink/60',
               'transition-colors duration-150',
-              'group-hover:bg-base-content group-hover:text-base-100',
-              'group-disabled:bg-base-200 group-disabled:text-base-content/60',
+              'group-hover:bg-ink group-hover:text-paper',
+              'group-disabled:bg-paperlight group-disabled:text-ink/60',
             )}
           >
             <MdAdd className='h-3.5 w-3.5' />
@@ -885,12 +886,12 @@ const CustomDictionaries: React.FC<CustomDictionariesProps> = ({ onBack }) => {
           onClick={openAddWebSearch}
           className={clsx(
             'eink-bordered group flex h-11 items-center justify-center gap-2.5',
-            'border-base-200 bg-base-100 rounded-lg border px-4',
-            'text-base-content text-sm font-medium',
+            'border-ink bg-paper rounded-[2px] border px-4',
+            'text-ink text-sm font-medium',
             'transition-colors duration-150',
-            'hover:border-base-300 hover:bg-base-300/40',
-            'active:bg-base-200/80',
-            'focus-visible:ring-base-content/15 focus-visible:outline-none focus-visible:ring-2',
+            'hover:border-ink hover:bg-paperlight/40',
+            'active:bg-paperlight/80',
+            'focus-visible:ring-stamp/40 focus-visible:outline-none focus-visible:ring-2',
           )}
         >
           <span
@@ -899,9 +900,9 @@ const CustomDictionaries: React.FC<CustomDictionariesProps> = ({ onBack }) => {
               // without it the badge collapses to a solid black spot in eink.
               'eink-inverted',
               'flex h-5 w-5 items-center justify-center rounded-full',
-              'bg-base-200 text-base-content/60',
+              'bg-paperlight text-ink/60',
               'transition-colors duration-150',
-              'group-hover:bg-base-content group-hover:text-base-100',
+              'group-hover:bg-ink group-hover:text-paper',
             )}
           >
             <MdAdd className='h-3.5 w-3.5' />
@@ -911,26 +912,24 @@ const CustomDictionaries: React.FC<CustomDictionariesProps> = ({ onBack }) => {
       </div>
 
       {/* Reset the remembered system-lookup app. Only rendered on Android
-          when a dictionary has actually been remembered from the
-          browser-excluding chooser (issue #4559), so the user can switch
+ when a dictionary has actually been remembered from the
+ browser-excluding chooser (issue #4559), so the user can switch
           to another installed dictionary without uninstalling. */}
       {rememberedLookupApp && (
         <div
           className={clsx(
             'eink-bordered mt-4 flex items-center justify-between gap-3',
-            'border-base-200 bg-base-100 rounded-lg border px-4 py-3',
+            'border-ink bg-paper rounded-[2px] border px-4 py-3',
           )}
         >
           <div className='min-w-0'>
-            <div className='text-base-content text-sm font-medium'>{_('System Lookup App')}</div>
-            <div className='text-base-content/60 line-clamp-1 text-xs'>
-              {rememberedLookupApp.label}
-            </div>
+            <div className='text-ink text-sm font-medium'>{_('System Lookup App')}</div>
+            <div className='text-ink/60 line-clamp-1 text-xs'>{rememberedLookupApp.label}</div>
           </div>
           <button
             type='button'
             onClick={handleResetLookupApp}
-            className='btn btn-ghost btn-sm eink-bordered shrink-0'
+            className='settings-btn settings-btn-sm eink-bordered shrink-0'
           >
             {_('Reset')}
           </button>
@@ -946,47 +945,51 @@ const CustomDictionaries: React.FC<CustomDictionariesProps> = ({ onBack }) => {
         <li>{_('Select all the bundle files together when importing.')}</li>
       </Tips>
 
-      {/* Add / edit web-search modal. Lightweight inline `<dialog>` (daisyUI
-          modal classes); the heavier `Dialog.tsx` is overkill for a 2-field
+      {/* Add / edit web-search modal. Lightweight inline `<dialog>`
+          (settings-modal classes); the heavier `Dialog.tsx` is overkill for a 2-field
           form. */}
       {webModal && (
-        <div className='modal modal-open' role='dialog'>
-          <div className='modal-box w-11/12 max-w-md'>
+        <div className='settings-modal' role='dialog'>
+          <div className='settings-modal-box'>
             <h3 className='text-base font-semibold'>
               {webModal.editingId ? _('Edit Web Search') : _('Add Web Search')}
             </h3>
             <div className='mt-4 space-y-3'>
               <label className='form-control w-full'>
-                <span className='label-text text-sm'>{_('Name')}</span>
+                <span className='settings-label-text text-sm'>{_('Name')}</span>
                 <input
                   type='text'
-                  className='input input-bordered input-sm w-full'
+                  className='paper-field w-full'
                   value={webModal.name}
                   placeholder={_('e.g. Google')}
                   onChange={(e) => setWebModal((m) => (m ? { ...m, name: e.target.value } : m))}
                 />
               </label>
               <label className='form-control w-full'>
-                <span className='label-text text-sm'>{_('URL Template')}</span>
+                <span className='settings-label-text text-sm'>{_('URL Template')}</span>
                 <input
                   type='url'
-                  className='input input-bordered input-sm w-full'
+                  className='paper-field w-full'
                   value={webModal.urlTemplate}
                   placeholder='https://www.google.com/search?q=%WORD%'
                   onChange={(e) =>
                     setWebModal((m) => (m ? { ...m, urlTemplate: e.target.value } : m))
                   }
                 />
-                <span className='label-text-alt text-base-content/60 mt-1 text-xs'>
+                <span className='settings-label-text-alt text-ink/60 mt-1 text-xs'>
                   {_('Use %WORD% where the looked-up word should appear.')}
                 </span>
               </label>
             </div>
-            <div className='modal-action'>
-              <button type='button' onClick={closeWebModal} className='btn btn-ghost btn-sm'>
+            <div className='settings-modal-action'>
+              <button
+                type='button'
+                onClick={closeWebModal}
+                className='settings-btn settings-btn-sm'
+              >
                 {_('Cancel')}
               </button>
-              <button type='button' onClick={submitWebModal} className='btn btn-primary btn-sm'>
+              <button type='button' onClick={submitWebModal} className='stamp-btn settings-btn-sm'>
                 {_('Save')}
               </button>
             </div>
@@ -995,7 +998,7 @@ const CustomDictionaries: React.FC<CustomDictionariesProps> = ({ onBack }) => {
           <button
             type='button'
             aria-label={_('Close')}
-            className='modal-backdrop'
+            className='settings-modal-backdrop'
             onClick={closeWebModal}
           />
         </div>
@@ -1004,26 +1007,30 @@ const CustomDictionaries: React.FC<CustomDictionariesProps> = ({ onBack }) => {
       {/* Edit-imported-dict modal. Single field for the display name; the
           on-disk bundle is untouched. */}
       {dictModal && (
-        <div className='modal modal-open' role='dialog'>
-          <div className='modal-box w-11/12 max-w-md'>
+        <div className='settings-modal' role='dialog'>
+          <div className='settings-modal-box'>
             <h3 className='text-base font-semibold'>{_('Edit Dictionary')}</h3>
             <div className='mt-4 space-y-3'>
               <label className='form-control w-full'>
-                <span className='label-text text-sm'>{_('Name')}</span>
+                <span className='settings-label-text text-sm'>{_('Name')}</span>
                 <input
                   type='text'
-                  className='input input-bordered input-sm w-full'
+                  className='paper-field w-full'
                   value={dictModal.name}
                   placeholder={_('Dictionary name')}
                   onChange={(e) => setDictModal((m) => (m ? { ...m, name: e.target.value } : m))}
                 />
               </label>
             </div>
-            <div className='modal-action'>
-              <button type='button' onClick={closeDictModal} className='btn btn-ghost btn-sm'>
+            <div className='settings-modal-action'>
+              <button
+                type='button'
+                onClick={closeDictModal}
+                className='settings-btn settings-btn-sm'
+              >
                 {_('Cancel')}
               </button>
-              <button type='button' onClick={submitDictModal} className='btn btn-primary btn-sm'>
+              <button type='button' onClick={submitDictModal} className='stamp-btn settings-btn-sm'>
                 {_('Save')}
               </button>
             </div>
@@ -1031,7 +1038,7 @@ const CustomDictionaries: React.FC<CustomDictionariesProps> = ({ onBack }) => {
           <button
             type='button'
             aria-label={_('Close')}
-            className='modal-backdrop'
+            className='settings-modal-backdrop'
             onClick={closeDictModal}
           />
         </div>

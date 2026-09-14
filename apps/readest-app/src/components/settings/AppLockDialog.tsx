@@ -1,4 +1,5 @@
 'use client';
+import './settings.css';
 
 import clsx from 'clsx';
 import { useEffect, useRef, useState } from 'react';
@@ -17,7 +18,7 @@ import {
 import { useAppLockStore } from '@/store/appLockStore';
 import { useSettingsStore } from '@/store/settingsStore';
 
-const fieldLabelClass = 'text-base-content/70 text-xs font-medium tracking-wide';
+const fieldLabelClass = 'text-ink/70 text-xs font-medium tracking-wide';
 
 /**
  * Always mounted (at Providers level). Reads `dialogMode` from
@@ -205,10 +206,10 @@ export default function AppLockDialog() {
 
   return (
     <ModalPortal>
-      <dialog className='modal modal-open'>
-        <div className='modal-box bg-base-100 max-w-md rounded-2xl p-6 shadow-2xl'>
+      <dialog className='settings-modal'>
+        <div className='settings-modal-box bg-paper max-w-md rounded-[2px] p-6 settings-lift'>
           <h3 className='mb-1.5 text-lg font-semibold tracking-tight'>{title}</h3>
-          <p className='text-base-content/70 mb-6 text-sm leading-relaxed'>{description}</p>
+          <p className='text-ink/70 mb-6 text-sm leading-relaxed'>{description}</p>
           <form onSubmit={handleSubmit} className='flex flex-col gap-5'>
             {(mode === 'change' || mode === 'disable') && (
               <div className='flex flex-col items-center gap-2'>
@@ -253,7 +254,7 @@ export default function AppLockDialog() {
             )}
             <p
               className={clsx(
-                'text-error h-4 text-center text-xs transition-opacity',
+                'text-stamp h-4 text-center text-xs transition-opacity',
                 error ? 'opacity-100' : 'opacity-0',
               )}
               aria-live='polite'
@@ -267,10 +268,10 @@ export default function AppLockDialog() {
                 disabled={busy}
                 className={clsx(
                   'eink-bordered',
-                  'h-10 rounded-lg px-4 text-sm font-medium',
-                  'text-base-content hover:bg-base-200',
+                  'h-10 rounded-[2px] px-4 text-sm font-medium',
+                  'text-ink hover:bg-paperlight',
                   'transition-colors duration-150',
-                  'focus-visible:ring-base-content/15 focus-visible:outline-none focus-visible:ring-2',
+                  'focus-visible:ring-stamp/40 focus-visible:outline-none focus-visible:ring-2',
                   'disabled:cursor-not-allowed disabled:opacity-60',
                   'disabled:hover:bg-transparent',
                 )}
@@ -281,9 +282,9 @@ export default function AppLockDialog() {
                 type='submit'
                 disabled={busy}
                 className={clsx(
-                  'btn btn-primary',
-                  'h-10 min-h-10 rounded-lg border-0 px-5 text-sm font-medium',
-                  'focus-visible:ring-primary/40 focus-visible:outline-none focus-visible:ring-2',
+                  'stamp-btn',
+                  'h-10 min-h-10 rounded-[2px] border-0 px-5 text-sm font-medium',
+                  'focus-visible:ring-stamp/40 focus-visible:outline-none focus-visible:ring-2',
                   busy && 'opacity-60',
                 )}
               >

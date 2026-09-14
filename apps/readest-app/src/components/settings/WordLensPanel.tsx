@@ -1,3 +1,4 @@
+import './settings.css';
 import clsx from 'clsx';
 import React, { useEffect, useRef, useState } from 'react';
 import { useEnv } from '@/context/EnvContext';
@@ -254,7 +255,7 @@ const WordLensPanel: React.FC<WordLensPanelProps> = ({ bookKey, onBack }) => {
     if (resolving) {
       return (
         <SettingsRow label={_('Data pack')}>
-          <span className='loading loading-spinner loading-sm' />
+          <span className='settings-spinner' />
         </SettingsRow>
       );
     }
@@ -273,7 +274,7 @@ const WordLensPanel: React.FC<WordLensPanelProps> = ({ bookKey, onBack }) => {
           <button
             type='button'
             onClick={handleDelete}
-            className='btn btn-ghost btn-sm eink-bordered shrink-0'
+            className='settings-btn settings-btn-sm eink-bordered shrink-0'
           >
             {_('Delete')}
           </button>
@@ -285,7 +286,7 @@ const WordLensPanel: React.FC<WordLensPanelProps> = ({ bookKey, onBack }) => {
         <div className='flex items-center gap-2'>
           {downloading && progress !== null && progress > 0 && (
             <div
-              className='radial-progress flex items-center justify-center'
+              className='settings-radial-progress flex items-center justify-center'
               style={
                 {
                   '--value': progress,
@@ -304,7 +305,7 @@ const WordLensPanel: React.FC<WordLensPanelProps> = ({ bookKey, onBack }) => {
             type='button'
             onClick={handleDownload}
             disabled={downloading}
-            className='btn btn-contrast btn-sm shrink-0'
+            className='ink-btn settings-btn-sm shrink-0'
           >
             {_('Download')}
           </button>
@@ -335,7 +336,7 @@ const WordLensPanel: React.FC<WordLensPanelProps> = ({ bookKey, onBack }) => {
           <div className='flex items-center gap-2'>
             <input
               type='range'
-              className='range range-sm eink-bordered'
+              className='settings-range eink-bordered'
               min={WORD_LENS_MIN_LEVEL}
               max={WORD_LENS_MAX_LEVEL}
               step={1}
@@ -345,7 +346,7 @@ const WordLensPanel: React.FC<WordLensPanelProps> = ({ bookKey, onBack }) => {
               onChange={(e) => setWordLensLevel(Number(e.target.value))}
               data-setting-id='settings.wordlens.level'
             />
-            <span className='text-base-content/70 w-6 text-end text-sm tabular-nums'>
+            <span className='text-ink/70 w-6 text-end text-sm tabular-nums'>
               {cefrLabel(wordLensLevel)}
             </span>
           </div>
@@ -381,7 +382,7 @@ const WordLensPanel: React.FC<WordLensPanelProps> = ({ bookKey, onBack }) => {
               <button
                 type='button'
                 onClick={handleResetGlossColor}
-                className='btn btn-ghost btn-xs eink-bordered shrink-0'
+                className='settings-btn settings-btn-xs eink-bordered shrink-0'
               >
                 {_('Default')}
               </button>

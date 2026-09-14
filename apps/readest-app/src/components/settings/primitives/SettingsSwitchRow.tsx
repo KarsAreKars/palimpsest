@@ -1,3 +1,4 @@
+import '../settings.css';
 import React from 'react';
 import SettingsRow from './SettingsRow';
 import { Toggle } from '@/components/primitives/toggle';

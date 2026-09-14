@@ -1,3 +1,4 @@
+import '../settings.css';
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from '@/hooks/useTranslation';
@@ -26,7 +27,7 @@ const ThemePreview: React.FC<{
     <div className='mb-2 mt-4'>
       <label className='mb-1 block text-sm font-medium'>{label}</label>
       <div
-        className='border-base-300 overflow-hidden rounded border p-2'
+        className='border-ink overflow-hidden rounded border p-2'
         style={{
           backgroundColor: backgroundColor,
           color: textColor,
@@ -133,22 +134,25 @@ const ThemeEditor: React.FC<ThemeEditorProps> = ({ customTheme, onSave, onDelete
   const footer = (
     <div
       className={clsx(
-        'flex shrink-0 bg-base-200 px-6 py-2 sm:px-[10%]',
+        'flex shrink-0 bg-paperlight px-6 py-2 sm:px-[10%]',
         existingTheme ? 'justify-between' : 'justify-end',
       )}
     >
       {existingTheme && (
-        <button className='btn btn-error btn-sm px-2' onClick={() => onDelete(getCustomTheme())}>
+        <button
+          className='stamp-btn settings-btn-sm px-2'
+          onClick={() => onDelete(getCustomTheme())}
+        >
           {_('Delete')}
         </button>
       )}
 
       <div className='flex gap-2'>
-        <button className='btn btn-ghost btn-sm px-2' onClick={onCancel}>
+        <button className='settings-btn settings-btn-sm px-2' onClick={onCancel}>
           {_('Cancel')}
         </button>
         <button
-          className='btn btn-contrast btn-sm text-base-content px-2'
+          className='ink-btn settings-btn-sm text-ink px-2'
           onClick={() => onSave(getCustomTheme())}
         >
           {_('Save')}
@@ -158,20 +162,20 @@ const ThemeEditor: React.FC<ThemeEditorProps> = ({ customTheme, onSave, onDelete
   );
 
   return (
-    <div ref={rootRef} className='flex flex-col gap-2 mt-6 rounded-lg'>
+    <div ref={rootRef} className='flex flex-col gap-2 mt-6 rounded-[2px]'>
       <div className='flex items-center gap-4'>
         <label className='font-medium whitespace-nowrap'>{_('Theme Name')}</label>
         <input
           type='text'
           value={themeName}
           onChange={(e) => setThemeName(e.target.value)}
-          className='bg-base-100 text-base-content border-base-200 min-w-0 flex-1 rounded border p-2 text-sm'
+          className='bg-paper text-ink border-ink min-w-0 flex-1 rounded border p-2 text-sm'
           placeholder={_('Custom Theme')}
         />
       </div>
 
       <div className='grid grid-cols-1 gap-4 mt-4 sm:grid-cols-2 sm:gap-6'>
-        <div className='bg-base-100 rounded-lg p-3'>
+        <div className='bg-paper rounded-[2px] p-3'>
           <h3 className='mb-3 truncate text-center font-medium' title={_('Light Mode')}>
             {_('Light Mode')}
           </h3>
@@ -202,7 +206,7 @@ const ThemeEditor: React.FC<ThemeEditorProps> = ({ customTheme, onSave, onDelete
           />
         </div>
 
-        <div className='bg-base-100 rounded-lg p-3'>
+        <div className='bg-paper rounded-[2px] p-3'>
           <h3 className='mb-3 truncate text-center font-medium' title={_('Dark Mode')}>
             {_('Dark Mode')}
           </h3>

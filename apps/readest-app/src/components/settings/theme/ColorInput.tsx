@@ -1,3 +1,4 @@
+import '../settings.css';
 import React, { useState, useEffect, useRef } from 'react';
 import { HexColorInput, HexColorPicker } from 'react-colorful';
 import { CgColorPicker } from 'react-icons/cg';
@@ -71,7 +72,7 @@ const ColorInput: React.FC<ColorInputProps> = ({
       <button
         type='button'
         onClick={() => setIsOpen(!isOpen)}
-        className='border-base-300 focus-visible:ring-base-content/20 focus-visible:ring-offset-base-100 h-7 w-7 rounded-full border-2 shadow-sm transition-transform hover:scale-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-1'
+        className='border-ink focus-visible:ring-stamp/40 focus-visible:ring-offset-paper h-7 w-7 rounded-full border-2 shadow-sm transition-transform hover:scale-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-1'
         style={{ backgroundColor: value }}
         aria-label={label || 'Choose color'}
         title={label || 'Choose color'}
@@ -80,7 +81,7 @@ const ColorInput: React.FC<ColorInputProps> = ({
         <button
           type='button'
           onClick={() => setIsOpen(!isOpen)}
-          className='text-base-content/60 hover:bg-base-200 hover:text-base-content focus-visible:ring-base-content/15 inline-flex h-7 w-7 items-center justify-center rounded-md transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2'
+          className='text-ink/60 hover:bg-paperlight hover:text-ink focus-visible:ring-stamp/40 inline-flex h-7 w-7 items-center justify-center rounded-[2px] transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2'
           aria-label={label || 'Choose color'}
           title={label || 'Choose color'}
         >
@@ -90,18 +91,18 @@ const ColorInput: React.FC<ColorInputProps> = ({
       {isOpen && (
         <div
           ref={pickerRef}
-          className={`fixed start-1/2 top-1/2 z-50 -translate-x-1/2 -translate-y-1/2 sm:absolute sm:top-full sm:mt-2 sm:translate-y-0 flex flex-col gap-2 rounded-lg border not-eink:border-base-300/50 bg-base-100 p-3 not-eink:shadow-xl items-center ${getPickerPositionClass()}`}
+          className={`fixed start-1/2 top-1/2 z-50 -translate-x-1/2 -translate-y-1/2 sm:absolute sm:top-full sm:mt-2 sm:translate-y-0 flex flex-col gap-2 rounded-[2px] border not-eink:border-ink/50 bg-paper p-3 not-eink:settings-lift items-center ${getPickerPositionClass()}`}
         >
           <HexColorPicker
             color={value}
             onChange={handlePickerChange}
-            className='eink-bordered rounded-lg m-2'
+            className='eink-bordered rounded-[2px] m-2'
           />
           <HexColorInput
             color={value}
             onChange={handlePickerChange}
             prefixed
-            className='rounded-md px-2 py-1 bg-base-300 text-base-content w-[200px] font-mono eink-bordered'
+            className='rounded-[2px] px-2 py-1 bg-paperlight text-ink w-[200px] font-mono eink-bordered'
           />
         </div>
       )}

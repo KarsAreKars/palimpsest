@@ -1,3 +1,4 @@
+import './settings.css';
 import clsx from 'clsx';
 import React, { useState } from 'react';
 import { MdAdd, MdDelete } from 'react-icons/md';
@@ -152,7 +153,7 @@ const CustomFonts: React.FC<CustomFontsProps> = ({ bookKey, onBack }) => {
   return (
     <div className='w-full'>
       <div className='mb-6 flex h-8 items-center justify-between'>
-        <div className='breadcrumbs py-1'>
+        <div className='py-1'>
           <ul>
             <li>
               <button className='font-semibold' onClick={onBack}>
@@ -165,7 +166,7 @@ const CustomFonts: React.FC<CustomFontsProps> = ({ bookKey, onBack }) => {
         {availableFonts.length > 0 && (
           <button
             onClick={toggleDeleteMode}
-            className={`btn btn-ghost btn-sm text-base-content gap-2`}
+            className={`settings-btn settings-btn-sm text-ink gap-2`}
             title={isDeleteMode ? _('Cancel Delete') : _('Delete Font')}
           >
             {isDeleteMode ? (
@@ -182,18 +183,18 @@ const CustomFonts: React.FC<CustomFontsProps> = ({ bookKey, onBack }) => {
 
       <div className='grid grid-cols-2 gap-4'>
         {/* Import Font — quiet outlined card matching the surrounding font
-            family cards' visual weight (border-base-200 bg, hover lifts to
-            base-200). Replaces the old loud `border-primary/50 text-primary`
+ family cards' visual weight (border-ink bg, hover lifts to
+ base-200). Replaces the old loud `border-stamp/50 text-stamp`
             CTA styling. eink-bordered keeps the boundary visible in eink. */}
         <button
           type='button'
           onClick={handleImportFont}
           className={clsx(
-            'bg-base-100 eink-bordered group flex h-12 items-center justify-center gap-2 rounded-2xl',
-            'border-base-200 hover:border-base-300 hover:bg-base-300/40 border',
-            'text-base-content text-sm font-medium',
+            'bg-paper eink-bordered group flex h-12 items-center justify-center gap-2 rounded-[2px]',
+            'border-ink hover:border-ink hover:bg-paperlight/40 border',
+            'text-ink text-sm font-medium',
             'transition-colors duration-150',
-            'focus-visible:ring-base-content/15 focus-visible:outline-none focus-visible:ring-2',
+            'focus-visible:ring-stamp/40 focus-visible:outline-none focus-visible:ring-2',
           )}
         >
           <span
@@ -201,9 +202,9 @@ const CustomFonts: React.FC<CustomFontsProps> = ({ bookKey, onBack }) => {
               // eink-inverted keeps the "+" legible on its dark badge (#4454).
               'eink-inverted',
               'flex h-5 w-5 items-center justify-center rounded-full',
-              'bg-base-200 text-base-content/60',
+              'bg-paperlight text-ink/60',
               'transition-colors duration-150',
-              'group-hover:bg-base-content group-hover:text-base-100',
+              'group-hover:bg-ink group-hover:text-paper',
             )}
           >
             <MdAdd className='h-3.5 w-3.5' />
@@ -212,17 +213,17 @@ const CustomFonts: React.FC<CustomFontsProps> = ({ bookKey, onBack }) => {
         </button>
 
         {importingFont && (
-          <div className='card border-base-200 bg-base-100 h-12 border shadow-sm'>
-            <div className='card-body flex items-center justify-center p-2'>
+          <div className='settings-card h-12'>
+            <div className='flex items-center justify-center p-2'>
               {typeof importingFont === 'object' ? (
                 <div
                   style={{ fontFamily: `"${importingFont.family}", sans-serif`, fontWeight: 400 }}
-                  className='text-base-content line-clamp-1 break-all'
+                  className='text-ink line-clamp-1 break-all'
                 >
                   {importingFont.family}
                 </div>
               ) : (
-                <div className='flex items-center gap-2 text-sm text-base-content/60'>
+                <div className='flex items-center gap-2 text-sm text-ink/60'>
                   <svg className='h-4 w-4 animate-spin' viewBox='0 0 24 24' fill='none'>
                     <circle
                       className='opacity-25'
@@ -250,33 +251,33 @@ const CustomFonts: React.FC<CustomFontsProps> = ({ bookKey, onBack }) => {
             role='none'
             key={family.name}
             className={clsx(
-              'card h-12 border shadow-sm',
+              'settings-card h-12',
               currentFontFamily === family.name
-                ? // eink-bordered: bg-primary/50 dodges the eink normalizer, so
+                ? // eink-bordered: bg-stamp/50 dodges the eink normalizer, so
                   // without it the selected card is black-on-black (#4454).
-                  'border-primary/50 bg-primary/50 eink-bordered'
-                : `border-base-200 bg-base-100 ${isDeleteMode ? '' : 'cursor-pointer'}`,
+                  'border-stamp/50 bg-stamp/50 eink-bordered'
+                : `border-ink bg-paper ${isDeleteMode ? '' : 'cursor-pointer'}`,
             )}
             onClick={!isDeleteMode ? () => handleSelectFamily(family) : undefined}
             title={family.fonts.map((f) => f.name).join('\n')}
           >
-            <div className='card-body flex items-center justify-center p-2'>
+            <div className='flex items-center justify-center p-2'>
               <div
                 style={{
                   fontFamily: `"${family.name}", sans-serif`,
                   fontWeight: 400,
                 }}
-                className='text-base-content line-clamp-1 break-all'
+                className='text-ink line-clamp-1 break-all'
               >
                 {family.name}
               </div>
               {isDeleteMode && (
                 <button
                   onClick={() => handleDeleteFamily(family)}
-                  className='btn btn-ghost btn-xs absolute right-[-10px] top-[-10px] h-6 min-h-0 w-6 p-0 hover:bg-transparent'
+                  className='settings-btn settings-btn-xs absolute right-[-10px] top-[-10px] h-6 min-h-0 w-6 p-0 hover:bg-transparent'
                   title={_('Delete Font')}
                 >
-                  <IoMdCloseCircleOutline className='text-base-content/75 h-6 w-6' />
+                  <IoMdCloseCircleOutline className='text-ink/75 h-6 w-6' />
                 </button>
               )}
             </div>

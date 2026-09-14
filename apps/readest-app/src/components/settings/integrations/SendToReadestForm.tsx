@@ -1,3 +1,4 @@
+import '../settings.css';
 import React, { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { MdContentCopy, MdRefresh, MdCheck, MdClose, MdAdd } from 'react-icons/md';
@@ -196,15 +197,15 @@ const SendToReadestForm: React.FC<SendToReadestFormProps> = ({ onBack }) => {
 
       {!user ? (
         <div className='flex flex-col items-center gap-4 px-6 py-16 text-center'>
-          <span className='bg-base-200 text-base-content/60 flex h-16 w-16 items-center justify-center rounded-full'>
+          <span className='bg-paperlight text-ink/60 flex h-16 w-16 items-center justify-center rounded-full'>
             <RiSendPlaneLine className='h-7 w-7' />
           </span>
-          <p className='text-base-content/70 max-w-xs text-sm leading-relaxed'>
+          <p className='text-ink/70 max-w-xs text-sm leading-relaxed'>
             {_('Sign in to send books and articles to your library.')}
           </p>
           <button
             type='button'
-            className='btn btn-contrast btn-sm'
+            className='ink-btn settings-btn-sm'
             onClick={() => navigateToLogin(router)}
           >
             {_('Sign in')}
@@ -218,33 +219,33 @@ const SendToReadestForm: React.FC<SendToReadestFormProps> = ({ onBack }) => {
             { key: 'activity', card: 'h-24' },
           ].map((section) => (
             <div key={section.key} className='w-full'>
-              <div className='skeleton mb-2 h-4 w-36' />
-              <div className={`skeleton w-full rounded-xl ${section.card}`} />
+              <div className='settings-skeleton mb-2 h-4 w-36' />
+              <div className={`settings-skeleton w-full rounded-[2px] ${section.card}`} />
             </div>
           ))}
         </div>
       ) : !canUseEmailIn ? (
         // Free-tier gate. One card, one CTA, plus a callout for the free
         // clip channels so the panel doesn't read as pure paywall.
-        <div className='card eink-bordered border-base-200 bg-base-100 overflow-hidden border'>
+        <div className='settings-card eink-bordered overflow-hidden'>
           <div className='flex flex-col items-center gap-3 px-6 py-8 text-center'>
-            <span className='bg-base-200 text-base-content/70 flex h-14 w-14 items-center justify-center rounded-full'>
+            <span className='bg-paperlight text-ink/70 flex h-14 w-14 items-center justify-center rounded-full'>
               <RiSendPlaneLine className='h-6 w-6' />
             </span>
             <h3 className='text-base font-semibold'>{_('Email books straight to your library')}</h3>
-            <p className='text-base-content/70 max-w-sm text-sm leading-relaxed'>
+            <p className='text-ink/70 max-w-sm text-sm leading-relaxed'>
               {_(
                 'Forward attachments and articles to your private Readest address. Available on the Plus, Pro, and Lifetime plans.',
               )}
             </p>
             <button
               type='button'
-              className='btn btn-contrast btn-sm mt-1'
+              className='ink-btn settings-btn-sm mt-1'
               onClick={() => navigateToProfile(router)}
             >
               {_('View plans')}
             </button>
-            <p className='text-base-content/55 mt-2 max-w-sm text-xs leading-relaxed'>
+            <p className='text-ink/55 mt-2 max-w-sm text-xs leading-relaxed'>
               {_(
                 'You can still clip articles for free with the in-app Send button, the mobile Share menu, or the browser extension.',
               )}
@@ -255,13 +256,13 @@ const SendToReadestForm: React.FC<SendToReadestFormProps> = ({ onBack }) => {
         <div className='space-y-6'>
           <div className='w-full'>
             <SectionTitle className='mb-2'>{_('Your inbound address')}</SectionTitle>
-            <div className='card eink-bordered border-base-200 bg-base-100 divide-base-200 overflow-hidden border'>
+            <div className='settings-card eink-bordered divide-ink overflow-hidden'>
               <div className='flex items-center gap-2 px-4 py-3'>
                 <code className='line-clamp-2 min-w-0 flex-1 break-all text-sm'>{address}</code>
                 {address && (
                   <button
                     type='button'
-                    className='btn btn-ghost btn-sm eink-bordered'
+                    className='settings-btn settings-btn-sm eink-bordered'
                     onClick={() => setEditingAddress((v) => !v)}
                     aria-label={_('Change address name')}
                   >
@@ -270,7 +271,7 @@ const SendToReadestForm: React.FC<SendToReadestFormProps> = ({ onBack }) => {
                 )}
                 <button
                   type='button'
-                  className='btn btn-ghost btn-sm eink-bordered'
+                  className='settings-btn settings-btn-sm eink-bordered'
                   onClick={copyAddress}
                   aria-label={_('Copy address')}
                 >
@@ -278,10 +279,10 @@ const SendToReadestForm: React.FC<SendToReadestFormProps> = ({ onBack }) => {
                 </button>
               </div>
               {(editingAddress || !address) && (
-                <div className='border-base-200 flex items-center gap-2 border-t px-4 py-3'>
+                <div className='border-ink flex items-center gap-2 border-t px-4 py-3'>
                   <input
                     type='text'
-                    className='input input-sm input-bordered eink-bordered min-w-0 flex-1'
+                    className='paper-field eink-bordered min-w-0 flex-1'
                     value={slugInput}
                     onChange={(e) => setSlugInput(e.target.value)}
                     onKeyDown={(e) => {
@@ -290,10 +291,10 @@ const SendToReadestForm: React.FC<SendToReadestFormProps> = ({ onBack }) => {
                     aria-label={_('Customize your address name')}
                     placeholder={_('your-name')}
                   />
-                  <span className='text-base-content/55 shrink-0 text-xs'>{suffixOf(address)}</span>
+                  <span className='text-ink/55 shrink-0 text-xs'>{suffixOf(address)}</span>
                   <button
                     type='button'
-                    className='btn btn-contrast btn-sm'
+                    className='ink-btn settings-btn-sm'
                     onClick={saveAddress}
                     disabled={saving || !slugInput.trim()}
                   >
@@ -303,17 +304,17 @@ const SendToReadestForm: React.FC<SendToReadestFormProps> = ({ onBack }) => {
                 </div>
               )}
             </div>
-            <p className='text-base-content/65 mt-1 ps-4 text-[0.8em] leading-relaxed'>
+            <p className='text-ink/65 mt-1 ps-4 text-[0.8em] leading-relaxed'>
               {_('Email a book or document to this address from an approved sender below.')}
             </p>
           </div>
 
           <div className='w-full'>
             <SectionTitle className='mb-2'>{_('Approved senders')}</SectionTitle>
-            <div className='card eink-bordered border-base-200 bg-base-100 overflow-hidden border'>
-              <div className='divide-base-200 divide-y'>
+            <div className='settings-card eink-bordered overflow-hidden'>
+              <div className='divide-ink divide-y'>
                 {senders.length === 0 && (
-                  <div className='text-base-content/60 px-4 py-3 text-sm'>
+                  <div className='text-ink/60 px-4 py-3 text-sm'>
                     {_('No approved senders yet. Add an email to let it send to your library.')}
                   </div>
                 )}
@@ -322,13 +323,13 @@ const SendToReadestForm: React.FC<SendToReadestFormProps> = ({ onBack }) => {
                     <div className='flex min-w-0 flex-1 flex-col'>
                       <code className='line-clamp-2 break-all text-sm'>{sender.email}</code>
                       {sender.status === 'pending' && (
-                        <span className='text-warning text-[0.8em]'>{_('Pending approval')}</span>
+                        <span className='text-stamp text-[0.8em]'>{_('Pending approval')}</span>
                       )}
                     </div>
                     {sender.status === 'pending' && (
                       <button
                         type='button'
-                        className='btn btn-ghost btn-sm eink-bordered'
+                        className='settings-btn settings-btn-sm eink-bordered'
                         onClick={() => approveSender(sender.id)}
                         aria-label={_('Approve')}
                       >
@@ -337,7 +338,7 @@ const SendToReadestForm: React.FC<SendToReadestFormProps> = ({ onBack }) => {
                     )}
                     <button
                       type='button'
-                      className='btn btn-ghost btn-sm eink-bordered'
+                      className='settings-btn settings-btn-sm eink-bordered'
                       onClick={() => setAddingSender((v) => !v)}
                       aria-label={_('Add a sender')}
                     >
@@ -345,7 +346,7 @@ const SendToReadestForm: React.FC<SendToReadestFormProps> = ({ onBack }) => {
                     </button>
                     <button
                       type='button'
-                      className='btn btn-ghost btn-sm eink-bordered'
+                      className='settings-btn settings-btn-sm eink-bordered'
                       onClick={() => removeSender(sender.id)}
                       aria-label={_('Remove')}
                     >
@@ -355,10 +356,10 @@ const SendToReadestForm: React.FC<SendToReadestFormProps> = ({ onBack }) => {
                 ))}
               </div>
               {(addingSender || senders.length === 0) && (
-                <div className='border-base-200 flex items-center gap-2 border-t px-4 py-3'>
+                <div className='border-ink flex items-center gap-2 border-t px-4 py-3'>
                   <input
                     type='email'
-                    className='input input-sm input-bordered eink-bordered min-w-0 flex-1'
+                    className='paper-field eink-bordered min-w-0 flex-1'
                     placeholder={_('name@example.com')}
                     value={newEmail}
                     onChange={(e) => setNewEmail(e.target.value)}
@@ -366,7 +367,7 @@ const SendToReadestForm: React.FC<SendToReadestFormProps> = ({ onBack }) => {
                       if (e.key === 'Enter') void addSender();
                     }}
                   />
-                  <button type='button' className='btn btn-contrast btn-sm' onClick={addSender}>
+                  <button type='button' className='ink-btn settings-btn-sm' onClick={addSender}>
                     {_('Add')}
                   </button>
                 </div>
@@ -376,10 +377,10 @@ const SendToReadestForm: React.FC<SendToReadestFormProps> = ({ onBack }) => {
 
           <div className='w-full'>
             <SectionTitle className='mb-2'>{_('Recent activity')}</SectionTitle>
-            <div className='card eink-bordered border-base-200 bg-base-100 overflow-hidden border'>
-              <div className='divide-base-200 divide-y'>
+            <div className='settings-card eink-bordered overflow-hidden'>
+              <div className='divide-ink divide-y'>
                 {activity.length === 0 && (
-                  <div className='text-base-content/60 px-4 py-3 text-sm'>
+                  <div className='text-ink/60 px-4 py-3 text-sm'>
                     {_('Nothing sent yet. Email a book to your address above.')}
                   </div>
                 )}
@@ -389,7 +390,7 @@ const SendToReadestForm: React.FC<SendToReadestFormProps> = ({ onBack }) => {
                       <SettingLabel className='!line-clamp-1'>
                         {item.filename || item.url || _('Untitled')}
                       </SettingLabel>
-                      <span className='text-base-content/60 text-[0.8em]'>
+                      <span className='text-ink/60 text-[0.8em]'>
                         {item.status === 'done' && _('Added to your library')}
                         {item.status === 'pending' && _('Waiting to be processed')}
                         {item.status === 'claimed' && _('Processing…')}

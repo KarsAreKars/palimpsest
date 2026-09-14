@@ -1,3 +1,4 @@
+import './settings.css';
 import clsx from 'clsx';
 import React from 'react';
 import { MdChevronRight } from 'react-icons/md';
@@ -46,21 +47,18 @@ const SubPageHeader: React.FC<SubPageHeaderProps> = ({
           <button
             type='button'
             onClick={onBack}
-            className='hover:text-primary transition-colors duration-150 focus-visible:underline focus-visible:outline-none'
+            className='hover:text-stamp transition-colors duration-150 focus-visible:underline focus-visible:outline-none'
           >
             {parentLabel}
           </button>
-          <MdChevronRight
-            aria-hidden='true'
-            className='text-base-content/40 h-5 w-5 flex-shrink-0'
-          />
-          <span className='text-base-content/70 truncate'>{currentLabel}</span>
+          <MdChevronRight aria-hidden='true' className='text-ink/40 h-5 w-5 flex-shrink-0' />
+          <span className='text-ink/70 truncate'>{currentLabel}</span>
         </div>
         {rightSlot}
       </div>
       {/* No explicit text-sm — description inherits .settings-content
           font-size (14px desktop / 16px mobile per src/styles/globals.css). */}
-      {description && <p className='text-base-content/70 leading-relaxed'>{description}</p>}
+      {description && <p className='text-ink/70 leading-relaxed'>{description}</p>}
     </div>
   );
 };

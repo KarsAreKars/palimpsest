@@ -1,3 +1,4 @@
+import '../settings.css';
 import clsx from 'clsx';
 import dayjs from 'dayjs';
 import React from 'react';
@@ -234,14 +235,14 @@ const FileSyncForm: React.FC<FileSyncFormProps> = ({
           onClick={handleSyncNow}
           disabled={isSyncing || syncNowDisabled}
           className={clsx(
-            'btn btn-ghost btn-sm h-8 min-h-8 gap-1 px-2',
+            'settings-btn settings-btn-sm h-8 min-h-8 gap-1 px-2',
             (isSyncing || syncNowDisabled) && 'opacity-60',
           )}
           title={_('Sync now')}
           aria-label={_('Sync now')}
         >
           {isSyncing ? (
-            <span className='loading loading-spinner loading-xs' />
+            <span className='settings-spinner settings-spinner-xs' />
           ) : (
             <MdCloudSync className='h-4 w-4' />
           )}

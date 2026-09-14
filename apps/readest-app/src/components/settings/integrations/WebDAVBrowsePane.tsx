@@ -1,3 +1,4 @@
+import '../settings.css';
 import clsx from 'clsx';
 import React, { useEffect, useMemo, useState } from 'react';
 import {
@@ -488,7 +489,7 @@ const WebDAVBrowsePane: React.FC<WebDAVBrowsePaneProps> = ({ settings, onUpdateS
             // Lock in cleanup mode so users use the explicit close button.
             disabled={currentPath === savedRoot || cleanupMode}
             className={clsx(
-              'btn btn-ghost btn-sm h-8 min-h-8 gap-1 px-2',
+              'settings-btn settings-btn-sm h-8 min-h-8 gap-1 px-2',
               (currentPath === savedRoot || cleanupMode) && 'opacity-40',
             )}
             title={_('Up')}
@@ -510,7 +511,10 @@ const WebDAVBrowsePane: React.FC<WebDAVBrowsePaneProps> = ({ settings, onUpdateS
               // Locked during an in-flight batch so the user can't
               // unmount the progress affordance mid-delete.
               disabled={isDeleting}
-              className={clsx('btn btn-ghost btn-sm h-8 min-h-8 px-2', isDeleting && 'opacity-40')}
+              className={clsx(
+                'settings-btn settings-btn-sm h-8 min-h-8 px-2',
+                isDeleting && 'opacity-40',
+              )}
               title={_('Exit cleanup')}
               aria-label={_('Exit cleanup')}
             >
@@ -520,7 +524,7 @@ const WebDAVBrowsePane: React.FC<WebDAVBrowsePaneProps> = ({ settings, onUpdateS
             <button
               type='button'
               onClick={handleEnterCleanup}
-              className='btn btn-ghost btn-sm h-8 min-h-8 px-2'
+              className='settings-btn settings-btn-sm h-8 min-h-8 px-2'
               title={_('Cleanup')}
               aria-label={_('Cleanup')}
             >
@@ -532,7 +536,10 @@ const WebDAVBrowsePane: React.FC<WebDAVBrowsePaneProps> = ({ settings, onUpdateS
             onClick={handleRefresh}
             // Refresh during a delete would race with the per-item splice.
             disabled={isDeleting}
-            className={clsx('btn btn-ghost btn-sm h-8 min-h-8 px-2', isDeleting && 'opacity-40')}
+            className={clsx(
+              'settings-btn settings-btn-sm h-8 min-h-8 px-2',
+              isDeleting && 'opacity-40',
+            )}
             title={_('Refresh')}
             aria-label={_('Refresh')}
           >
@@ -548,8 +555,8 @@ const WebDAVBrowsePane: React.FC<WebDAVBrowsePaneProps> = ({ settings, onUpdateS
           query matches nothing. */}
       {!cleanupMode && !loadError && entries.length > 0 && (
         <div className='flex items-center gap-2 px-1'>
-          <div className='eink-bordered bg-base-100 flex h-8 min-w-0 flex-1 items-center rounded-lg'>
-            <MdSearch className='text-base-content/50 ms-2 h-4 w-4 flex-shrink-0' />
+          <div className='eink-bordered bg-paper flex h-8 min-w-0 flex-1 items-center rounded-[2px]'>
+            <MdSearch className='text-ink/50 ms-2 h-4 w-4 flex-shrink-0' />
             <input
               type='text'
               value={query}
@@ -566,11 +573,11 @@ const WebDAVBrowsePane: React.FC<WebDAVBrowsePaneProps> = ({ settings, onUpdateS
               <button
                 type='button'
                 onClick={() => setQuery('')}
-                className='btn btn-ghost h-8 min-h-8 w-8 flex-shrink-0 rounded-none rounded-e-lg p-0'
+                className='settings-btn h-8 min-h-8 w-8 flex-shrink-0 rounded-none rounded-e-[2px] p-0'
                 title={_('Clear')}
                 aria-label={_('Clear')}
               >
-                <MdClose className='text-base-content/50 h-3.5 w-3.5' />
+                <MdClose className='text-ink/50 h-3.5 w-3.5' />
               </button>
             )}
           </div>
@@ -579,7 +586,7 @@ const WebDAVBrowsePane: React.FC<WebDAVBrowsePaneProps> = ({ settings, onUpdateS
             onChange={handleSortByChange}
             onKeyDown={(e) => e.stopPropagation()}
             aria-label={_('Sort by')}
-            className='select select-bordered select-sm eink-bordered bg-base-100 text-base-content h-8 min-h-8 flex-shrink-0'
+            className='settings-select eink-bordered bg-paper text-ink h-8 min-h-8 flex-shrink-0'
           >
             <option value='name'>{_('Name')}</option>
             <option value='modified'>{_('Date modified')}</option>
@@ -589,7 +596,7 @@ const WebDAVBrowsePane: React.FC<WebDAVBrowsePaneProps> = ({ settings, onUpdateS
           <button
             type='button'
             onClick={handleToggleDirection}
-            className='btn btn-ghost btn-sm eink-bordered h-8 min-h-8 w-8 flex-shrink-0 px-0'
+            className='settings-btn settings-btn-sm eink-bordered h-8 min-h-8 w-8 flex-shrink-0 px-0'
             title={ascending ? _('Sort ascending') : _('Sort descending')}
             aria-label={ascending ? _('Sort ascending') : _('Sort descending')}
           >
@@ -602,19 +609,19 @@ const WebDAVBrowsePane: React.FC<WebDAVBrowsePaneProps> = ({ settings, onUpdateS
         </div>
       )}
 
-      <div className='card eink-bordered border-base-200 bg-base-100 overflow-hidden border'>
+      <div className='settings-card eink-bordered overflow-hidden'>
         {isLoading ? (
           <div className='flex min-h-32 items-center justify-center py-8'>
-            <span className='loading loading-spinner loading-md' />
+            <span className='settings-spinner settings-spinner-md' />
           </div>
         ) : loadError ? (
-          <div className='text-error px-4 py-6 text-center text-sm'>{loadError}</div>
+          <div className='text-stamp px-4 py-6 text-center text-sm'>{loadError}</div>
         ) : displayedEntries.length === 0 ? (
-          <div className='text-base-content/60 px-4 py-6 text-center text-sm'>
+          <div className='text-ink/60 px-4 py-6 text-center text-sm'>
             {cleanupMode ? _('All clear · no books') : _('Empty directory')}
           </div>
         ) : (
-          <ul className='divide-base-200 divide-y'>
+          <ul className='divide-ink divide-y'>
             {/* Per-hash subdirectories under Readest/books resolve
                 to the local library's title; rows whose hash isn't
                 in the library fall back to the raw hash + mtime. */}
@@ -676,10 +683,10 @@ const WebDAVBrowsePane: React.FC<WebDAVBrowsePaneProps> = ({ settings, onUpdateS
                     className={clsx(
                       'group flex w-full items-center gap-3 px-4 py-3 text-left',
                       'transition-colors duration-150',
-                      rowClickable ? 'hover:bg-base-200/60 cursor-pointer' : 'cursor-default',
+                      rowClickable ? 'hover:bg-paperlight/60 cursor-pointer' : 'cursor-default',
                       // Selected-row tint, kept subtle so the action
                       // buttons in the footer carry the semantic colour.
-                      cleanupMode && selected.has(entry.path) && 'bg-base-200/80',
+                      cleanupMode && selected.has(entry.path) && 'bg-paperlight/80',
                     )}
                   >
                     {cleanupMode ? (
@@ -689,7 +696,7 @@ const WebDAVBrowsePane: React.FC<WebDAVBrowsePaneProps> = ({ settings, onUpdateS
                       <span className='flex h-8 w-8 flex-shrink-0 items-center justify-center'>
                         <input
                           type='checkbox'
-                          className='checkbox checkbox-sm'
+                          className='settings-check'
                           checked={selected.has(entry.path)}
                           // Stop the checkbox's own click from
                           // bubbling into a row-level double-toggle.
@@ -702,7 +709,7 @@ const WebDAVBrowsePane: React.FC<WebDAVBrowsePaneProps> = ({ settings, onUpdateS
                       <span
                         className={clsx(
                           'flex h-8 w-8 flex-shrink-0 items-center justify-center rounded',
-                          'bg-base-200 text-base-content/70',
+                          'bg-paperlight text-ink/70',
                         )}
                       >
                         <FileIcon className='h-4 w-4' />
@@ -719,7 +726,7 @@ const WebDAVBrowsePane: React.FC<WebDAVBrowsePaneProps> = ({ settings, onUpdateS
                           // Dimmed title is the platform-independent
                           // sibling of the MdFolderOff icon (touch
                           // platforms can't see the hover tooltip).
-                          isLocallyDeleted && 'text-base-content/60',
+                          isLocallyDeleted && 'text-ink/60',
                         )}
                         // Hover-show the full hash for matched books,
                         // but yield the slot to the row-level
@@ -736,7 +743,7 @@ const WebDAVBrowsePane: React.FC<WebDAVBrowsePaneProps> = ({ settings, onUpdateS
                       {(matchedBook ||
                         (!entry.isDirectory && typeof entry.size === 'number') ||
                         activeDateRaw) && (
-                        <span className='text-base-content/60 flex flex-wrap gap-x-2 text-[0.75em]'>
+                        <span className='text-ink/60 flex flex-wrap gap-x-2 text-[0.75em]'>
                           {matchedBook && (
                             <span title={entry.name} className='font-mono'>
                               {formatShortHash(entry.name)}
@@ -763,7 +770,7 @@ const WebDAVBrowsePane: React.FC<WebDAVBrowsePaneProps> = ({ settings, onUpdateS
                         }}
                         disabled={dlState === 'downloading' || dlState === 'done'}
                         className={clsx(
-                          'btn btn-ghost btn-sm h-8 min-h-8 flex-shrink-0 px-2',
+                          'settings-btn settings-btn-sm h-8 min-h-8 flex-shrink-0 px-2',
                           (dlState === 'downloading' || dlState === 'done') && 'opacity-60',
                         )}
                         title={
@@ -782,7 +789,7 @@ const WebDAVBrowsePane: React.FC<WebDAVBrowsePaneProps> = ({ settings, onUpdateS
                         }
                       >
                         {dlState === 'downloading' ? (
-                          <span className='loading loading-spinner loading-xs' />
+                          <span className='settings-spinner settings-spinner-xs' />
                         ) : dlState === 'done' ? (
                           <MdCheck className='h-4 w-4' />
                         ) : (
@@ -802,7 +809,7 @@ const WebDAVBrowsePane: React.FC<WebDAVBrowsePaneProps> = ({ settings, onUpdateS
             Buttons are dimmed-but-present when selection is empty,
             avoiding layout shifts as checkboxes toggle. */}
         {cleanupMode && (
-          <div className='border-base-200 bg-base-100/70 flex flex-col gap-2 border-t px-4 py-3'>
+          <div className='border-ink bg-paper/70 flex flex-col gap-2 border-t px-4 py-3'>
             {/* Top row: scope. */}
             <div className='flex items-center gap-2'>
               <button
@@ -817,7 +824,7 @@ const WebDAVBrowsePane: React.FC<WebDAVBrowsePaneProps> = ({ settings, onUpdateS
                 }}
                 disabled={displayedEntries.length === 0 || isDeleting}
                 className={clsx(
-                  'btn btn-ghost btn-xs flex-shrink-0',
+                  'settings-btn settings-btn-xs flex-shrink-0',
                   (displayedEntries.length === 0 || isDeleting) && 'opacity-40',
                 )}
               >
@@ -825,7 +832,7 @@ const WebDAVBrowsePane: React.FC<WebDAVBrowsePaneProps> = ({ settings, onUpdateS
                   ? _('Deselect all')
                   : _('Select all')}
               </button>
-              <span className='text-base-content/60 truncate text-xs'>
+              <span className='text-ink/60 truncate text-xs'>
                 {_('{{n}} selected', { n: selected.size })}
               </span>
             </div>
@@ -838,7 +845,7 @@ const WebDAVBrowsePane: React.FC<WebDAVBrowsePaneProps> = ({ settings, onUpdateS
                 onClick={handleDelete}
                 disabled={selected.size === 0 || isDeleting}
                 className={clsx(
-                  'btn btn-error btn-sm flex-shrink-0 gap-1',
+                  'stamp-btn settings-btn-sm flex-shrink-0 gap-1',
                   (selected.size === 0 || isDeleting) && 'opacity-60',
                 )}
               >
@@ -846,7 +853,10 @@ const WebDAVBrowsePane: React.FC<WebDAVBrowsePaneProps> = ({ settings, onUpdateS
                     width stable; `invisible` hides the pixels when
                     idle without yielding the layout slot. */}
                 <span
-                  className={clsx('loading loading-spinner loading-xs', !isDeleting && 'invisible')}
+                  className={clsx(
+                    'settings-spinner settings-spinner-xs',
+                    !isDeleting && 'invisible',
+                  )}
                 />
                 {_('Delete from server')}
               </button>

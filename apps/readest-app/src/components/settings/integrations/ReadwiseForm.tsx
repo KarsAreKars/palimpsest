@@ -1,3 +1,4 @@
+import '../settings.css';
 import clsx from 'clsx';
 import React, { useState } from 'react';
 import { MdExpandMore } from 'react-icons/md';
@@ -118,7 +119,7 @@ const ReadwiseForm: React.FC<ReadwiseFormProps> = ({ onBack }) => {
         href='https://readwise.io/access_token'
         target='_blank'
         rel='noopener noreferrer'
-        className='link link-primary'
+        className='settings-link'
       >
         readwise.io/access_token
       </a>
@@ -137,8 +138,8 @@ const ReadwiseForm: React.FC<ReadwiseFormProps> = ({ onBack }) => {
 
       {isConfigured ? (
         <div className='space-y-5'>
-          <div className='card eink-bordered border-base-200 bg-base-100 overflow-hidden border'>
-            <div className='divide-base-200 divide-y'>
+          <div className='settings-card eink-bordered overflow-hidden'>
+            <div className='divide-ink divide-y'>
               <label className='flex min-h-14 items-center justify-between px-4'>
                 <SettingLabel>{_('Sync Enabled')}</SettingLabel>
                 <Toggle
@@ -157,7 +158,7 @@ const ReadwiseForm: React.FC<ReadwiseFormProps> = ({ onBack }) => {
                 <div className='flex min-h-14 items-center justify-between gap-3 px-4'>
                   <SettingLabel>{_('Custom URL')}</SettingLabel>
                   <span
-                    className='text-base-content/60 min-w-0 truncate text-end text-sm'
+                    className='text-ink/60 min-w-0 truncate text-end text-sm'
                     title={configuredBaseUrl}
                   >
                     {configuredBaseUrl}
@@ -173,10 +174,10 @@ const ReadwiseForm: React.FC<ReadwiseFormProps> = ({ onBack }) => {
               onClick={handleDisconnect}
               className={clsx(
                 'eink-bordered',
-                'h-10 rounded-lg px-4 text-sm font-medium',
-                'text-error hover:bg-error/10',
+                'h-10 rounded-[2px] px-4 text-sm font-medium',
+                'text-stamp hover:bg-stamp/10',
                 'transition-colors duration-150',
-                'focus-visible:ring-error/40 focus-visible:outline-none focus-visible:ring-2',
+                'focus-visible:ring-stamp/40 focus-visible:outline-none focus-visible:ring-2',
               )}
             >
               {_('Disconnect')}
@@ -193,7 +194,7 @@ const ReadwiseForm: React.FC<ReadwiseFormProps> = ({ onBack }) => {
               id='readwise-token'
               type='password'
               placeholder={_('Paste your Readwise access token')}
-              className='input input-bordered eink-bordered h-11 w-full text-sm focus:outline-none'
+              className='paper-field eink-bordered h-11 w-full text-sm focus:outline-none'
               spellCheck='false'
               value={accessToken}
               onChange={(e) => setAccessToken(e.target.value)}
@@ -206,7 +207,7 @@ const ReadwiseForm: React.FC<ReadwiseFormProps> = ({ onBack }) => {
             <summary
               className={clsx(
                 'flex cursor-pointer list-none items-center gap-1',
-                'text-base-content/70 hover:text-base-content text-sm font-medium',
+                'text-ink/70 hover:text-ink text-sm font-medium',
                 'transition-colors duration-150',
               )}
             >
@@ -223,7 +224,7 @@ const ReadwiseForm: React.FC<ReadwiseFormProps> = ({ onBack }) => {
                   type='url'
                   inputMode='url'
                   placeholder={READWISE_API_BASE_URL}
-                  className='input input-bordered eink-bordered h-11 w-full text-sm focus:outline-none'
+                  className='paper-field eink-bordered h-11 w-full text-sm focus:outline-none'
                   spellCheck='false'
                   autoCapitalize='off'
                   value={baseUrl}
@@ -246,17 +247,13 @@ const ReadwiseForm: React.FC<ReadwiseFormProps> = ({ onBack }) => {
               onClick={handleConnect}
               disabled={isConnecting || !accessToken}
               className={clsx(
-                'btn btn-primary',
-                'h-10 min-h-10 rounded-lg border-0 px-5 text-sm font-medium',
-                'focus-visible:ring-primary/40 focus-visible:outline-none focus-visible:ring-2',
+                'stamp-btn',
+                'h-10 min-h-10 rounded-[2px] border-0 px-5 text-sm font-medium',
+                'focus-visible:ring-stamp/40 focus-visible:outline-none focus-visible:ring-2',
                 isConnecting && 'opacity-60',
               )}
             >
-              {isConnecting ? (
-                <span className='loading loading-spinner loading-sm' />
-              ) : (
-                _('Connect')
-              )}
+              {isConnecting ? <span className='settings-spinner' /> : _('Connect')}
             </button>
           </div>
         </div>

@@ -1,3 +1,4 @@
+import '../settings.css';
 import clsx from 'clsx';
 import React from 'react';
 import SettingLabel from './SettingLabel';
@@ -68,9 +69,7 @@ const SettingsRow: React.FC<SettingsRowProps> = ({
       <div className='flex min-w-0 flex-col'>
         <SettingLabel>{label}</SettingLabel>
         {description && (
-          <span className='text-base-content/65 line-clamp-1 text-[0.8em] leading-snug'>
-            {description}
-          </span>
+          <span className='text-ink/65 line-clamp-1 text-[0.8em] leading-snug'>{description}</span>
         )}
       </div>
       {children}

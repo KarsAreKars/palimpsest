@@ -1,3 +1,4 @@
+import '../settings.css';
 import clsx from 'clsx';
 import React from 'react';
 
@@ -34,7 +35,7 @@ function SettingLabel<T extends React.ElementType = 'span'>({
 }: SettingLabelProps<T>) {
   const Tag = (as ?? 'span') as React.ElementType;
   return (
-    <Tag className={clsx('text-base-content line-clamp-2', className)} {...rest}>
+    <Tag className={clsx('text-ink line-clamp-2', className)} {...rest}>
       {children}
     </Tag>
   );
