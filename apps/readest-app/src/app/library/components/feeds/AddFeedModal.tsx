@@ -93,7 +93,7 @@ const AddFeedModal: React.FC<AddFeedModalProps> = ({ isOpen, onClose, onSubmit }
             onClick={() => void submit()}
             disabled={submitting || !url.trim()}
           >
-            {submitting && <span className='loading loading-spinner loading-xs' />}
+            {submitting && <span className='library-spinner library-spinner-xs' />}
             {_('Subscribe')}
           </button>
         </div>

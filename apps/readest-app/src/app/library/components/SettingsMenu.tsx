@@ -268,9 +268,8 @@ const SettingsMenu: React.FC<SettingsMenuProps> = ({ onPullLibrary, setIsDropdow
           ? _('Ambient Mode')
           : _('Auto Mode');
 
-  const savedBookCoverPath = settings.savedBookCoverForLockScreenPath;
-  const coverDir = savedBookCoverPath ? savedBookCoverPath.split('/').pop() : 'Images';
-  const savedBookCoverDescription = `💾 ${coverDir}/last-book-cover.png`;
+  // Librarian copy: the note names the behaviour, never the raw filename.
+  const savedBookCoverDescription = _('The last cover is kept on this device.');
 
   // The sync row reports the health of whatever the user selected. Native
   // cursors freeze while Readest Cloud is off (the book/progress/note channels

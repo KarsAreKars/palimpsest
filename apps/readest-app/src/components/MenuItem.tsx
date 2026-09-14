@@ -64,7 +64,7 @@ const MenuItem: React.FC<MenuItemProps> = ({
             <span style={{ minWidth: `${iconSize}px` }}>
               {typeof IconType === 'function' ? (
                 <IconType
-                  className={clsx(disabled ? 'text-gray-400' : 'text-base-content', iconClassName)}
+                  className={clsx(disabled ? 'text-faint' : 'text-ink', iconClassName)}
                   size={iconSize}
                 />
               ) : (
@@ -85,9 +85,9 @@ const MenuItem: React.FC<MenuItemProps> = ({
         {shortcut && (
           <kbd
             className={clsx(
-              'border-base-300/40 bg-base-300/75 hidden rounded-md border shadow-sm sm:flex',
+              'border-ink/25 bg-paperlight hidden rounded-[2px] border sm:flex',
               'shrink-0 px-1.5 py-0.5 text-xs font-medium',
-              disabled ? 'text-gray-400' : 'text-neutral-content',
+              disabled ? 'text-faint' : 'text-mutedink',
             )}
           >
             {shortcut}
@@ -97,7 +97,7 @@ const MenuItem: React.FC<MenuItemProps> = ({
       <div className='flex w-full'>
         {description && (
           <span
-            className='mt-1 truncate text-start text-xs text-gray-500'
+            className='text-mutedink mt-1 truncate text-start text-xs'
             style={{ minWidth: 0, paddingInlineStart: noIcon ? '0' : `${iconSize + 8}px` }}
           >
             {description}
@@ -109,7 +109,7 @@ const MenuItem: React.FC<MenuItemProps> = ({
 
   if (children) {
     return (
-      <ul className='menu rounded-box m-0 p-0'>
+      <ul className='m-0 p-0'>
         <li aria-label={label}>
           <details open={detailsOpen} onToggle={(e) => setIsDetailsOpen(e.currentTarget.open)}>
             <summary
@@ -117,8 +117,8 @@ const MenuItem: React.FC<MenuItemProps> = ({
               tabIndex={0}
               aria-expanded={isDetailsOpen}
               className={clsx(
-                'hover:bg-base-300 text-base-content cursor-pointer rounded-md p-1 py-[10px] pr-3',
-                disabled && 'btn-disabled cursor-not-allowed text-gray-400',
+                'hover:bg-paperlight text-ink cursor-pointer rounded-[2px] p-1 py-[10px] pr-3',
+                disabled && 'pointer-events-none cursor-not-allowed text-faint',
                 buttonClass,
               )}
               title={tooltip ? tooltip : ''}
@@ -142,8 +142,8 @@ const MenuItem: React.FC<MenuItemProps> = ({
         aria-live={toggled === undefined ? 'polite' : 'off'}
         tabIndex={disabled ? -1 : 0}
         className={clsx(
-          'hover:bg-base-300 text-base-content flex w-full flex-col items-center justify-center rounded-md p-1 py-[10px]',
-          disabled && 'btn-disabled text-gray-400',
+          'hover:bg-paperlight text-ink flex w-full flex-col items-center justify-center rounded-[2px] p-1 py-[10px]',
+          disabled && 'pointer-events-none text-faint',
           buttonClass,
         )}
         title={tooltip ? tooltip : ''}

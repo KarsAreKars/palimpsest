@@ -221,7 +221,7 @@ export function FeedsView({ onClose }: FeedsViewProps) {
                               onClick={() => void handleRefresh(feed)}
                             >
                               {refreshing === feed.id ? (
-                                <span className='loading loading-spinner loading-xs' />
+                                <span className='library-spinner library-spinner-xs' />
                               ) : (
                                 <MdRefresh className='h-4 w-4' />
                               )}

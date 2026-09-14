@@ -183,7 +183,7 @@ const BookItem: React.FC<BookItemProps> = ({
             aria-valuemax={100}
           >
             {isIndeterminate ? (
-              <span className='loading loading-spinner loading-sm text-white eink:text-ink' />
+              <span className='library-spinner library-spinner-md' />
             ) : (
               <span className='eink:text-ink text-sm font-semibold text-white not-eink:drop-shadow-sm'>
                 {Math.round(transferProgress)}%
@@ -208,7 +208,7 @@ const BookItem: React.FC<BookItemProps> = ({
             title={extractionBadge.detail}
           >
             {extractionBadge.tone === 'running' && (
-              <span className='loading loading-spinner loading-xs shrink-0' />
+              <span className='library-spinner library-spinner-xs shrink-0' />
             )}
             <span className='line-clamp-2'>{extractionBadge.label}</span>
           </div>
@@ -216,9 +216,9 @@ const BookItem: React.FC<BookItemProps> = ({
         {isSelectMode && (
           <div className='absolute bottom-1 right-1'>
             {bookSelected ? (
-              <MdCheckCircle className='fill-blue-500' />
+              <MdCheckCircle className='fill-[var(--stamp)]' />
             ) : (
-              <MdCheckCircleOutline className='fill-gray-300 drop-shadow-sm' />
+              <MdCheckCircleOutline className='fill-[var(--faint)] drop-shadow-sm' />
             )}
           </div>
         )}
@@ -247,12 +247,12 @@ const BookItem: React.FC<BookItemProps> = ({
             <h4 className='typed overflow-hidden text-ellipsis whitespace-nowrap text-[11px] text-ink'>
               {book.title}
             </h4>
-            <p className='text-paperlight line-clamp-1 text-sm'>
+            <p className='text-ink line-clamp-1 text-sm'>
               {formatAuthors(book.author, book.primaryLanguage) || ''}
             </p>
           </div>
-          {seriesText && <p className='text-paperlight line-clamp-1 text-sm'>{seriesText}</p>}
-          <h4 className='text-paperlight line-clamp-1 text-sm'>
+          {seriesText && <p className='text-ink line-clamp-1 text-sm'>{seriesText}</p>}
+          <h4 className='text-ink line-clamp-1 text-sm'>
             {formatDescription(book.metadata?.description)}
           </h4>
           <div
@@ -267,7 +267,7 @@ const BookItem: React.FC<BookItemProps> = ({
           >
             {isAbsBook ? (
               <div
-                className='text-paperlight/70 flex min-w-0 justify-between text-xs'
+                className='text-mutedink flex min-w-0 justify-between text-xs'
                 role='status'
               >
                 <span className='truncate tabular-nums'>

@@ -680,7 +680,7 @@ const AudiobookPairingDialog = ({ bookKey, bookDoc, onClose }: AudiobookPairingD
             className='bg-paperlight/60 mb-4 flex items-center gap-3 rounded-[2px] px-4 py-3'
             role='status'
           >
-            <span className='loading loading-spinner loading-sm' />
+            <span className='chrome-spinner chrome-spinner-md' />
             <span>{busyMessage}</span>
           </div>
         )}

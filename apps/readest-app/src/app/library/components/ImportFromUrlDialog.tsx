@@ -107,7 +107,7 @@ const ImportFromUrlDialog: React.FC<ImportFromUrlDialogProps> = ({ isOpen, onClo
             disabled={submitting || !url.trim()}
           >
             {submitting ? (
-              <span className='loading loading-spinner loading-xs' />
+              <span className='library-spinner library-spinner-xs' />
             ) : (
               <MdLink className='h-4 w-4' />
             )}
