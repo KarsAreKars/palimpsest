@@ -44,6 +44,7 @@
   --muted: #6e6350;
   --faint: #c9bfa8;
   --stamp: #8c3b22;
+  --sage: #5b6b4f; /* secondary state ink — green-ink pencil of the cataloguer */
   /* cloth covers */
   --cloth-moss: #4d6136;
   --cloth-basalt: #1c1915;
@@ -57,6 +58,18 @@
   --oak-light: #ad8a5f;
   /* one shadow recipe: soft lift, only for objects off the paper */
   --lift-shadow: 0 5px 14px rgba(42, 37, 29, 0.18);
+}
+
+/* ---------- shelf-at-night: the same room after closing ----------
+   Dark must survive every surface; apothecary vars flip here. */
+[data-theme='apothecary-dark'] {
+  --paper: #1c1915;
+  --paper-light: #26221b;
+  --ink: #f3ede0;
+  --muted: #a89c86;
+  --faint: #4a4234;
+  --stamp: #c96a4a;
+  --sage: #93a47f;
 }
 
 /* ---------- paper: fibrous, laid, vignetted ---------- */
@@ -206,6 +219,77 @@
 }
 .cloth-sage {
   background-color: var(--cloth-sage);
+}
+
+/* ---------- plates: the catalogue frame ----------
+   Every book is a plate in an antiquarian catalogue: hairline double rule,
+   typed number, ticket notch on interactive plates. */
+.plate {
+  position: relative;
+  background: var(--paper-light);
+  border: 1px solid color-mix(in srgb, var(--ink) 25%, transparent);
+}
+/* inner letterpress rule, inset 3px — never removed, never rounded */
+.plate::after {
+  content: '';
+  position: absolute;
+  inset: 3px;
+  border: 1px solid color-mix(in srgb, var(--ink) 12%, transparent);
+  pointer-events: none;
+}
+/* ticket notch: one cut corner, top-right, small */
+.plate-notch {
+  clip-path: polygon(
+    0 0,
+    calc(100% - 12px) 0,
+    100% 12px,
+    100% 100%,
+    0 100%
+  );
+}
+.plate-interactive {
+  transition:
+    transform 150ms cubic-bezier(0.16, 1, 0.3, 1),
+    border-color 150ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+.plate-interactive:hover {
+  transform: translateY(-2px);
+  border-color: color-mix(in srgb, var(--ink) 55%, transparent);
+}
+/* the cataloguer's pencil: typed number on the plate */
+.plate-num {
+  font-family: 'Special Elite', 'Courier New', monospace;
+  font-size: 9px;
+  letter-spacing: 0.12em;
+  color: var(--muted);
+  text-transform: uppercase;
+}
+/* specimen label beneath a plate */
+.plate-title {
+  font-family: 'Newsreader', Georgia, serif;
+  font-variant-caps: small-caps;
+  letter-spacing: 0.04em;
+  color: var(--ink);
+}
+.plate-meta {
+  font-family: 'Newsreader', Georgia, serif;
+  font-size: 11px;
+  color: var(--muted);
+}
+/* double rule for mastheads and section heads */
+.catalog-rule {
+  border: none;
+  border-top: 1px solid color-mix(in srgb, var(--ink) 45%, transparent);
+  border-bottom: 1px solid color-mix(in srgb, var(--ink) 18%, transparent);
+  height: 3px;
+  margin: 0;
+}
+/* inked ornament separator — drawn from type, never emoji */
+.ornament {
+  color: var(--stamp);
+  font-size: 12px;
+  letter-spacing: 0.5em;
+  user-select: none;
 }
 
 /* progress hairline */
