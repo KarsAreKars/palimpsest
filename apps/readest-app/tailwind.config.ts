@@ -30,7 +30,7 @@ const config: Config = {
         paper: '#F3EDE0',
         paperlight: '#F8F4E9',
         ink: '#26221B',
-        mutedink: '#8A7E6A',
+        mutedink: '#6E6350',
         faint: '#C9BFA8',
         stamp: '#8C3B22',
         oak: '#96754F',

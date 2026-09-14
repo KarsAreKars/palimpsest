@@ -41,7 +41,7 @@
   --paper: #f3ede0;
   --paper-light: #f8f4e9;
   --ink: #26221b;
-  --muted: #8a7e6a;
+  --muted: #6e6350;
   --faint: #c9bfa8;
   --stamp: #8c3b22;
   /* cloth covers */
@@ -138,6 +138,18 @@
 .stamp-btn:hover {
   background: var(--stamp);
   color: var(--paper-light);
+}
+.stamp-btn:disabled,
+.stamp-btn:disabled:hover {
+  color: color-mix(in srgb, var(--stamp) 40%, transparent);
+  border-color: color-mix(in srgb, var(--stamp) 40%, transparent);
+  background: transparent;
+  cursor: not-allowed;
+}
+.stamp-btn:focus-visible,
+.ink-btn:focus-visible {
+  outline: 2px solid var(--stamp);
+  outline-offset: 2px;
 }
 
 .ink-btn {
