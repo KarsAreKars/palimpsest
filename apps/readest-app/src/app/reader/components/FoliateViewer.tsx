@@ -1086,7 +1086,7 @@ const FoliateViewer: React.FC<{
         aria-label={_('Book Content')}
         className={clsx(
           'foliate-viewer absolute h-[100%] w-[100%] focus:outline-none',
-          viewState?.loading && 'bg-base-100',
+          viewState?.loading && 'bg-paper',
         )}
         style={{
           paddingTop: scrollMargins.top,

@@ -114,10 +114,10 @@ const LibraryHeader: React.FC<LibraryHeaderProps> = ({
                 aria-label={searchTarget === 'text' ? _('Full Text Search') : _('Search Books')}
                 title={searchTarget === 'text' ? _('Full Text Search') : _('Search Books')}
                 className={clsx(
-                  'text-base-content/55 hover:text-base-content',
+                  'text-ink/55 hover:text-ink',
                   'not-eink:transition-colors ms-1.5 flex h-7 min-h-7 items-center justify-center',
                   'touch-target w-8 rounded-full bg-transparent duration-150',
-                  'focus-visible:ring-base-content/15 focus-visible:outline-none focus-visible:ring-2',
+                  'focus-visible:ring-stamp/15 focus-visible:outline-none focus-visible:ring-2',
                 )}
                 onClick={() => onSearchTargetChange(searchTarget === 'text' ? 'books' : 'text')}
               >
@@ -150,7 +150,7 @@ const LibraryHeader: React.FC<LibraryHeaderProps> = ({
             {searchTarget === 'text' && (
               <div
                 className={clsx(
-                  'not-eink:bg-base-300/70 not-eink:hover:bg-base-300 not-eink:transition-colors',
+                  'not-eink:bg-paperlight/70 not-eink:hover:bg-paperlight not-eink:transition-colors',
                   'absolute end-0 flex h-full w-9 items-center justify-center rounded-e-full duration-150',
                 )}
               >
@@ -159,11 +159,11 @@ const LibraryHeader: React.FC<LibraryHeaderProps> = ({
                   className='dropdown-bottom dropdown-end'
                   menuClassName='no-triangle mt-1'
                   buttonClassName={clsx(
-                    'btn btn-ghost h-full min-h-0 w-9 rounded-none rounded-e-full p-0',
+                    'chrome-ghost h-full min-h-0 w-9 rounded-none rounded-e-full p-0',
                     '!bg-transparent hover:!bg-transparent',
                   )}
                   toggleButton={
-                    <FaChevronDown role='none' className='text-base-content/50 h-3 w-3' />
+                    <FaChevronDown role='none' className='text-ink/50 h-3 w-3' />
                   }
                 >
                   <LibrarySearchOptionsMenu
@@ -176,7 +176,7 @@ const LibraryHeader: React.FC<LibraryHeaderProps> = ({
           </div>
           <div
             className={clsx(
-              'text-base-content/50 absolute flex items-center space-x-2 sm:space-x-4',
+              'text-ink/50 absolute flex items-center space-x-2 sm:space-x-4',
               searchTarget === 'text' ? 'end-14' : 'right-4',
             )}
           >
@@ -184,7 +184,7 @@ const LibraryHeader: React.FC<LibraryHeaderProps> = ({
               <button
                 type='button'
                 onClick={() => onSearchQueryChange('')}
-                className='text-base-content/40 hover:text-base-content/60 pe-1'
+                className='text-ink/40 hover:text-ink/60 pe-1'
                 aria-label={_('Clear Search')}
               >
                 <IoMdCloseCircle className='h-4 w-4' />
@@ -192,7 +192,7 @@ const LibraryHeader: React.FC<LibraryHeaderProps> = ({
             )}
             {searchTarget !== 'text' && (
               <>
-                <span className='bg-base-content/50 mx-2 h-4 w-[0.5px]'></span>
+                <span className='bg-ink/50 mx-2 h-4 w-[0.5px]'></span>
                 <Dropdown
                   label={_('Import Books')}
                   className={clsx(
@@ -222,9 +222,9 @@ const LibraryHeader: React.FC<LibraryHeaderProps> = ({
                     className='h-6'
                   >
                     {isSelectMode ? (
-                      <PiSelectionAllFill role='button' className='text-base-content/60 h-6 w-6' />
+                      <PiSelectionAllFill role='button' className='text-ink/60 h-6 w-6' />
                     ) : (
-                      <PiSelectionAll role='button' className='text-base-content/60 h-6 w-6' />
+                      <PiSelectionAll role='button' className='text-ink/60 h-6 w-6' />
                     )}
                   </button>
                 )}
@@ -241,7 +241,7 @@ const LibraryHeader: React.FC<LibraryHeaderProps> = ({
           >
             <button
               onClick={isSelectAll ? onDeselectAll : onSelectAll}
-              className='btn btn-ghost text-base-content/85 h-8 min-h-8 w-[72px] p-0 sm:w-[80px]'
+              className='chrome-ghost text-ink/85 h-8 min-h-8 w-[72px] p-0 sm:w-[80px]'
               aria-label={isSelectAll ? _('Deselect') : _('Select All')}
             >
               <span className='font-sans text-base font-normal sm:text-sm whitespace-nowrap truncate'>
@@ -254,7 +254,7 @@ const LibraryHeader: React.FC<LibraryHeaderProps> = ({
             <Dropdown
               label={_('View Menu')}
               className='exclude-title-bar-mousedown dropdown-bottom dropdown-end'
-              buttonClassName='btn btn-ghost h-8 min-h-8 w-8 p-0'
+              buttonClassName='chrome-ghost h-8 min-h-8 w-8 p-0'
               toggleButton={<PiDotsThreeCircle role='none' size={iconSize18} />}
             >
               <ViewMenu />
@@ -262,7 +262,7 @@ const LibraryHeader: React.FC<LibraryHeaderProps> = ({
             <Dropdown
               label={_('Settings Menu')}
               className='exclude-title-bar-mousedown dropdown-bottom dropdown-end'
-              buttonClassName='btn btn-ghost h-8 min-h-8 w-8 p-0'
+              buttonClassName='chrome-ghost h-8 min-h-8 w-8 p-0'
               toggleButton={<MdOutlineMenu role='none' size={iconSize18} />}
             >
               <SettingsMenu onPullLibrary={onPullLibrary} />

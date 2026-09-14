@@ -75,7 +75,7 @@ const SectionInfo: React.FC<SectionInfoProps> = ({
           // Fixed-layout pages fill the screen edge to edge and their chrome
           // overlays the page (mix-blend-difference title, #4901); the opaque
           // mask would clip the document at the camera hole / status bar.
-          isScrolled && !isVertical && !bookData?.isFixedLayout && 'notch-masked bg-base-100',
+          isScrolled && !isVertical && !bookData?.isFixedLayout && 'notch-masked bg-paper',
         )}
         role='none'
         tabIndex={-1}
@@ -97,7 +97,7 @@ const SectionInfo: React.FC<SectionInfoProps> = ({
             ? 'text-sm font-normal'
             : bookData?.isFixedLayout
               ? 'text-white/75 mix-blend-difference text-xs font-light'
-              : 'text-base-content text-xs font-light',
+              : 'text-ink text-xs font-light',
           isVertical ? 'writing-vertical-rl max-h-[85%]' : 'top-0',
         )}
         role='none'

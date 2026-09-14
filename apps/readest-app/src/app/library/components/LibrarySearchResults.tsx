@@ -86,9 +86,9 @@ const Excerpt = ({ excerpt }: { excerpt: SearchExcerpt }) => (
 const ResultCover = ({ book }: { book: Book }) => (
   <span
     aria-hidden='true'
-    className='bg-base-200 eink-bordered relative flex h-10 w-7 shrink-0 items-center justify-center overflow-hidden rounded'
+    className='bg-paperlight eink-bordered relative flex h-10 w-7 shrink-0 items-center justify-center overflow-hidden rounded-[2px]'
   >
-    <span className='text-base-content/50 text-[10px] font-semibold'>
+    <span className='text-ink/50 text-[10px] font-semibold'>
       {(book.title ?? '').trim().charAt(0)}
     </span>
     {book.coverImageUrl && (
@@ -120,7 +120,7 @@ const ResultGroupMatches = memo(
       {sections.map((section, sectionIndex) => (
         <div key={`${section.index}-${sectionIndex}`}>
           {section.label && (
-            <h3 className='text-base-content/45 truncate px-4 pb-1 pt-2.5 text-[11px] font-medium uppercase tracking-wider'>
+            <h3 className='text-ink/45 truncate px-4 pb-1 pt-2.5 text-[11px] font-medium uppercase tracking-wider'>
               {section.label}
             </h3>
           )}
@@ -129,13 +129,13 @@ const ResultGroupMatches = memo(
               key={`${match.locator.section}:${match.locator.start}:${match.locator.end}`}
               type='button'
               className={clsx(
-                'not-eink:transition-colors mx-1.5 block w-[calc(100%-0.75rem)] rounded-lg px-2.5 py-2 text-start duration-150',
-                'hover:bg-base-200/60 focus-visible:ring-base-content/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset',
-                'eink:border-base-content/25 eink:border-t eink:first:border-t-0 eink:rounded-none',
+                'not-eink:transition-colors mx-1.5 block w-[calc(100%-0.75rem)] rounded-[2px] px-2.5 py-2 text-start duration-150',
+                'hover:bg-paperlight/60 focus-visible:ring-stamp/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset',
+                'eink:border-ink/25 eink:border-t eink:first:border-t-0 eink:rounded-none',
               )}
               onClick={() => onSelectResult(book, match)}
             >
-              <span className='text-base-content/75 line-clamp-3 text-sm leading-relaxed'>
+              <span className='text-ink/75 line-clamp-3 text-sm leading-relaxed'>
                 <Excerpt excerpt={match.excerpt} />
               </span>
             </button>
@@ -367,7 +367,7 @@ const LibrarySearchResults = ({
     <div className='search-results flex h-full min-h-0 flex-col font-sans'>
       <div className='px-4 pb-3 pt-1 sm:px-6'>
         <div
-          className='text-base-content/60 flex h-6 items-center gap-2 text-xs'
+          className='text-ink/60 flex h-6 items-center gap-2 text-xs'
           role='status'
           aria-live='polite'
         >
@@ -380,7 +380,7 @@ const LibrarySearchResults = ({
               </span>
               <button
                 type='button'
-                className='hover:text-base-content not-eink:transition-colors shrink-0 font-medium duration-150'
+                className='hover:text-ink not-eink:transition-colors shrink-0 font-medium duration-150'
                 onClick={cancel}
               >
                 {_('Cancel')}
@@ -406,7 +406,7 @@ const LibrarySearchResults = ({
         }}
       >
         {displayedQueryIssue && (
-          <div className='bg-base-200/50 text-base-content/80 eink-bordered mb-3 rounded-lg px-4 py-3 text-sm'>
+          <div className='bg-paperlight/50 text-ink/80 eink-bordered mb-3 rounded-[2px] px-4 py-3 text-sm'>
             {displayedQueryIssue}
           </div>
         )}
@@ -416,14 +416,14 @@ const LibrarySearchResults = ({
             return (
               <section key={group.book.hash}>
                 {/* The sticky element is a square strip painted with the page
-                    backdrop (bg-base-200, bg-base-100 in eink, matching the
+                    backdrop (bg-paperlight, bg-paper in eink, matching the
                     library page), so content scrolling beneath cannot show
                     through the rounded corner notches of the card frame inside. */}
-                <header className='eink:bg-base-100 bg-base-200 sticky top-0 z-[1]'>
+                <header className='eink:bg-paper bg-paperlight sticky top-0 z-[1]'>
                   <div
                     className={clsx(
-                      'border-base-200 eink:border-base-content bg-base-100 rounded-t-xl border',
-                      isExpanded ? 'border-b-0' : 'rounded-b-xl',
+                      'border-ink/15 eink:border-ink bg-paper rounded-t-[2px] border',
+                      isExpanded ? 'border-b-0' : 'rounded-b-[2px]',
                     )}
                   >
                     <button
@@ -434,22 +434,22 @@ const LibrarySearchResults = ({
                         count: group.matchCount,
                       })}
                       className={clsx(
-                        'not-eink:transition-colors flex min-h-14 w-full items-center gap-3 rounded-t-xl px-3 py-2 text-start duration-150',
-                        'hover:bg-base-200/60 focus-visible:ring-base-content/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset',
-                        !isExpanded && 'rounded-b-xl',
+                        'not-eink:transition-colors flex min-h-14 w-full items-center gap-3 rounded-t-[2px] px-3 py-2 text-start duration-150',
+                        'hover:bg-paperlight/60 focus-visible:ring-stamp/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset',
+                        !isExpanded && 'rounded-b-[2px]',
                       )}
                       onClick={() => toggleBook(group.book.hash)}
                     >
                       <ResultCover book={group.book} />
                       <span className='min-w-0 flex-1 leading-tight'>
-                        <span className='text-base-content block truncate text-sm font-medium leading-5'>
+                        <span className='text-ink block truncate text-sm font-medium leading-5'>
                           {group.book.title}
                         </span>
-                        <span className='text-base-content/55 mt-0.5 block truncate text-xs leading-4'>
+                        <span className='text-ink/55 mt-0.5 block truncate text-xs leading-4'>
                           {group.book.author}
                         </span>
                       </span>
-                      <span className='bg-base-200 text-base-content/60 eink-bordered shrink-0 rounded-full px-2 py-0.5 text-xs tabular-nums'>
+                      <span className='bg-paperlight text-ink/60 eink-bordered shrink-0 rounded-full px-2 py-0.5 text-xs tabular-nums'>
                         {group.matchCount}
                         {group.truncated && '+'}
                       </span>
@@ -459,7 +459,7 @@ const LibrarySearchResults = ({
                         height='6'
                         aria-hidden='true'
                         className={clsx(
-                          'text-base-content/40 not-eink:transition-transform shrink-0 duration-150',
+                          'text-ink/40 not-eink:transition-transform shrink-0 duration-150',
                           isExpanded ? 'rotate-180' : 'rotate-0',
                         )}
                         fill='none'
@@ -474,7 +474,7 @@ const LibrarySearchResults = ({
                   </div>
                 </header>
                 {isExpanded && (
-                  <div className='border-base-200 eink:border-base-content bg-base-100 rounded-b-xl border border-t-0'>
+                  <div className='border-ink/15 eink:border-ink bg-paper rounded-b-[2px] border border-t-0'>
                     <ResultGroupMatches
                       book={group.book}
                       sections={group.sections}
@@ -487,12 +487,12 @@ const LibrarySearchResults = ({
           })}
         </div>
         {displayedSkipped > 0 && (
-          <p className='text-base-content/50 mt-4 text-center text-xs' role='status'>
+          <p className='text-ink/50 mt-4 text-center text-xs' role='status'>
             {_('{{count}} books unavailable', { count: displayedSkipped })}
           </p>
         )}
         {displayedIssues.length > 0 && (
-          <div className='text-base-content/50 mt-3 space-y-1 px-1 text-xs'>
+          <div className='text-ink/50 mt-3 space-y-1 px-1 text-xs'>
             {displayedIssues.map(({ book, message }) => (
               <p key={`${book.hash}-${message}`} className='truncate'>
                 <span className='font-medium'>{book.title}</span>
@@ -507,8 +507,8 @@ const LibrarySearchResults = ({
           displayedIssues.length === 0 &&
           !displayedQueryIssue && (
             <div className='flex flex-col items-center gap-1 py-16 text-center' role='status'>
-              <p className='text-base-content/70 text-sm font-medium'>{_('No results found')}</p>
-              <p className='text-base-content/50 text-xs'>
+              <p className='text-ink/70 text-sm font-medium'>{_('No results found')}</p>
+              <p className='text-ink/50 text-xs'>
                 {_('Try a different term or search mode')}
               </p>
             </div>

@@ -103,9 +103,9 @@ const SelectModeActions: React.FC<SelectModeActionsProps> = ({
     >
       <div
         className={clsx(
-          'text-base-content text-xs shadow-lg',
-          'not-eink:bg-base-300 eink:bg-base-100 eink:border eink:border-base-content',
-          'mx-auto w-fit max-w-[calc(100vw-1rem)] rounded-lg p-4',
+          'text-ink text-xs shadow-lg',
+          'not-eink:bg-paperlight eink:bg-paper eink:border eink:border-ink',
+          'mx-auto w-fit max-w-[calc(100vw-1rem)] rounded-[2px] p-4',
           'flex items-center justify-center gap-x-6',
           'max-[500px]:grid max-[500px]:grid-cols-4 max-[500px]:gap-x-6 max-[500px]:gap-y-3',
         )}
@@ -114,7 +114,7 @@ const SelectModeActions: React.FC<SelectModeActionsProps> = ({
           onClick={onOpen}
           className={clsx(
             'flex flex-col items-center justify-center gap-1',
-            (!hasSelection || !hasValidBooks) && 'btn-disabled opacity-50',
+            (!hasSelection || !hasValidBooks) && 'chrome-ghost-disabled opacity-50',
           )}
         >
           <MdOpenInNew />
@@ -124,7 +124,7 @@ const SelectModeActions: React.FC<SelectModeActionsProps> = ({
           onClick={onGroup}
           className={clsx(
             'flex flex-col items-center justify-center gap-1',
-            !hasSelection && 'btn-disabled opacity-50',
+            !hasSelection && 'chrome-ghost-disabled opacity-50',
           )}
         >
           <LuFolderPlus />
@@ -134,7 +134,7 @@ const SelectModeActions: React.FC<SelectModeActionsProps> = ({
           onClick={onStatus}
           className={clsx(
             'flex flex-col items-center justify-center gap-1',
-            (!hasSelection || !hasValidBooks) && 'btn-disabled opacity-50',
+            (!hasSelection || !hasValidBooks) && 'chrome-ghost-disabled opacity-50',
           )}
         >
           <MdCheckCircleOutline />
@@ -144,7 +144,7 @@ const SelectModeActions: React.FC<SelectModeActionsProps> = ({
           onClick={onDetails}
           className={clsx(
             'flex flex-col items-center justify-center gap-1',
-            (!hasSingleSelection || !hasValidBooks) && 'btn-disabled opacity-50',
+            (!hasSingleSelection || !hasValidBooks) && 'chrome-ghost-disabled opacity-50',
           )}
         >
           <MdInfoOutline />
@@ -157,7 +157,7 @@ const SelectModeActions: React.FC<SelectModeActionsProps> = ({
             // Heads the second row on narrow viewports; everything after it
             // (Send / Delete / Cancel) then flows behind it.
             'max-[500px]:col-start-1',
-            !canDownload && 'btn-disabled opacity-50',
+            !canDownload && 'chrome-ghost-disabled opacity-50',
           )}
         >
           <MdOutlineCloudDownload />
@@ -168,7 +168,7 @@ const SelectModeActions: React.FC<SelectModeActionsProps> = ({
             onClick={onSend}
             className={clsx(
               'flex flex-col items-center justify-center gap-1',
-              (!hasSingleSelection || !hasValidBooks) && 'btn-disabled opacity-50',
+              (!hasSingleSelection || !hasValidBooks) && 'chrome-ghost-disabled opacity-50',
             )}
           >
             <IoShareSocialOutline />
@@ -180,7 +180,7 @@ const SelectModeActions: React.FC<SelectModeActionsProps> = ({
             onClick={onSendNearby}
             className={clsx(
               'flex flex-col items-center justify-center gap-1',
-              (!hasSelection || !hasValidBooks) && 'btn-disabled opacity-50',
+              (!hasSelection || !hasValidBooks) && 'chrome-ghost-disabled opacity-50',
             )}
           >
             <MdWifiTethering />
@@ -191,7 +191,7 @@ const SelectModeActions: React.FC<SelectModeActionsProps> = ({
           onClick={onDelete}
           className={clsx(
             'flex flex-col items-center justify-center gap-1',
-            !hasSelection && 'btn-disabled opacity-50',
+            !hasSelection && 'chrome-ghost-disabled opacity-50',
           )}
         >
           <MdDelete className='text-red-500' />

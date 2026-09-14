@@ -107,10 +107,10 @@ const PageJumpInput: React.FC<PageJumpInputProps> = ({ bookKey, showFraction, cl
   return (
     <div
       className={clsx(
-        'relative flex items-center rounded-md text-nowrap transition-colors',
+        'relative flex items-center rounded-[2px] text-nowrap transition-colors',
         editing
-          ? 'eink-bordered bg-base-content/10'
-          : 'hover:bg-base-content/10 cursor-pointer bg-transparent',
+          ? 'eink-bordered bg-ink/10'
+          : 'hover:bg-ink/10 cursor-pointer bg-transparent',
         className,
       )}
     >

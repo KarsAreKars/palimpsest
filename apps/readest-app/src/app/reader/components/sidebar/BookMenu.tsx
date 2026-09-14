@@ -179,7 +179,7 @@ const BookMenu: React.FC<BookMenuProps> = ({ menuClassName, setIsDropdownOpen })
           <MenuItem label={_('Enter Parallel Read')} onClick={handleSetParallel} />
         ))}
       {(settings.kosync.enabled || settings.readwise.enabled || settings.hardcover.enabled) && (
-        <hr aria-hidden='true' className='border-base-200 my-1' />
+        <hr aria-hidden='true' className='border-ink/15 my-1' />
       )}
       {settings.kosync.enabled && (
         <MenuItem label={_('KOReader Sync')} detailsOpen={false} buttonClass='py-2'>
@@ -204,7 +204,7 @@ const BookMenu: React.FC<BookMenuProps> = ({ menuClassName, setIsDropdownOpen })
           </ul>
         </MenuItem>
       )}
-      <hr aria-hidden='true' className='border-base-200 my-1' />
+      <hr aria-hidden='true' className='border-ink/15 my-1' />
       <MenuItem label={_('Proofread')} onClick={showProofreadRulesWindow} />
       {canPairAudiobook && (
         <MenuItem
@@ -214,7 +214,7 @@ const BookMenu: React.FC<BookMenuProps> = ({ menuClassName, setIsDropdownOpen })
           onClick={handleManageAudiobook}
         />
       )}
-      <hr aria-hidden='true' className='border-base-200 my-1' />
+      <hr aria-hidden='true' className='border-ink/15 my-1' />
       <MenuItem label={_('Export Annotations')} onClick={handleExportAnnotations} />
       <MenuItem label={_('Import Annotations')} onClick={handleImportAnnotations} />
       <MenuItem
@@ -228,7 +228,7 @@ const BookMenu: React.FC<BookMenuProps> = ({ menuClassName, setIsDropdownOpen })
         onClick={handleToggleSortTOC}
       />
       <MenuItem label={_('Reload Page')} shortcut='Shift+R' onClick={handleReloadPage} />
-      <hr aria-hidden='true' className='border-base-200 my-1' />
+      <hr aria-hidden='true' className='border-ink/15 my-1' />
       {isWebAppPlatform() && <MenuItem label={_('Download Readest')} onClick={downloadReadest} />}
       <MenuItem label={_('About Readest')} onClick={showAboutReadest} />
     </Menu>

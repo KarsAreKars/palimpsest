@@ -131,10 +131,10 @@ const SearchResultItem: React.FC<SearchResultItemProps> = ({
       role='button'
       ref={viewRef}
       className={clsx(
-        'my-2 cursor-pointer rounded-lg p-2 text-sm',
+        'my-2 cursor-pointer rounded-[2px] p-2 text-sm',
         isCurrent || isOnScreen
-          ? 'bg-base-300 hover:bg-gray-300/70'
-          : 'hover:bg-base-300 bg-base-100',
+          ? 'bg-paperlight hover:bg-gray-300/70'
+          : 'hover:bg-paperlight bg-paper',
       )}
       tabIndex={0}
       onClick={() => onSelectResult(cfi)}
@@ -217,11 +217,11 @@ const ChapterSection: React.FC<ChapterSectionProps> = ({
           stay occluded; the button inside owns the hover and focus affordances. */}
       <h3
         ref={headerRef}
-        className='not-eink:bg-base-200 eink:bg-base-100 sticky top-0 z-10 font-normal'
+        className='not-eink:bg-paperlight eink:bg-paper sticky top-0 z-10 font-normal'
       >
         <button
           type='button'
-          className='not-eink:hover:bg-base-300 focus-visible:ring-base-content/15 flex w-full select-none items-center justify-between rounded px-1 py-1 text-start focus-visible:outline-none focus-visible:ring-2'
+          className='not-eink:hover:bg-paperlight focus-visible:ring-stamp/15 flex w-full select-none items-center justify-between rounded-[2px] px-1 py-1 text-start focus-visible:outline-none focus-visible:ring-2'
           onClick={handleToggle}
           aria-expanded={isExpanded}
         >
@@ -231,7 +231,7 @@ const ChapterSection: React.FC<ChapterSectionProps> = ({
               width='8'
               height='10'
               className={clsx(
-                'text-base-content not-eink:transition-transform shrink-0',
+                'text-ink not-eink:transition-transform shrink-0',
                 isExpanded ? 'rotate-90' : 'rotate-0',
               )}
               style={{ transformOrigin: 'center' }}
@@ -243,7 +243,7 @@ const ChapterSection: React.FC<ChapterSectionProps> = ({
             </svg>
             <span className='truncate'>{label}</span>
           </span>
-          <span className='text-base-content/60 ms-2 shrink-0 whitespace-nowrap text-xs'>
+          <span className='text-ink/60 ms-2 shrink-0 whitespace-nowrap text-xs'>
             {matchCount}
           </span>
         </button>
@@ -340,7 +340,7 @@ const SearchResults: React.FC<SearchResultsProps> = ({ bookKey, results, onSelec
   if (results.length === 0) {
     if (searchError || searchProgress < 1) return null;
     return (
-      <div className='search-results text-base-content/60 p-4 text-center text-sm'>
+      <div className='search-results text-ink/60 p-4 text-center text-sm'>
         {_('No results found')}
       </div>
     );
@@ -381,7 +381,7 @@ const SearchResults: React.FC<SearchResultsProps> = ({ bookKey, results, onSelec
         })}
       </ul>
       {searchProgress >= 1 && (
-        <div className='text-base-content/60 px-2 py-2 text-center text-xs'>
+        <div className='text-ink/60 px-2 py-2 text-center text-xs'>
           {_('{{count}} results', { count: totalMatches })}
         </div>
       )}

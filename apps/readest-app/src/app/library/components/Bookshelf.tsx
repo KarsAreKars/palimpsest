@@ -1022,10 +1022,10 @@ const Bookshelf: React.FC<BookshelfProps> = ({
             type='button'
             onClick={onSearchContents}
             className={clsx(
-              'eink-bordered border-base-200 bg-base-100 hover:border-base-300 hover:bg-base-300/40',
-              'text-base-content/80 hover:text-base-content not-eink:transition-colors',
-              'flex h-9 items-center gap-2 rounded-lg border px-4 text-sm font-medium duration-150',
-              'focus-visible:ring-base-content/15 focus-visible:outline-none focus-visible:ring-2',
+              'eink-bordered border-ink/15 bg-paper hover:border-ink/20 hover:bg-paperlight/40',
+              'text-ink/80 hover:text-ink not-eink:transition-colors',
+              'flex h-9 items-center gap-2 rounded-[2px] border px-4 text-sm font-medium duration-150',
+              'focus-visible:ring-stamp/15 focus-visible:outline-none focus-visible:ring-2',
             )}
           >
             <MdManageSearch aria-hidden='true' className='h-5 w-5' />

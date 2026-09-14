@@ -19,7 +19,7 @@ import { useThemeStore } from '@/store/themeStore';
 // surface; dark themes already read correctly with the primitive's defaults.
 const toggleClassName = (isDarkMode: boolean) =>
   clsx(
-    'toggle-sm',
+    '',
     !isDarkMode && 'checked:![--tglbg:theme(colors.base-100)] [--tglbg:theme(colors.base-300)]',
   );
 
@@ -139,14 +139,14 @@ const ProofreadPopup: React.FC<ProofreadPopupProps> = ({
         // `Popup` caps the height at the room above the selection, which can be
         // shorter than this form. Clip here and let the body scroll so nothing
         // paints past the rounded box.
-        className='flex flex-col overflow-hidden rounded-lg'
+        className='flex flex-col overflow-hidden rounded-[2px]'
         onDismiss={onDismiss}
       >
         <div className='min-h-0 flex-1 overflow-y-auto'>
           <div className='flex flex-col gap-4 p-4'>
-            <div className='flex items-center gap-2 text-xs text-base-content/70'>
+            <div className='flex items-center gap-2 text-xs text-ink/70'>
               <span className='text-nowrap font-medium'>{_('Selected text:')}</span>
-              <span className='line-clamp-1 flex-1 select-text break-words font-bold text-primary'>
+              <span className='line-clamp-1 flex-1 select-text break-words font-bold text-stamp'>
                 &quot;{selection?.text || ''}&quot;
               </span>
               {onManage && (
@@ -155,7 +155,7 @@ const ProofreadPopup: React.FC<ProofreadPopupProps> = ({
                   onClick={onManage}
                   aria-label={_('Proofread Replacement Rules')}
                   title={_('Proofread Replacement Rules')}
-                  className='shrink-0 rounded p-1 hover:bg-base-200 text-base-content/70 hover:text-base-content transition-colors'
+                  className='shrink-0 rounded-[2px] p-1 hover:bg-paperlight text-ink/70 hover:text-ink transition-colors'
                 >
                   <RiListSettingsLine size={16} />
                 </button>
@@ -165,7 +165,7 @@ const ProofreadPopup: React.FC<ProofreadPopupProps> = ({
             <div className='flex items-center justify-between gap-2'>
               <label
                 htmlFor='replacement-input'
-                className='shrink-0 text-xs font-medium text-base-content/80'
+                className='shrink-0 text-xs font-medium text-ink/80'
               >
                 {_('Replace with:')}
               </label>
@@ -180,12 +180,12 @@ const ProofreadPopup: React.FC<ProofreadPopupProps> = ({
                   }
                 }}
                 placeholder={_('Enter text...')}
-                className='bg-base-200 text-base-content placeholder:text-base-content/40 border-base-300 focus:border-primary focus:ring-primary eink-bordered w-full flex-1 rounded-md border p-2 text-sm transition-all focus:outline-none focus:ring-1'
+                className='bg-paperlight text-ink placeholder:text-ink/40 border-ink/20 focus:border-stamp focus:ring-stamp eink-bordered w-full flex-1 rounded-[2px] border p-2 text-sm transition-all focus:outline-none focus:ring-1'
               />
               <button
                 onClick={handleApply}
                 disabled={!replacementText}
-                className='btn btn-sm btn-contrast shrink-0 font-medium px-2'
+                className='chrome-ghost-sm ink-btn shrink-0 font-medium px-2'
               >
                 {_('Apply')}
               </button>
@@ -250,7 +250,7 @@ const ProofreadPopup: React.FC<ProofreadPopupProps> = ({
         <div className='flex shrink-0 items-center justify-between gap-2 p-4'>
           <label
             htmlFor='scope-select'
-            className='line-clamp-1 text-xs font-medium text-base-content/80'
+            className='line-clamp-1 text-xs font-medium text-ink/80'
             title={_('Scope:')}
           >
             {_('Scope:')}

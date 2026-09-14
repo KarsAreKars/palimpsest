@@ -187,7 +187,7 @@ export const BackupWindow: React.FC<BackupWindowProps> = ({ onPullLibrary }) => 
           {/* Action Buttons */}
           {status === 'idle' && (
             <div className='space-y-3'>
-              <p className='text-base-content/70 text-sm'>
+              <p className='text-ink/70 text-sm'>
                 {_(
                   'Create a backup of your library and settings or restore from a previous backup. Restoring will merge with your current library.',
                 )}
@@ -198,21 +198,21 @@ export const BackupWindow: React.FC<BackupWindowProps> = ({ onPullLibrary }) => 
                   type='checkbox'
                   checked={includeCredentials}
                   onChange={(e) => setIncludeCredentials(e.target.checked)}
-                  className='checkbox checkbox-sm mt-0.5 shrink-0'
+                  className='chrome-check mt-0.5 shrink-0'
                 />
-                <span className='text-base-content/70 text-sm'>
+                <span className='text-ink/70 text-sm'>
                   {_(
                     'Include account credentials (sync tokens, passwords). The backup file is not encrypted.',
                   )}
                 </span>
               </label>
 
-              <button className='btn btn-outline w-full gap-2' onClick={handleBackup}>
+              <button className='stamp-btn inline-flex w-full items-center justify-center gap-2' onClick={handleBackup}>
                 <RiUploadCloud2Line className='h-5 w-5' />
                 {_('Backup Library')}
               </button>
 
-              <button className='btn btn-outline w-full gap-2' onClick={handleRestore}>
+              <button className='stamp-btn inline-flex w-full items-center justify-center gap-2' onClick={handleRestore}>
                 <RiDownloadCloud2Line className='h-5 w-5' />
                 {_('Restore Library')}
               </button>
@@ -223,23 +223,23 @@ export const BackupWindow: React.FC<BackupWindowProps> = ({ onPullLibrary }) => 
           {isProcessing && (
             <div className='space-y-3'>
               <div className='flex items-center gap-2'>
-                <RiLoader2Line className='text-primary h-4 w-4 animate-spin' />
-                <span className='text-base-content text-sm font-medium'>
+                <RiLoader2Line className='text-stamp h-4 w-4 animate-spin' />
+                <span className='text-ink text-sm font-medium'>
                   {status === 'backing-up' ? _('Creating backup...') : _('Restoring library...')}
                 </span>
-                <span className='text-base-content/70 text-sm'>{progressPercentage}%</span>
+                <span className='text-ink/70 text-sm'>{progressPercentage}%</span>
               </div>
 
-              <div className='bg-base-200 h-2 w-full rounded-full'>
+              <div className='bg-paperlight h-2 w-full rounded-full'>
                 <div
-                  className='bg-primary h-2 rounded-full transition-all duration-300'
+                  className='bg-stamp h-2 rounded-full transition-all duration-300'
                   style={{ width: `${progressPercentage}%` }}
                 />
               </div>
 
               {progress.currentFile && (
                 <p
-                  className='text-base-content/60 overflow-hidden font-mono text-xs'
+                  className='text-ink/60 overflow-hidden font-mono text-xs'
                   style={{
                     direction: 'rtl',
                     textAlign: 'left',
@@ -251,7 +251,7 @@ export const BackupWindow: React.FC<BackupWindowProps> = ({ onPullLibrary }) => 
                 </p>
               )}
 
-              <p className='text-base-content/60 text-xs'>
+              <p className='text-ink/60 text-xs'>
                 {_('{{current}} of {{total}} items', {
                   current: progress.current.toLocaleString(),
                   total: progress.total.toLocaleString(),
@@ -263,7 +263,7 @@ export const BackupWindow: React.FC<BackupWindowProps> = ({ onPullLibrary }) => 
           {/* Success State */}
           {status === 'completed' && result && (
             <div className='space-y-3'>
-              <div className='text-success flex items-center gap-2'>
+              <div className='chrome-success flex items-center gap-2'>
                 <RiCheckboxCircleFill className='h-5 w-5' />
                 <span className='font-medium'>
                   {result.type === 'backup'
@@ -271,8 +271,8 @@ export const BackupWindow: React.FC<BackupWindowProps> = ({ onPullLibrary }) => 
                     : _('Restore completed successfully!')}
                 </span>
               </div>
-              <div className='bg-success/10 border-success/20 rounded-lg border p-3'>
-                <p className='text-success/80 text-sm'>
+              <div className='bg-[#4d6136]/10 border-[#4d6136]/20 rounded-[2px] border p-3'>
+                <p className='text-[#4d6136]/80 text-sm'>
                   {result.type === 'backup'
                     ? _('Your library and settings have been saved to the selected location.')
                     : _('{{added}} books added, {{updated}} books updated.', {
@@ -287,12 +287,12 @@ export const BackupWindow: React.FC<BackupWindowProps> = ({ onPullLibrary }) => 
           {/* Error State */}
           {status === 'error' && errorMessage && (
             <div className='space-y-2'>
-              <div className='text-error flex items-center gap-2'>
+              <div className='text-stamp flex items-center gap-2'>
                 <RiErrorWarningFill className='h-5 w-5' />
                 <span className='font-medium'>{_('Operation failed')}</span>
               </div>
-              <div className='bg-error/10 border-error/20 rounded-lg border p-3'>
-                <p className='text-error/80 break-all text-sm'>{errorMessage}</p>
+              <div className='bg-stamp/10 border-stamp/20 rounded-[2px] border p-3'>
+                <p className='text-stamp/80 break-all text-sm'>{errorMessage}</p>
               </div>
             </div>
           )}
@@ -301,18 +301,18 @@ export const BackupWindow: React.FC<BackupWindowProps> = ({ onPullLibrary }) => 
           <div className='flex gap-3 pt-2'>
             {status === 'completed' || status === 'error' ? (
               <>
-                <button className='btn btn-outline flex-1' onClick={handleClose}>
+                <button className='stamp-btn flex-1' onClick={handleClose}>
                   {_('Close')}
                 </button>
                 {status === 'error' && (
-                  <button className='btn btn-primary flex-1' onClick={resetState}>
+                  <button className='stamp-btn flex-1' onClick={resetState}>
                     {_('Try Again')}
                   </button>
                 )}
               </>
             ) : (
               !isProcessing && (
-                <button className='btn btn-outline flex-1' onClick={handleClose}>
+                <button className='stamp-btn flex-1' onClick={handleClose}>
                   {_('Cancel')}
                 </button>
               )

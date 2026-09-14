@@ -35,24 +35,24 @@ const FailedImportsDialog: React.FC<FailedImportsDialogProps> = ({ failedImports
       <div className='flex flex-col gap-3'>
         <div
           className={clsx(
-            'flex items-center gap-3 rounded-xl',
-            'bg-error/8 text-base-content border-error/15 border px-3.5 py-2.5',
+            'flex items-center gap-3 rounded-[2px]',
+            'bg-stamp/8 text-ink border-stamp/15 border px-3.5 py-2.5',
           )}
         >
-          <MdErrorOutline className='text-error h-5 w-5 flex-shrink-0' aria-hidden='true' />
+          <MdErrorOutline className='text-stamp h-5 w-5 flex-shrink-0' aria-hidden='true' />
           <p className='text-[0.85em] leading-snug'>{subtitle}</p>
         </div>
 
         <ul
           className={clsx(
-            'bg-base-200/40 border-base-300/60 flex flex-col rounded-xl border',
-            'divide-base-300/50 divide-y',
+            'bg-paperlight/40 border-ink/20 flex flex-col rounded-[2px] border',
+            'divide-ink/15 divide-y',
           )}
         >
           {failedImports.map((item, index) => (
             <li key={`${item.filename}-${index}`} className='flex items-center gap-2.5 px-3 py-2'>
               <MdInsertDriveFile
-                className='text-base-content/40 h-4 w-4 flex-shrink-0'
+                className='text-ink/40 h-4 w-4 flex-shrink-0'
                 aria-hidden='true'
               />
               <div className='flex min-w-0 flex-1 flex-col'>
@@ -60,7 +60,7 @@ const FailedImportsDialog: React.FC<FailedImportsDialogProps> = ({ failedImports
                   {item.filename}
                 </span>
                 {!sharedError && item.errorMessage && (
-                  <span className='text-base-content/55 break-words text-[0.78em] leading-snug'>
+                  <span className='text-ink/55 break-words text-[0.78em] leading-snug'>
                     {item.errorMessage}
                   </span>
                 )}
@@ -72,7 +72,7 @@ const FailedImportsDialog: React.FC<FailedImportsDialogProps> = ({ failedImports
         <div className='flex justify-end pt-1'>
           <button
             type='button'
-            className='btn btn-contrast btn-sm min-w-24 rounded-lg'
+            className='ink-btn chrome-ghost-sm min-w-24 rounded-[2px]'
             onClick={onClose}
           >
             {_('OK')}

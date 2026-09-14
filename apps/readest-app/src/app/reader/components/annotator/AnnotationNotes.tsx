@@ -33,7 +33,7 @@ const AnnotationNotes: React.FC<AnnotationNotesProps> = ({
 
   return (
     <div
-      className={clsx('annotation-notes text-base-content absolute flex rounded-lg')}
+      className={clsx('annotation-notes text-ink absolute flex rounded-[2px]')}
       style={{
         ...(isVertical
           ? {

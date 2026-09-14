@@ -79,8 +79,8 @@ export const ColorPanel: React.FC<ColorPanelProps> = ({
   };
 
   const classes = clsx(
-    'footerbar-color-mobile not-eink:bg-base-200 eink:bg-base-100 absolute flex w-full flex-col items-center gap-y-8 px-4 transition-all',
-    'eink:border-base-content eink:border-t',
+    'footerbar-color-mobile not-eink:bg-paperlight eink:bg-paper absolute flex w-full flex-col items-center gap-y-8 px-4 transition-all',
+    'eink:border-ink eink:border-t',
     !forceMobileLayout && 'sm:hidden',
     // Paddings stay constant in both states (the slide is transform-only) so
     // offsetHeight always reports the panel's settled height; the TTS mini
@@ -142,10 +142,10 @@ export const ColorPanel: React.FC<ColorPanelProps> = ({
               key={name}
               onClick={() => setThemeColor(name)}
               className={clsx(
-                'flex flex-shrink-0 flex-col items-center justify-center rounded-lg p-3 transition-all',
+                'flex flex-shrink-0 flex-col items-center justify-center rounded-[2px] p-3 transition-all',
                 'h-[40px] min-w-[80px]',
                 themeColor === name
-                  ? 'ring-primary ring-offset-base-200 ring-2 ring-offset-2'
+                  ? 'ring-stamp ring-offset-paperlight ring-2 ring-offset-2'
                   : 'hover:opacity-80',
               )}
               style={{
@@ -159,10 +159,10 @@ export const ColorPanel: React.FC<ColorPanelProps> = ({
           <button
             onClick={() => cycleThemeMode()}
             className={clsx(
-              'flex flex-shrink-0 flex-col items-center justify-center rounded-lg p-3 transition-all',
+              'flex flex-shrink-0 flex-col items-center justify-center rounded-[2px] p-3 transition-all',
               'h-[40px] min-w-[80px]',
               themeMode === 'dark'
-                ? 'ring-primary ring-offset-base-200 ring-2 ring-offset-2'
+                ? 'ring-stamp ring-offset-paperlight ring-2 ring-offset-2'
                 : 'hover:opacity-80',
             )}
             style={{

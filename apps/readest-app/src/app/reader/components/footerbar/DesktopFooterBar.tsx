@@ -139,7 +139,7 @@ const DesktopFooterBar: React.FC<FooterBarChildProps> = ({
       <input
         ref={rangeInputRef}
         type='range'
-        className='text-base-content mx-2 min-w-0 flex-1'
+        className='text-ink mx-2 min-w-0 flex-1'
         min={0}
         max={100}
         aria-label={_('Jump to Location')}
@@ -147,7 +147,7 @@ const DesktopFooterBar: React.FC<FooterBarChildProps> = ({
         onChange={(e) => handleProgressChange(parseInt(e.target.value, 10))}
       />
       <Button
-        icon={<FaHeadphones className={viewState?.ttsEnabled ? 'text-blue-500' : ''} />}
+        icon={<FaHeadphones className={viewState?.ttsEnabled ? 'text-stamp' : ''} />}
         onClick={onSpeakText!}
         label={_('Speak')}
       />

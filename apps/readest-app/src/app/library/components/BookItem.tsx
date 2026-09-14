@@ -178,7 +178,7 @@ const BookItem: React.FC<BookItemProps> = ({
           // art — and has no shadows, so the scrim becomes a solid base-100
           // panel with a 1px base-content border and ink-colored content.
           <div
-            className='absolute inset-0 flex items-center justify-center bg-black/40 eink:border eink:border-base-content eink:bg-base-100'
+            className='absolute inset-0 flex items-center justify-center bg-black/40 eink:border eink:border-ink eink:bg-paper'
             role='progressbar'
             aria-label={_('Downloading {{title}}', { title: book.title })}
             aria-valuenow={isIndeterminate ? undefined : Math.round(transferProgress)}
@@ -186,9 +186,9 @@ const BookItem: React.FC<BookItemProps> = ({
             aria-valuemax={100}
           >
             {isIndeterminate ? (
-              <span className='loading loading-spinner loading-sm text-white eink:text-base-content' />
+              <span className='loading loading-spinner loading-sm text-white eink:text-ink' />
             ) : (
-              <span className='eink:text-base-content text-sm font-semibold text-white not-eink:drop-shadow-sm'>
+              <span className='eink:text-ink text-sm font-semibold text-white not-eink:drop-shadow-sm'>
                 {Math.round(transferProgress)}%
               </span>
             )}
@@ -203,10 +203,10 @@ const BookItem: React.FC<BookItemProps> = ({
           // silently lacks its content.md — running, failed, or rejected.
           <div
             className={clsx(
-              'absolute bottom-1 left-1 right-1 flex items-center gap-1 rounded px-1.5 py-1',
+              'absolute bottom-1 left-1 right-1 flex items-center gap-1 rounded-[2px] px-1.5 py-1',
               'text-[0.6rem] leading-tight text-white',
               extractionBadge.tone === 'running' && 'bg-black/60',
-              extractionBadge.tone === 'failed' && 'bg-error/85',
+              extractionBadge.tone === 'failed' && 'bg-stamp/85',
             )}
             title={extractionBadge.detail}
           >
@@ -244,16 +244,16 @@ const BookItem: React.FC<BookItemProps> = ({
             {book.title}
           </h4>
           {mode === 'list' && (
-            <p className='text-neutral-content line-clamp-1 text-sm'>
+            <p className='text-paperlight line-clamp-1 text-sm'>
               {formatAuthors(book.author, book.primaryLanguage) || ''}
             </p>
           )}
         </div>
         {mode === 'list' && seriesText && (
-          <p className='text-neutral-content line-clamp-1 text-sm'>{seriesText}</p>
+          <p className='text-paperlight line-clamp-1 text-sm'>{seriesText}</p>
         )}
         {mode === 'list' && (
-          <h4 className='text-neutral-content line-clamp-1 text-sm'>
+          <h4 className='text-paperlight line-clamp-1 text-sm'>
             {formatDescription(book.metadata?.description)}
           </h4>
         )}
@@ -269,7 +269,7 @@ const BookItem: React.FC<BookItemProps> = ({
         >
           {isAbsBook ? (
             <div
-              className='text-neutral-content/70 flex min-w-0 justify-between text-xs'
+              className='text-paperlight/70 flex min-w-0 justify-between text-xs'
               role='status'
             >
               <span className='truncate tabular-nums'>

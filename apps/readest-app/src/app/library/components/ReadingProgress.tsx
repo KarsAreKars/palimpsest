@@ -53,7 +53,7 @@ const ReadingProgress: React.FC<ReadingProgressProps> = memo(
     if (book.readingStatus === 'abandoned') {
       return (
         <div
-          className='text-neutral-content/70 flex items-center justify-between gap-2 text-xs'
+          className='text-paperlight/70 flex items-center justify-between gap-2 text-xs'
           role='status'
         >
           <StatusBadge status={book.readingStatus}>{_('On hold')}</StatusBadge>
@@ -82,7 +82,7 @@ const ReadingProgress: React.FC<ReadingProgressProps> = memo(
 
     return (
       <div
-        className='text-neutral-content/70 flex min-w-0 justify-between text-xs'
+        className='text-paperlight/70 flex min-w-0 justify-between text-xs'
         role='status'
         aria-label={`${progressPercentage}%`}
       >

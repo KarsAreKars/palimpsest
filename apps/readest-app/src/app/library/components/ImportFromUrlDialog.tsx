@@ -72,7 +72,7 @@ const ImportFromUrlDialog: React.FC<ImportFromUrlDialogProps> = ({ isOpen, onClo
       boxClassName='sm:!w-[480px] sm:!max-w-[480px] sm:!h-auto sm:!max-h-[80vh]'
     >
       <div className='flex flex-col gap-4 pb-6 pt-2'>
-        <p className='text-base-content/60 text-sm leading-relaxed'>
+        <p className='text-ink/60 text-sm leading-relaxed'>
           {_('Paste an article link. Readest clips the page and saves it to your library.')}
         </p>
         <input
@@ -81,7 +81,7 @@ const ImportFromUrlDialog: React.FC<ImportFromUrlDialogProps> = ({ isOpen, onClo
           // Explicit placeholder colour — daisyUI's `input-bordered`
           // leaves placeholders too dark on light themes; the user
           // can mistake the example for actual content.
-          className='input input-bordered eink-bordered placeholder:text-base-content/35 w-full'
+          className='paper-field eink-bordered placeholder:text-ink/35 w-full'
           placeholder='https://example.com/article'
           value={url}
           disabled={submitting}
@@ -90,11 +90,11 @@ const ImportFromUrlDialog: React.FC<ImportFromUrlDialogProps> = ({ isOpen, onClo
             if (e.key === 'Enter') void submit();
           }}
         />
-        {error && <p className='text-error text-sm leading-relaxed'>{error}</p>}
+        {error && <p className='text-stamp text-sm leading-relaxed'>{error}</p>}
         <div className='flex justify-end gap-2 pt-1'>
           <button
             type='button'
-            className='btn btn-ghost btn-sm eink-bordered'
+            className='chrome-ghost chrome-ghost-sm eink-bordered'
             onClick={onClose}
             disabled={submitting}
           >
@@ -102,7 +102,7 @@ const ImportFromUrlDialog: React.FC<ImportFromUrlDialogProps> = ({ isOpen, onClo
           </button>
           <button
             type='button'
-            className='btn btn-contrast btn-sm'
+            className='ink-btn chrome-ghost-sm'
             onClick={() => void submit()}
             disabled={submitting || !url.trim()}
           >

@@ -69,7 +69,7 @@ const DownloadBadge: React.FC<DownloadBadgeProps> = ({
             r={r}
             fill='none'
             strokeWidth={2}
-            className='stroke-base-300'
+            className='stroke-ink'
           />
           <circle
             cx={size / 2}
@@ -78,7 +78,7 @@ const DownloadBadge: React.FC<DownloadBadgeProps> = ({
             fill='none'
             strokeWidth={2}
             strokeLinecap='round'
-            className={isEink ? 'stroke-base-content' : 'stroke-primary'}
+            className={isEink ? 'stroke-ink' : 'stroke-stamp'}
             strokeDasharray={circumference}
             strokeDashoffset={circumference * (1 - Math.max(0, Math.min(1, progress)))}
           />
@@ -99,17 +99,17 @@ const DownloadBadge: React.FC<DownloadBadgeProps> = ({
         className={clsx('touch-target flex shrink-0 items-center justify-center rounded-full')}
         style={{ width: size, height: size }}
       >
-        <MdOutlineSchedule size={size} className='text-base-content/70' />
+        <MdOutlineSchedule size={size} className='text-ink/70' />
       </button>
     );
   }
 
   const [Icon, label, tone, onClick] =
     status === 'complete'
-      ? [MdOfflinePin, _('Downloaded'), isEink ? 'text-base-content' : 'text-primary', null]
+      ? [MdOfflinePin, _('Downloaded'), isEink ? 'text-ink' : 'text-stamp', null]
       : failed || status === 'partial'
-        ? [MdDownloadForOffline, _('Resume download'), 'text-base-content/70', onDownload]
-        : [MdOutlineFileDownload, _('Download chapter'), 'text-base-content/70', onDownload];
+        ? [MdDownloadForOffline, _('Resume download'), 'text-ink/70', onDownload]
+        : [MdOutlineFileDownload, _('Download chapter'), 'text-ink/70', onDownload];
 
   return (
     <button
@@ -119,7 +119,7 @@ const DownloadBadge: React.FC<DownloadBadgeProps> = ({
       onClick={onClick ?? undefined}
       className={clsx(
         'touch-target flex shrink-0 items-center justify-center rounded-full',
-        status !== 'complete' && 'not-eink:hover:bg-base-200',
+        status !== 'complete' && 'not-eink:hover:bg-paperlight',
       )}
       style={{ width: size, height: size }}
     >

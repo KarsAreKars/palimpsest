@@ -109,8 +109,8 @@ export const FontLayoutPanel: React.FC<FontLayoutPanelProps> = ({
   }, []);
 
   const classes = clsx(
-    'footerbar-font-mobile not-eink:bg-base-200 eink:bg-base-100 absolute flex w-full flex-col items-center gap-y-8 px-4 transition-all',
-    'eink:border-base-content eink:border-t',
+    'footerbar-font-mobile not-eink:bg-paperlight eink:bg-paper absolute flex w-full flex-col items-center gap-y-8 px-4 transition-all',
+    'eink:border-ink eink:border-t',
     !forceMobileLayout && 'sm:hidden',
     // Paddings stay constant in both states (the slide is transform-only) so
     // offsetHeight always reports the panel's settled height; the TTS mini
@@ -171,7 +171,7 @@ export const FontLayoutPanel: React.FC<FontLayoutPanelProps> = ({
           tucked closer. `self-end` follows `dir`, so it mirrors in RTL. */}
       <button
         type='button'
-        className='btn btn-ghost btn-sm text-base-content/70 -mt-4 h-8 min-h-8 gap-1.5 self-end px-2 font-normal'
+        className='chrome-ghost chrome-ghost-sm text-ink/70 -mt-4 h-8 min-h-8 gap-1.5 self-end px-2 font-normal'
         onClick={handleOpenSettings}
       >
         <PiGear size={16} />

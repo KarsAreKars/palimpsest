@@ -137,11 +137,11 @@ export const CacheManagerWindow = () => {
   const progressPercentage =
     progress.total > 0 ? Math.round((progress.current / progress.total) * 100) : 0;
 
-  const primaryBtn = 'btn btn-contrast h-11 min-h-0 rounded-xl text-sm font-medium';
+  const primaryBtn = 'ink-btn h-11 min-h-0 rounded-[2px] text-sm font-medium';
   const ghostBtn = clsx(
-    'eink-bordered flex h-11 items-center justify-center rounded-xl border border-transparent',
-    'text-base-content hover:bg-base-200 text-sm font-medium transition-colors',
-    'focus-visible:ring-base-content/15 focus-visible:outline-none focus-visible:ring-2',
+    'eink-bordered flex h-11 items-center justify-center rounded-[2px] border border-transparent',
+    'text-ink hover:bg-paperlight text-sm font-medium transition-colors',
+    'focus-visible:ring-stamp/15 focus-visible:outline-none focus-visible:ring-2',
     'disabled:opacity-40',
   );
 
@@ -149,9 +149,9 @@ export const CacheManagerWindow = () => {
     status === 'scanning' || status === 'clearing' ? (
       <RiLoader2Line className='h-7 w-7 animate-spin' />
     ) : status === 'done' ? (
-      <RiCheckboxCircleFill className='text-success h-8 w-8' />
+      <RiCheckboxCircleFill className='chrome-success h-8 w-8' />
     ) : status === 'error' ? (
-      <RiErrorWarningFill className='text-error h-7 w-7' />
+      <RiErrorWarningFill className='text-stamp h-7 w-7' />
     ) : (
       <RiDatabase2Line className='h-7 w-7' />
     );
@@ -178,29 +178,29 @@ export const CacheManagerWindow = () => {
           {/* Hero stat */}
           <div className='flex flex-col items-center gap-3 text-center'>
             <div
-              className='eink-bordered bg-base-200 text-base-content/80 flex h-16 w-16 items-center justify-center rounded-full'
+              className='eink-bordered bg-paperlight text-ink/80 flex h-16 w-16 items-center justify-center rounded-full'
               aria-hidden='true'
             >
               {heroIcon}
             </div>
             <div className='flex flex-col items-center gap-1'>
-              <span className='text-base-content text-3xl font-bold tracking-tight tabular-nums'>
+              <span className='text-ink text-3xl font-bold tracking-tight tabular-nums'>
                 {status === 'scanning' ? '—' : formatBytes(size)}
               </span>
-              <span className='text-base-content/60 line-clamp-2 text-sm'>{heroCaption}</span>
+              <span className='text-ink/60 line-clamp-2 text-sm'>{heroCaption}</span>
             </div>
           </div>
 
           {/* Clearing progress */}
           {status === 'clearing' && (
             <div className='space-y-2'>
-              <div className='bg-base-200 h-1.5 w-full overflow-hidden rounded-full'>
+              <div className='bg-paperlight h-1.5 w-full overflow-hidden rounded-full'>
                 <div
-                  className='bg-base-content h-full rounded-full transition-all duration-300'
+                  className='bg-ink h-full rounded-full transition-all duration-300'
                   style={{ width: `${progressPercentage}%` }}
                 />
               </div>
-              <div className='text-base-content/55 flex items-center justify-between gap-3 text-xs'>
+              <div className='text-ink/55 flex items-center justify-between gap-3 text-xs'>
                 <span
                   className='overflow-hidden font-mono'
                   style={{
@@ -221,8 +221,8 @@ export const CacheManagerWindow = () => {
 
           {/* Confirm notice */}
           {status === 'confirming' && (
-            <p className='text-base-content/60 flex items-center justify-center gap-1.5 text-center text-[13px] leading-relaxed'>
-              <RiErrorWarningFill className='text-warning h-4 w-4 shrink-0' aria-hidden='true' />
+            <p className='text-ink/60 flex items-center justify-center gap-1.5 text-center text-[13px] leading-relaxed'>
+              <RiErrorWarningFill className='text-stamp h-4 w-4 shrink-0' aria-hidden='true' />
               {_('This will delete all cached files. This cannot be undone.')}
             </p>
           )}

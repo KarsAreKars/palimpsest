@@ -16,8 +16,8 @@ interface SyncInfoDialogProps {
 
 const Row: React.FC<{ label: string; value: React.ReactNode }> = ({ label, value }) => (
   <div className='flex flex-col gap-1'>
-    <span className='text-base-content/60 text-sm uppercase tracking-wide sm:text-xs'>{label}</span>
-    <div className='bg-base-200 text-base-content/90 break-all rounded-md p-2 font-mono text-sm sm:text-xs'>
+    <span className='text-ink/60 text-sm uppercase tracking-wide sm:text-xs'>{label}</span>
+    <div className='bg-paperlight text-ink/90 break-all rounded-[2px] p-2 font-mono text-sm sm:text-xs'>
       {value}
     </div>
   </div>

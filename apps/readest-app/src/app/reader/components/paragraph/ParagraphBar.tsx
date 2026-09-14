@@ -53,7 +53,7 @@ interface ParagraphBarProps {
 
 // Same glyph button as the TTS mini player's transport, plus the disabled state
 // paragraph navigation needs while a section re-extracts.
-const BAR_BUTTON = 'shrink-0 rounded-full p-1 transition-colors not-eink:hover:bg-base-content/10';
+const BAR_BUTTON = 'shrink-0 rounded-full p-1 transition-colors not-eink:hover:bg-ink/10';
 
 const ParagraphBar: React.FC<ParagraphBarProps> = ({
   bookKey,
@@ -250,11 +250,11 @@ const ParagraphBar: React.FC<ParagraphBarProps> = ({
         <div
           className={clsx(
             'absolute bottom-full left-1/2 mb-2 -translate-x-1/2',
-            'not-eink:bg-base-300 eink-bordered rounded-2xl shadow-lg',
-            'text-base-content flex items-center gap-1 whitespace-nowrap px-4 py-2 text-sm',
+            'not-eink:bg-paperlight eink-bordered rounded-[2px] shadow-lg',
+            'text-ink flex items-center gap-1 whitespace-nowrap px-4 py-2 text-sm',
           )}
         >
-          <span className='text-base-content/60 me-1 font-medium'>{_('Font Size')}</span>
+          <span className='text-ink/60 me-1 font-medium'>{_('Font Size')}</span>
           <button
             type='button'
             onClick={() => onFontScaleIndexChange(fontScaleIndex - 1)}
@@ -289,8 +289,8 @@ const ParagraphBar: React.FC<ParagraphBarProps> = ({
           soft shadow, 56px row. No backdrop blur, no hairline border. */}
       <div
         className={clsx(
-          'not-eink:bg-base-300 eink-bordered rounded-2xl shadow-lg',
-          'text-base-content flex h-14 items-center gap-1 px-2',
+          'not-eink:bg-paperlight eink-bordered rounded-[2px] shadow-lg',
+          'text-ink flex h-14 items-center gap-1 px-2',
         )}
       >
         <button
@@ -307,15 +307,15 @@ const ParagraphBar: React.FC<ParagraphBarProps> = ({
         <div className='flex min-w-[6rem] items-center justify-center px-1'>
           {isLoading ? (
             <div className='flex items-center gap-2'>
-              <span className='loading loading-dots loading-sm text-base-content/60' />
-              <span className='text-base-content/60 text-sm'>{_('Loading')}</span>
+              <span className='loading loading-dots loading-sm text-ink/60' />
+              <span className='text-ink/60 text-sm'>{_('Loading')}</span>
             </div>
           ) : (
             <span className='flex items-baseline gap-1 text-sm tabular-nums'>
               <span>
                 {currentIndex + 1} / {totalParagraphs}
               </span>
-              <span className='text-base-content/60'>· {progress}%</span>
+              <span className='text-ink/60'>· {progress}%</span>
             </span>
           )}
         </div>
@@ -341,7 +341,7 @@ const ParagraphBar: React.FC<ParagraphBarProps> = ({
             disabled={isLoading}
             className={clsx(
               BAR_BUTTON,
-              ttsActive && 'text-primary eink-bordered not-eink:bg-base-200',
+              ttsActive && 'text-stamp eink-bordered not-eink:bg-paperlight',
               isLoading && 'pointer-events-none opacity-50',
             )}
             title={ttsActive ? _('Pause audio') : _('Play audio')}
@@ -358,7 +358,7 @@ const ParagraphBar: React.FC<ParagraphBarProps> = ({
         <button
           type='button'
           onClick={toggleSettings}
-          className={clsx(BAR_BUTTON, showSettings && 'eink-bordered not-eink:bg-base-200')}
+          className={clsx(BAR_BUTTON, showSettings && 'eink-bordered not-eink:bg-paperlight')}
           title={_('Settings')}
           aria-label={_('Settings')}
         >
@@ -371,7 +371,7 @@ const ParagraphBar: React.FC<ParagraphBarProps> = ({
           disabled={isLoading}
           className={clsx(
             BAR_BUTTON,
-            'text-base-content/70 ms-0.5',
+            'text-ink/70 ms-0.5',
             isLoading && 'pointer-events-none opacity-50',
           )}
           title={_('Exit Paragraph Mode')}

@@ -1,5 +1,6 @@
 'use client';
 
+import './chrome.css';
 import clsx from 'clsx';
 import * as React from 'react';
 import { useEffect, Suspense } from 'react';
@@ -151,7 +152,7 @@ const Reader: React.FC<{ ids?: string }> = ({ ids }) => {
   return libraryLoaded && settings.globalReadSettings ? (
     <div
       className={clsx(
-        'reader-page bg-base-100 text-base-content full-height select-none overflow-hidden',
+        'reader-page bg-paper text-ink full-height select-none overflow-hidden',
         appService?.hasRoundedWindow && isRoundedWindow && 'window-border rounded-window',
       )}
     >
@@ -165,7 +166,7 @@ const Reader: React.FC<{ ids?: string }> = ({ ids }) => {
       </Suspense>
     </div>
   ) : (
-    <div className='full-height bg-base-100'></div>
+    <div className='full-height bg-paper'></div>
   );
 };
 

@@ -396,7 +396,7 @@ export const DictionaryResultsHeader: React.FC<DictionaryResultsHeaderProps> = (
             type='button'
             aria-label={_('Back')}
             onClick={goBack}
-            className='btn btn-ghost btn-circle h-8 min-h-8 w-8'
+            className='chrome-ghost rounded-full h-8 min-h-8 w-8'
           >
             <MdArrowBack size={20} />
           </button>
@@ -411,10 +411,10 @@ export const DictionaryResultsHeader: React.FC<DictionaryResultsHeaderProps> = (
             aria-pressed={!!speaking}
             onClick={onSpeak}
             className={clsx(
-              'btn btn-ghost btn-square btn-xs shrink-0',
+              'chrome-ghost chrome-ghost-xs shrink-0',
               speaking
-                ? 'text-base-content not-eink:animate-pulse'
-                : 'text-base-content/60 hover:text-base-content not-eink:hover:bg-base-200/60',
+                ? 'text-ink not-eink:animate-pulse'
+                : 'text-ink/60 hover:text-ink not-eink:hover:bg-paperlight/60',
             )}
           >
             <MdVolumeUp size={18} />
@@ -431,7 +431,7 @@ export const DictionaryResultsHeader: React.FC<DictionaryResultsHeaderProps> = (
             aria-label={_('Manage Dictionaries')}
             title={_('Manage Dictionaries')}
             onClick={onManage}
-            className='btn btn-ghost btn-square btn-xs text-base-content/60 hover:text-base-content not-eink:hover:bg-base-200/60'
+            className='chrome-ghost chrome-ghost-xs text-ink/60 hover:text-ink not-eink:hover:bg-paperlight/60'
           >
             <MdSettings size={16} />
           </button>
@@ -498,12 +498,12 @@ export const DictionaryResultsBody: React.FC<DictionaryResultsBodyProps> = ({
                     toggleExpanded(p.id);
                   }
                 }}
-                className={clsx('cursor-pointer rounded-lg')}
+                className={clsx('cursor-pointer rounded-[2px]')}
               >
                 {isLoading && (
                   <div
                     data-testid='dict-card-skeleton'
-                    className='bg-base-200/50 h-12 animate-pulse rounded'
+                    className='bg-paperlight/50 h-12 animate-pulse rounded-[2px]'
                   />
                 )}
                 <div
@@ -524,7 +524,7 @@ export const DictionaryResultsBody: React.FC<DictionaryResultsBodyProps> = ({
                   )}
                 />
                 {!isLoading && (
-                  <div className='border-base-content/10 -me-4 mt-2 border-b pb-2'>
+                  <div className='border-ink/10 -me-4 mt-2 border-b pb-2'>
                     <span className='not-eink:opacity-60 text-xs'>{sourceLabel}</span>
                   </div>
                 )}
@@ -551,7 +551,7 @@ export const DictionaryResultsBody: React.FC<DictionaryResultsBodyProps> = ({
                 target={isTauri ? undefined : '_blank'}
                 rel='noopener noreferrer'
                 onClick={(e) => onWebSearchClickTauri(e, p.id)}
-                className='hover:bg-base-200/40 flex w-full items-center justify-between rounded-md px-2 py-3 text-left text-sm no-underline'
+                className='hover:bg-paperlight/40 flex w-full items-center justify-between rounded-[2px] px-2 py-3 text-left text-sm no-underline'
               >
                 <span>{_(p.label)}</span>
                 <MdChevronRight className='not-eink:opacity-60' size={18} />

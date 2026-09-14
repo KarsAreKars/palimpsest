@@ -140,7 +140,7 @@ const ImportNovelDialog: React.FC<ImportNovelDialogProps> = ({ isOpen, onClose, 
       <div className='flex flex-col gap-4 pb-6 pt-2'>
         {phase === 'url' && (
           <>
-            <p className='text-base-content/60 text-sm leading-relaxed'>
+            <p className='text-ink/60 text-sm leading-relaxed'>
               {_(
                 'Paste the link to a web novel’s chapter list. Readest downloads the chapters and saves them as a book.',
               )}
@@ -148,7 +148,7 @@ const ImportNovelDialog: React.FC<ImportNovelDialogProps> = ({ isOpen, onClose, 
             <input
               type='url'
               autoFocus
-              className='input input-bordered eink-bordered placeholder:text-base-content/35 w-full'
+              className='paper-field eink-bordered placeholder:text-ink/35 w-full'
               placeholder='https://example.com/novel'
               value={url}
               disabled={busy}
@@ -157,11 +157,11 @@ const ImportNovelDialog: React.FC<ImportNovelDialogProps> = ({ isOpen, onClose, 
                 if (e.key === 'Enter') void fetchToc();
               }}
             />
-            {error && <p className='text-error text-sm leading-relaxed'>{error}</p>}
+            {error && <p className='text-stamp text-sm leading-relaxed'>{error}</p>}
             <div className='flex justify-end gap-2 pt-1'>
               <button
                 type='button'
-                className='btn btn-ghost btn-sm eink-bordered'
+                className='chrome-ghost chrome-ghost-sm eink-bordered'
                 onClick={close}
                 disabled={busy}
               >
@@ -169,7 +169,7 @@ const ImportNovelDialog: React.FC<ImportNovelDialogProps> = ({ isOpen, onClose, 
               </button>
               <button
                 type='button'
-                className='btn btn-contrast btn-sm'
+                className='ink-btn chrome-ghost-sm'
                 onClick={() => void fetchToc()}
                 disabled={busy || !url.trim()}
               >
@@ -186,27 +186,27 @@ const ImportNovelDialog: React.FC<ImportNovelDialogProps> = ({ isOpen, onClose, 
 
         {phase === 'preview' && toc && (
           <>
-            <div className='eink-bordered bg-base-200 flex flex-col gap-1 rounded-lg p-3'>
+            <div className='eink-bordered bg-paperlight flex flex-col gap-1 rounded-[2px] p-3'>
               <span className='truncate font-medium'>{toc.title}</span>
               {toc.author && (
-                <span className='text-base-content/60 truncate text-sm'>{toc.author}</span>
+                <span className='text-ink/60 truncate text-sm'>{toc.author}</span>
               )}
-              <span className='text-base-content/60 text-sm'>
+              <span className='text-ink/60 text-sm'>
                 {_('{{count}} chapters', { count: chapters.length })}
               </span>
             </div>
             {firstChapter && lastChapter && (
-              <div className='text-base-content/60 flex flex-col gap-1 text-sm leading-relaxed'>
+              <div className='text-ink/60 flex flex-col gap-1 text-sm leading-relaxed'>
                 <span className='truncate'>{firstChapter.title}</span>
                 {chapters.length > 2 && <span>…</span>}
                 {chapters.length > 1 && <span className='truncate'>{lastChapter.title}</span>}
               </div>
             )}
-            {error && <p className='text-error text-sm leading-relaxed'>{error}</p>}
+            {error && <p className='text-stamp text-sm leading-relaxed'>{error}</p>}
             <div className='flex justify-end gap-2 pt-1'>
               <button
                 type='button'
-                className='btn btn-ghost btn-sm eink-bordered'
+                className='chrome-ghost chrome-ghost-sm eink-bordered'
                 onClick={() => {
                   setError(null);
                   setPhase('url');
@@ -216,7 +216,7 @@ const ImportNovelDialog: React.FC<ImportNovelDialogProps> = ({ isOpen, onClose, 
               </button>
               <button
                 type='button'
-                className='btn btn-contrast btn-sm'
+                className='ink-btn chrome-ghost-sm'
                 onClick={() => void startDownload()}
               >
                 <MdMenuBook className='h-4 w-4' />
@@ -228,21 +228,21 @@ const ImportNovelDialog: React.FC<ImportNovelDialogProps> = ({ isOpen, onClose, 
 
         {phase === 'downloading' && (
           <>
-            <p className='text-base-content/60 text-sm leading-relaxed'>
+            <p className='text-ink/60 text-sm leading-relaxed'>
               {_('Downloading chapters…')}
             </p>
             <progress
-              className='progress eink-bordered w-full'
+              className='chrome-progress eink-bordered w-full'
               value={progress.done}
               max={progress.total || 1}
             />
-            <p className='text-base-content/60 text-sm'>
+            <p className='text-ink/60 text-sm'>
               {progress.done} / {progress.total}
             </p>
             <div className='flex justify-end gap-2 pt-1'>
               <button
                 type='button'
-                className='btn btn-ghost btn-sm eink-bordered'
+                className='chrome-ghost chrome-ghost-sm eink-bordered'
                 onClick={() => abortRef.current?.abort()}
               >
                 {_('Cancel')}

@@ -254,7 +254,7 @@ const GroupingModal: React.FC<GroupingModalProps> = ({
       <div
         ref={divRef}
         className={clsx(
-          'modal-box bg-base-100 overflow-y-auto rounded-2xl shadow-xl',
+          'bg-paper border-ink rounded-[2px] overflow-y-auto border shadow-xl',
           'max-h-[85%] w-[95%] min-w-64 max-w-[440px] p-6 sm:w-[70%]',
         )}
       >
@@ -264,7 +264,7 @@ const GroupingModal: React.FC<GroupingModalProps> = ({
         <div className={clsx('mt-4 grid grid-cols-1 gap-2 text-base md:grid-cols-2')}>
           <button
             onClick={handleRemoveFromGroup}
-            className='flex items-center space-x-2 p-2 text-blue-500 disabled:text-gray-400'
+            className='flex items-center space-x-2 p-2 text-stamp disabled:text-gray-400'
             disabled={!isSelectedBooksHasGroup}
           >
             <HiOutlineFolderRemove size={iconSize} />
@@ -272,14 +272,14 @@ const GroupingModal: React.FC<GroupingModalProps> = ({
           </button>
           <button
             onClick={handleCreateGroup}
-            className='flex items-center space-x-2 p-2 text-blue-500 disabled:text-gray-400'
+            className='flex items-center space-x-2 p-2 text-stamp disabled:text-gray-400'
           >
             <HiOutlineFolderAdd size={iconSize} />
             <span className='truncate'>{_('Create New Group')}</span>
           </button>
           <button
             onClick={handleRenameGroup}
-            className='flex items-center space-x-2 p-2 text-blue-500 disabled:text-gray-400'
+            className='flex items-center space-x-2 p-2 text-stamp disabled:text-gray-400'
             disabled={!canRenameGroup}
           >
             <MdEdit size={iconSize} />
@@ -305,17 +305,17 @@ const GroupingModal: React.FC<GroupingModalProps> = ({
                   }
                   e.stopPropagation();
                 }}
-                className='input input-ghost w-full border-0 px-2 text-base !outline-none sm:text-sm'
+                className='paper-field w-full border-0 px-2 text-base !outline-none sm:text-sm'
               />
               <button
                 className={clsx(
-                  'btn btn-ghost settings-content hover:bg-transparent',
+                  'chrome-ghost settings-content hover:bg-transparent',
                   'flex h-[1.3em] min-h-[1.3em] items-end p-0',
-                  editGroupName ? '' : 'btn-disabled !bg-opacity-0',
+                  editGroupName ? '' : 'chrome-ghost-disabled !bg-opacity-0',
                 )}
                 onClick={() => handleConfirmCreateGroup()}
               >
-                <div className='pr-1 align-bottom text-base text-blue-500 sm:text-sm'>
+                <div className='pr-1 align-bottom text-base text-stamp sm:text-sm'>
                   {_('Save')}
                 </div>
               </button>
@@ -328,13 +328,13 @@ const GroupingModal: React.FC<GroupingModalProps> = ({
           <div className='mt-4 flex flex-wrap items-center gap-2 text-base'>
             <button
               onClick={handleNavigateBack}
-              className='hover:bg-base-300 flex items-center gap-1 rounded px-2 py-1'
+              className='hover:bg-paperlight flex items-center gap-1 rounded-[2px] px-2 py-1'
             >
               <IoMdArrowBack size={iconSize} />
             </button>
             <button
               onClick={() => handleNavigateToPath(undefined)}
-              className='hover:bg-base-300 rounded px-2 py-1'
+              className='hover:bg-paperlight rounded-[2px] px-2 py-1'
             >
               {_('All')}
             </button>
@@ -342,13 +342,13 @@ const GroupingModal: React.FC<GroupingModalProps> = ({
               const isLast = index === array.length - 1;
               return (
                 <React.Fragment key={index}>
-                  <MdChevronRight size={iconSize} className='text-neutral-content' />
+                  <MdChevronRight size={iconSize} className='text-paperlight' />
                   {isLast ? (
-                    <span className='truncate rounded px-2 py-1'>{crumb.name}</span>
+                    <span className='truncate rounded-[2px] px-2 py-1'>{crumb.name}</span>
                   ) : (
                     <button
                       onClick={() => handleNavigateToPath(crumb.path)}
-                      className='hover:bg-base-300 truncate rounded px-2 py-1'
+                      className='hover:bg-paperlight truncate rounded-[2px] px-2 py-1'
                     >
                       {crumb.name}
                     </button>
@@ -368,8 +368,8 @@ const GroupingModal: React.FC<GroupingModalProps> = ({
               <div key={index} className='flex min-w-0 gap-1'>
                 <button
                   className={clsx(
-                    'hover:bg-base-300 text-base-content flex min-w-0 max-w-[90%] flex-1',
-                    'items-center justify-between gap-2 rounded-md px-2 py-2',
+                    'hover:bg-paperlight text-ink flex min-w-0 max-w-[90%] flex-1',
+                    'items-center justify-between gap-2 rounded-[2px] px-2 py-2',
                   )}
                   onClick={() => handleToggleSelectGroup(group)}
                 >
@@ -379,7 +379,7 @@ const GroupingModal: React.FC<GroupingModalProps> = ({
                     </span>
                     <span className='min-w-0 truncate text-base sm:text-sm'>{displayName}</span>
                   </div>
-                  <span className='text-neutral-content flex shrink-0 text-sm'>
+                  <span className='text-paperlight flex shrink-0 text-sm'>
                     {selectedGroup && selectedGroup.id === group.id && (
                       <MdCheck className='fill-blue-500' size={iconSize} />
                     )}
@@ -388,7 +388,7 @@ const GroupingModal: React.FC<GroupingModalProps> = ({
                 {hasChildren && (
                   <button
                     onClick={() => handleNavigateToGroup(group)}
-                    className='hover:bg-base-300 flex shrink-0 items-center rounded-md px-1'
+                    className='hover:bg-paperlight flex shrink-0 items-center rounded-[2px] px-1'
                   >
                     <MdChevronRight size={iconSize} />
                   </button>
@@ -406,8 +406,8 @@ const GroupingModal: React.FC<GroupingModalProps> = ({
           <button
             onClick={handleConfirmGrouping}
             className={clsx(
-              'flex items-center text-blue-500',
-              !selectedGroup && 'btn-disabled opacity-50',
+              'flex items-center text-stamp',
+              !selectedGroup && 'chrome-ghost-disabled opacity-50',
             )}
           >
             {_('Confirm')}

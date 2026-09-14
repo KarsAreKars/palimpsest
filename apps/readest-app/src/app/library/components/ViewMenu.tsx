@@ -203,7 +203,7 @@ const ViewMenu: React.FC<ViewMenuProps> = ({ setIsDropdownOpen }) => {
       ))}
 
       {/* Columns */}
-      <hr aria-hidden='true' className='border-base-200 my-1' />
+      <hr aria-hidden='true' className='border-ink/15 my-1' />
       <MenuItem
         label={_('Columns')}
         buttonClass='min-h-8 !py-1'
@@ -231,7 +231,7 @@ const ViewMenu: React.FC<ViewMenuProps> = ({ setIsDropdownOpen }) => {
       />
 
       {/* Book Covers */}
-      <hr aria-hidden='true' className='border-base-200 my-1' />
+      <hr aria-hidden='true' className='border-ink/15 my-1' />
       <MenuItem
         label={_('Book Covers')}
         buttonClass='min-h-8 !py-1'
@@ -250,7 +250,7 @@ const ViewMenu: React.FC<ViewMenuProps> = ({ setIsDropdownOpen }) => {
       ))}
 
       {/* Hide covers */}
-      <hr aria-hidden='true' className='border-base-200 my-1' />
+      <hr aria-hidden='true' className='border-ink/15 my-1' />
       <MenuItem
         label={_('Hide covers')}
         buttonClass='min-h-8 !py-1'
@@ -260,7 +260,7 @@ const ViewMenu: React.FC<ViewMenuProps> = ({ setIsDropdownOpen }) => {
       />
 
       {/* Recently read shelf */}
-      <hr aria-hidden='true' className='border-base-200 my-1' />
+      <hr aria-hidden='true' className='border-ink/15 my-1' />
       <MenuItem
         label={_('Show recently read')}
         buttonClass='min-h-8 !py-1'
@@ -270,7 +270,7 @@ const ViewMenu: React.FC<ViewMenuProps> = ({ setIsDropdownOpen }) => {
       />
 
       {/* Group By - Collapsible */}
-      <hr aria-hidden='true' className='border-base-200 my-1' />
+      <hr aria-hidden='true' className='border-ink/15 my-1' />
       <MenuItem label={_('Group by...')} detailsOpen={true} buttonClass='py-[4px]'>
         <ul className='ms-0 flex flex-col ps-0 before:hidden'>
           {groupByOptions.map((option) => (
@@ -287,7 +287,7 @@ const ViewMenu: React.FC<ViewMenuProps> = ({ setIsDropdownOpen }) => {
       </MenuItem>
 
       {/* Sort By - Collapsible */}
-      <hr aria-hidden='true' className='border-base-200 my-1' />
+      <hr aria-hidden='true' className='border-ink/15 my-1' />
       <MenuItem label={_('Sort by...')} detailsOpen={false} buttonClass='py-[4px]'>
         <ul className='ms-0 flex flex-col ps-0 before:hidden'>
           {sortByOptions.map((option) => {
@@ -304,7 +304,7 @@ const ViewMenu: React.FC<ViewMenuProps> = ({ setIsDropdownOpen }) => {
               />
             );
           })}
-          <hr aria-hidden='true' className='border-base-200 my-1' />
+          <hr aria-hidden='true' className='border-ink/15 my-1' />
           {sortingOptions.map((option) => (
             <MenuItem
               key={option.value.toString()}
@@ -319,7 +319,7 @@ const ViewMenu: React.FC<ViewMenuProps> = ({ setIsDropdownOpen }) => {
       </MenuItem>
 
       {/* Then by - secondary sort, collapsible */}
-      <hr aria-hidden='true' className='border-base-200 my-1' />
+      <hr aria-hidden='true' className='border-ink/15 my-1' />
       <MenuItem label={_('Then by...')} detailsOpen={false} buttonClass='py-[4px]'>
         <ul className='ms-0 flex flex-col ps-0 before:hidden'>
           {thenSortByOptions.map((option) => {
@@ -338,7 +338,7 @@ const ViewMenu: React.FC<ViewMenuProps> = ({ setIsDropdownOpen }) => {
           })}
           {secondaryEffective !== 'none' && (
             <>
-              <hr aria-hidden='true' className='border-base-200 my-1' />
+              <hr aria-hidden='true' className='border-ink/15 my-1' />
               {sortingOptions.map((option) => (
                 <MenuItem
                   key={option.value.toString()}

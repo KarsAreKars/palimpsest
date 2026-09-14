@@ -77,31 +77,31 @@ const ContentNavBar: React.FC<ContentNavBarProps> = ({
             disabled={!hasPrevious}
             className={clsx(
               'flex h-10 w-10 items-center justify-center rounded-full shadow-lg transition-all disabled:opacity-40',
-              'bg-base-200 hover:bg-base-300 hover:disabled:bg-base-200',
+              'bg-paperlight hover:bg-paperlight hover:disabled:bg-paperlight',
             )}
           >
             <MdChevronLeft
               size={iconSize20}
-              className={clsx('text-base-content', !hasPrevious && 'opacity-40')}
+              className={clsx('text-ink', !hasPrevious && 'opacity-40')}
             />
           </button>
 
           {/* Info bar */}
-          <div className='bg-base-100 relative flex flex-1 items-center justify-between overflow-hidden rounded-xl px-2 py-1 shadow-lg sm:gap-6'>
+          <div className='bg-paper relative flex flex-1 items-center justify-between overflow-hidden rounded-[2px] px-2 py-1 shadow-lg sm:gap-6'>
             {progress !== undefined && progress < 1 && (
               <div
-                className='bg-base-200 absolute inset-y-0 left-0 transition-all duration-300'
+                className='bg-paperlight absolute inset-y-0 left-0 transition-all duration-300'
                 style={{ width: `${progress * 100}%` }}
               />
             )}
-            {progress === 1 && <div className='bg-base-200 absolute inset-0' />}
+            {progress === 1 && <div className='bg-paperlight absolute inset-0' />}
             {showListButton && onShowResults ? (
               <button
                 title={showResultsTitle || _('Show Results')}
                 onClick={onShowResults}
-                className='btn btn-ghost relative z-10 h-8 min-h-8 w-8 p-0 hover:bg-transparent'
+                className='chrome-ghost relative z-10 h-8 min-h-8 w-8 p-0 hover:bg-transparent'
               >
-                <IoIosList size={iconSize20} className='text-base-content' />
+                <IoIosList size={iconSize20} className='text-ink' />
               </button>
             ) : (
               <div className='relative z-10 w-8' />
@@ -110,14 +110,14 @@ const ContentNavBar: React.FC<ContentNavBarProps> = ({
             <div className='relative z-10 flex flex-1 flex-col items-center px-2'>
               <span className='line-clamp-1 text-sm font-medium'>{title}</span>
               {section && showSection && (
-                <span className='text-base-content/70 line-clamp-1 text-xs'>{section}</span>
+                <span className='text-ink/70 line-clamp-1 text-xs'>{section}</span>
               )}
             </div>
 
             <button
               title={closeTitle || _('Close')}
               onClick={onClose}
-              className='btn btn-ghost relative z-10 h-8 min-h-8 w-8 p-0 hover:bg-transparent'
+              className='chrome-ghost relative z-10 h-8 min-h-8 w-8 p-0 hover:bg-transparent'
             >
               <IoMdCloseCircle size={iconSize16} />
             </button>
@@ -130,12 +130,12 @@ const ContentNavBar: React.FC<ContentNavBarProps> = ({
             disabled={!hasNext}
             className={clsx(
               'flex h-10 w-10 items-center justify-center rounded-full shadow-lg transition-all',
-              'bg-base-200 hover:bg-base-300 hover:disabled:bg-base-200',
+              'bg-paperlight hover:bg-paperlight hover:disabled:bg-paperlight',
             )}
           >
             <MdChevronRight
               size={iconSize20}
-              className={clsx('text-base-content', !hasNext && 'opacity-40')}
+              className={clsx('text-ink', !hasNext && 'opacity-40')}
             />
           </button>
         </div>

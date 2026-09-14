@@ -115,11 +115,11 @@ const RuleItem: React.FC<{
     return (
       <div className='flex flex-col gap-3 p-3'>
         <div className='flex flex-col gap-1.5'>
-          <label className='text-base-content/70 text-xs font-medium'>
+          <label className='text-ink/70 text-xs font-medium'>
             {isSelection ? _('Selected text:') : _('Find:')}
           </label>
           <input
-            className={clsx('input input-sm text-sm', isSelection && 'bg-base-200 opacity-60')}
+            className={clsx('paper-field text-sm', isSelection && 'bg-paperlight opacity-60')}
             value={editingData.pattern}
             disabled={isSelection}
             spellCheck='false'
@@ -128,9 +128,9 @@ const RuleItem: React.FC<{
         </div>
 
         <div className='flex flex-col gap-1.5'>
-          <label className='text-base-content/70 text-xs font-medium'>{_('Replace with:')}</label>
+          <label className='text-ink/70 text-xs font-medium'>{_('Replace with:')}</label>
           <input
-            className='input input-sm text-sm'
+            className='paper-field text-sm'
             value={editingData.replacement}
             spellCheck='false'
             onChange={(e) => onEditChange({ replacement: e.target.value })}
@@ -140,19 +140,19 @@ const RuleItem: React.FC<{
         {!isSelection && (
           <div className='flex flex-wrap items-center gap-x-5 gap-y-3'>
             <label className='flex cursor-pointer items-center gap-2'>
-              <span className='text-base-content/70 text-sm'>{_('Regex:')}</span>
+              <span className='text-ink/70 text-sm'>{_('Regex:')}</span>
               <input
                 type='checkbox'
-                className='toggle toggle-sm'
+                className='chrome-toggle'
                 checked={editingData.isRegex}
                 onChange={(e) => onEditChange({ isRegex: e.target.checked })}
               />
             </label>
             <label className='flex cursor-pointer items-center gap-2'>
-              <span className='text-base-content/70 text-sm'>{_('Case sensitive:')}</span>
+              <span className='text-ink/70 text-sm'>{_('Case sensitive:')}</span>
               <input
                 type='checkbox'
-                className='toggle toggle-sm'
+                className='chrome-toggle'
                 checked={editingData.caseSensitive}
                 onChange={(e) => onEditChange({ caseSensitive: e.target.checked })}
               />
@@ -161,10 +161,10 @@ const RuleItem: React.FC<{
         )}
 
         <div className='mt-1 flex gap-2'>
-          <button className='btn btn-primary btn-sm flex-1' onClick={onSave}>
+          <button className='stamp-btn chrome-ghost-sm flex-1' onClick={onSave}>
             {_('Save')}
           </button>
-          <button className='btn btn-sm flex-1' onClick={onCancel}>
+          <button className='chrome-ghost-sm flex-1' onClick={onCancel}>
             {_('Cancel')}
           </button>
         </div>
@@ -181,37 +181,37 @@ const RuleItem: React.FC<{
         )}
       >
         <div className='break-words pe-28 text-base font-medium leading-snug'>{rule.pattern}</div>
-        <div className='text-base-content/70 break-words text-sm'>
-          <span className='text-base-content/80 mr-1.5 text-xs font-medium'>
+        <div className='text-ink/70 break-words text-sm'>
+          <span className='text-ink/80 mr-1.5 text-xs font-medium'>
             {_('Replace with:')}
           </span>
-          <span className='text-base-content/90 text-xs'>{"'" + rule.replacement + "'"}</span>
+          <span className='text-ink/90 text-xs'>{"'" + rule.replacement + "'"}</span>
         </div>
-        <div className='text-base-content/60 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs'>
+        <div className='text-ink/60 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs'>
           <span className='inline-flex items-center gap-1'>
-            <span className='text-base-content/50'>{_('Scope:')}</span>
+            <span className='text-ink/50'>{_('Scope:')}</span>
             <span
               role='none'
               className={clsx(
-                'text-base-content/70 font-medium',
-                scope === 'selection' && 'cursor-pointer text-blue-400 hover:text-blue-500',
+                'text-ink/70 font-medium',
+                scope === 'selection' && 'cursor-pointer text-stamp hover:text-stamp',
               )}
               onClick={scope === 'selection' ? navigateToSelection : undefined}
             >
               {scope === 'selection' ? _('Selection') : scope === 'book' ? _('Book') : _('Library')}
             </span>
           </span>
-          <span className='text-base-content/30'>•</span>
+          <span className='text-ink/30'>•</span>
           <span className='inline-flex items-center gap-1'>
-            <span className='text-base-content/50'>{_('Case sensitive:')}</span>
-            <span className='text-base-content/70 font-medium'>
+            <span className='text-ink/50'>{_('Case sensitive:')}</span>
+            <span className='text-ink/70 font-medium'>
               {rule.caseSensitive !== false ? _('Yes') : _('No')}
             </span>
           </span>
-          <span className='text-base-content/30'>•</span>
+          <span className='text-ink/30'>•</span>
           <span className='inline-flex items-center gap-1'>
-            <span className='text-base-content/50'>{_('Only for TTS:')}</span>
-            <span className='text-base-content/70 font-medium'>
+            <span className='text-ink/50'>{_('Only for TTS:')}</span>
+            <span className='text-ink/70 font-medium'>
               {rule.onlyForTTS === true ? _('Yes') : _('No')}
             </span>
           </span>
@@ -220,20 +220,20 @@ const RuleItem: React.FC<{
       <div className='absolute right-2 top-2 flex items-center gap-1'>
         <input
           type='checkbox'
-          className='toggle toggle-sm'
+          className='chrome-toggle'
           checked={rule.enabled !== false}
           onChange={onToggle}
           aria-label={rule.enabled !== false ? _('Disable rule') : _('Enable rule')}
         />
         <button
-          className='btn btn-ghost btn-sm h-8 w-8 p-0'
+          className='chrome-ghost chrome-ghost-sm h-8 w-8 p-0'
           onClick={onEdit}
           aria-label={_('Edit')}
         >
           <RiEditLine className='h-4 w-4' />
         </button>
         <button
-          className='btn btn-ghost btn-sm h-8 w-8 p-0'
+          className='chrome-ghost chrome-ghost-sm h-8 w-8 p-0'
           onClick={onDelete}
           aria-label={_('Delete')}
         >
@@ -263,8 +263,8 @@ const SortableRuleItem: React.FC<React.ComponentProps<typeof RuleItem>> = (props
       ref={setNodeRef}
       style={style}
       className={clsx(
-        'card eink-bordered border-base-200 bg-base-100 border transition-colors',
-        isDragging ? 'z-10 shadow-md' : 'hover:border-base-300',
+        'eink-bordered border-ink/15 bg-paper rounded-[2px] border transition-colors',
+        isDragging ? 'z-10 shadow-md' : 'hover:border-ink/20',
       )}
     >
       <div className='flex items-stretch'>
@@ -272,7 +272,7 @@ const SortableRuleItem: React.FC<React.ComponentProps<typeof RuleItem>> = (props
           <button
             type='button'
             className={clsx(
-              'touch-target text-base-content/35 hover:text-base-content/70 flex w-7 shrink-0',
+              'touch-target text-ink/35 hover:text-ink/70 flex w-7 shrink-0',
               'cursor-grab touch-none items-center justify-center active:cursor-grabbing',
             )}
             aria-label={_('Drag to reorder')}
@@ -516,8 +516,8 @@ export const ProofreadRulesManager: React.FC = () => {
     <div className='flex flex-col gap-2'>
       <SectionTitle>{title}</SectionTitle>
       {rules.length === 0 ? (
-        <div className='border-base-300 bg-base-200/30 rounded-xl border border-dashed p-6 text-center'>
-          <p className='text-base-content/50 text-sm'>{emptyMessage}</p>
+        <div className='border-ink/20 bg-paperlight/30 rounded-[2px] border border-dashed p-6 text-center'>
+          <p className='text-ink/50 text-sm'>{emptyMessage}</p>
         </div>
       ) : (
         <DndContext
@@ -572,16 +572,16 @@ export const ProofreadRulesManager: React.FC = () => {
         <div className='flex flex-col gap-6 p-4 sm:p-6'>
           <div className='flex flex-col gap-2'>
             <SectionTitle>{_('Add Rule')}</SectionTitle>
-            <div className='card eink-bordered border-base-200 bg-base-100 gap-3 border p-4'>
+            <div className='eink-bordered border-ink/15 bg-paper gap-3 rounded-[2px] border p-4'>
               <input
-                className='input input-bordered eink-bordered h-11 w-full text-sm focus:outline-none'
+                className='paper-field eink-bordered h-11 w-full text-sm focus:outline-none'
                 placeholder={_('Find...')}
                 spellCheck='false'
                 value={addPattern}
                 onChange={(e) => setAddPattern(e.target.value)}
               />
               <input
-                className='input input-bordered eink-bordered h-11 w-full text-sm focus:outline-none'
+                className='paper-field eink-bordered h-11 w-full text-sm focus:outline-none'
                 placeholder={_('Replace with...')}
                 spellCheck='false'
                 value={addReplacement}
@@ -592,9 +592,9 @@ export const ProofreadRulesManager: React.FC = () => {
               />
               <div className='flex flex-wrap items-center gap-x-5 gap-y-3 pt-0.5'>
                 <label className='flex items-center gap-2'>
-                  <span className='text-base-content/70 text-sm'>{_('Scope:')}</span>
+                  <span className='text-ink/70 text-sm'>{_('Scope:')}</span>
                   <select
-                    className='select select-sm select-bordered eink-bordered min-h-9 h-9'
+                    className='chrome-select eink-bordered min-h-9 h-9'
                     value={addScope}
                     onChange={(e) =>
                       setAddScope(e.target.value as Exclude<ProofreadScope, 'selection'>)
@@ -605,27 +605,27 @@ export const ProofreadRulesManager: React.FC = () => {
                   </select>
                 </label>
                 <label className='flex cursor-pointer items-center gap-2'>
-                  <span className='text-base-content/70 text-sm'>{_('Regex:')}</span>
+                  <span className='text-ink/70 text-sm'>{_('Regex:')}</span>
                   <input
                     type='checkbox'
-                    className='toggle toggle-sm'
+                    className='chrome-toggle'
                     checked={addIsRegex}
                     onChange={(e) => setAddIsRegex(e.target.checked)}
                   />
                 </label>
                 <label className='flex cursor-pointer items-center gap-2'>
-                  <span className='text-base-content/70 text-sm'>{_('Case sensitive:')}</span>
+                  <span className='text-ink/70 text-sm'>{_('Case sensitive:')}</span>
                   <input
                     type='checkbox'
-                    className='toggle toggle-sm'
+                    className='chrome-toggle'
                     checked={addCaseSensitive}
                     onChange={(e) => setAddCaseSensitive(e.target.checked)}
                   />
                 </label>
               </div>
-              <div className='border-base-200 mt-1 flex justify-end border-t pt-3'>
+              <div className='border-ink/15 mt-1 flex justify-end border-t pt-3'>
                 <button
-                  className='btn btn-contrast h-10 min-h-10 rounded-lg px-5 text-sm font-medium disabled:opacity-40'
+                  className='ink-btn h-10 min-h-10 rounded-[2px] px-5 text-sm font-medium disabled:opacity-40'
                   onClick={handleAddRule}
                   disabled={!addPattern.trim()}
                 >

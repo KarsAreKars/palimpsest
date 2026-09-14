@@ -32,13 +32,13 @@ const StickyProgressBar: React.FC<StickyProgressBarProps> = ({
       <div
         className={clsx(
           'sticky-progress-track absolute inset-x-0 top-1/2 h-2 -translate-y-1/2 overflow-hidden rounded-full border',
-          isEink ? 'border-base-content' : 'border-base-content/40',
+          isEink ? 'border-ink' : 'border-ink/40',
         )}
       >
         <div
           className={clsx(
             'sticky-progress-fill absolute inset-y-0 rounded-full',
-            isEink ? 'bg-base-content' : 'bg-base-content/50',
+            isEink ? 'bg-ink' : 'bg-ink/50',
           )}
           style={{ width: `${pct}%`, [startEdge]: 0 }}
         />
@@ -49,7 +49,7 @@ const StickyProgressBar: React.FC<StickyProgressBarProps> = ({
             key={index}
             className={clsx(
               'sticky-progress-tick absolute inset-y-0 w-px',
-              isEink ? 'bg-base-content' : 'bg-base-content/40',
+              isEink ? 'bg-ink' : 'bg-ink/40',
             )}
             style={{ [startEdge]: `${tick * 100}%` }}
           />

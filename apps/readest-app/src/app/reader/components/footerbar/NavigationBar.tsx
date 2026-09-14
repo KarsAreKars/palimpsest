@@ -42,8 +42,8 @@ export const NavigationBar: React.FC<NavigationBarProps> = ({
   return (
     <div
       className={clsx(
-        'not-eink:bg-base-200 eink:bg-base-100 z-30 mt-auto flex w-full justify-between px-8 py-4',
-        'eink:border-base-content eink:border-t',
+        'not-eink:bg-paperlight eink:bg-paper z-30 mt-auto flex w-full justify-between px-8 py-4',
+        'eink:border-ink eink:border-t',
         !forceMobileLayout && 'sm:hidden',
       )}
       style={{
@@ -61,24 +61,24 @@ export const NavigationBar: React.FC<NavigationBarProps> = ({
       )}
       <Button
         label={_('Color')}
-        icon={<ColorIcon className={clsx(actionTab === 'color' && 'text-blue-500')} />}
+        icon={<ColorIcon className={clsx(actionTab === 'color' && 'text-stamp')} />}
         onClick={() => onSetActionTab('color')}
       />
       <Button
         label={_('Reading Progress')}
-        icon={<SliderIcon className={clsx(actionTab === 'progress' && 'text-blue-500')} />}
+        icon={<SliderIcon className={clsx(actionTab === 'progress' && 'text-stamp')} />}
         onClick={() => onSetActionTab('progress')}
       />
       <Button
         label={_('Font & Layout')}
         icon={
-          <FontIcon size={fontIconSize} className={clsx(actionTab === 'font' && 'text-blue-500')} />
+          <FontIcon size={fontIconSize} className={clsx(actionTab === 'font' && 'text-stamp')} />
         }
         onClick={() => onSetActionTab('font')}
       />
       <Button
         label={_('Speak')}
-        icon={<TTSIcon className={viewState?.ttsEnabled ? 'text-blue-500' : ''} />}
+        icon={<TTSIcon className={viewState?.ttsEnabled ? 'text-stamp' : ''} />}
         onClick={() => onSetActionTab('tts')}
       />
     </div>

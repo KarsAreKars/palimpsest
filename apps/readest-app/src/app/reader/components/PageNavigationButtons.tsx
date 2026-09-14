@@ -107,8 +107,8 @@ const PageNavigationButtons: React.FC<PageNavigationButtonsProps> = ({
           <span
             className={clsx(
               'flex h-12 w-12 items-center justify-center rounded-full',
-              'bg-base-100/90 shadow-lg backdrop-blur-sm',
-              'eink:border eink:border-base-content not-eink:group-hover:bg-base-200',
+              'bg-paper/90 shadow-lg backdrop-blur-sm',
+              'eink:border eink:border-ink not-eink:group-hover:bg-paperlight',
               'transition-transform active:scale-95',
             )}
           >
@@ -128,8 +128,8 @@ const PageNavigationButtons: React.FC<PageNavigationButtonsProps> = ({
           <span
             className={clsx(
               'flex h-12 w-12 items-center justify-center rounded-full',
-              'bg-base-100/90 shadow-lg backdrop-blur-sm',
-              'eink:border eink:border-base-content not-eink:group-hover:bg-base-200',
+              'bg-paper/90 shadow-lg backdrop-blur-sm',
+              'eink:border eink:border-ink not-eink:group-hover:bg-paperlight',
               'transition-transform active:scale-95',
             )}
           >
@@ -159,8 +159,8 @@ const PageNavigationButtons: React.FC<PageNavigationButtonsProps> = ({
           <span
             className={clsx(
               'flex h-12 w-12 items-center justify-center rounded-full',
-              'bg-base-100/90 shadow-lg backdrop-blur-sm',
-              'eink:border eink:border-base-content not-eink:group-hover:bg-base-200',
+              'bg-paper/90 shadow-lg backdrop-blur-sm',
+              'eink:border eink:border-ink not-eink:group-hover:bg-paperlight',
               'transition-transform active:scale-95',
             )}
           >
@@ -180,8 +180,8 @@ const PageNavigationButtons: React.FC<PageNavigationButtonsProps> = ({
           <span
             className={clsx(
               'flex h-12 w-12 items-center justify-center rounded-full',
-              'bg-base-100/90 shadow-lg backdrop-blur-sm',
-              'eink:border eink:border-base-content not-eink:group-hover:bg-base-200',
+              'bg-paper/90 shadow-lg backdrop-blur-sm',
+              'eink:border eink:border-ink not-eink:group-hover:bg-paperlight',
               'transition-transform active:scale-95',
             )}
           >

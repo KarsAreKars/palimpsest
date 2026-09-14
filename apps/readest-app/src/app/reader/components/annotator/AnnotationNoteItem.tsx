@@ -24,8 +24,8 @@ interface AnnotationNoteItemProps {
 }
 
 const cardClassName = clsx(
-  'popup-container rounded-lg',
-  'not-eink:shadow-lg bg-base-300 theme-dark:bg-base-100',
+  'popup-container rounded-[2px]',
+  'not-eink:shadow-lg bg-paperlight theme-dark:bg-paper',
 );
 
 const AnnotationNoteItem: React.FC<AnnotationNoteItemProps> = ({
@@ -124,14 +124,14 @@ const AnnotationNoteItem: React.FC<AnnotationNoteItemProps> = ({
               dangerouslySetInnerHTML={{ __html: noteHtml }}
             />
             <div className='flex items-center justify-between gap-2'>
-              <span className='text-base-content/50 text-sm sm:text-xs'>
+              <span className='text-ink/50 text-sm sm:text-xs'>
                 {dayjs(note.createdAt).fromNow()}
               </span>
               {/* Always visible, not hover-gated: the popup is used on touch
                   devices, which have no hover state to reveal it. */}
               <button
                 onClick={handleEditClick}
-                className='btn btn-ghost btn-xs p-0 text-blue-500 hover:bg-transparent'
+                className='chrome-ghost chrome-ghost-xs p-0 text-stamp hover:bg-transparent'
                 aria-label={_('Edit')}
               >
                 <MdEdit size={size16} />

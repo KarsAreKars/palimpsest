@@ -466,13 +466,13 @@ const BookshelfItem: React.FC<BookshelfItemProps> = ({
     'format' in item ? { 'data-book-hash': item.hash } : { 'data-group-name': item.name };
 
   return (
-    <div className={clsx(mode === 'grid' ? 'h-full' : 'sm:hover:bg-base-300/50 px-4 sm:px-6')}>
+    <div className={clsx(mode === 'grid' ? 'h-full' : 'sm:hover:bg-paperlight/50 px-4 sm:px-6')}>
       <div
         className={clsx(
           'visible-focus-inset-2 group',
           mode === 'grid' &&
-            'sm:hover:bg-base-300/50 flex h-full flex-col px-0 py-2 sm:rounded-md sm:px-4 sm:py-4',
-          mode === 'list' && 'border-base-300 flex flex-col border-b py-2',
+            'sm:hover:bg-paperlight/50 flex h-full flex-col px-0 py-2 sm:rounded-[2px] sm:px-4 sm:py-4',
+          mode === 'list' && 'border-ink/20 flex flex-col border-b py-2',
           appService?.isMobileApp && 'no-context-menu',
           pressing && mode === 'grid' ? 'not-eink:scale-95' : 'scale-100',
         )}

@@ -282,14 +282,14 @@ const ViewMenu: React.FC<ViewMenuProps> = ({
         <>
           <div
             title={_('Zoom Level')}
-            className={clsx('flex items-center justify-between rounded-md')}
+            className={clsx('flex items-center justify-between rounded-[2px]')}
           >
             <button
               title={_('Zoom Out')}
               onClick={zoomOut}
               className={clsx(
-                'hover:bg-base-300 text-base-content rounded-full p-2',
-                zoomLevel <= MIN_ZOOM_LEVEL && 'btn-disabled text-gray-400',
+                'hover:bg-paperlight text-ink rounded-full p-2',
+                zoomLevel <= MIN_ZOOM_LEVEL && 'chrome-ghost-disabled text-gray-400',
               )}
             >
               <MdZoomOut />
@@ -297,7 +297,7 @@ const ViewMenu: React.FC<ViewMenuProps> = ({
             <button
               title={_('Reset Zoom')}
               className={clsx(
-                'hover:bg-base-300 text-base-content h-8 min-h-8 w-[50%] rounded-md p-1 text-center',
+                'hover:bg-paperlight text-ink h-8 min-h-8 w-[50%] rounded-[2px] p-1 text-center',
               )}
               onClick={resetZoom}
             >
@@ -307,8 +307,8 @@ const ViewMenu: React.FC<ViewMenuProps> = ({
               title={_('Zoom In')}
               onClick={zoomIn}
               className={clsx(
-                'hover:bg-base-300 text-base-content rounded-full p-2',
-                zoomLevel >= MAX_ZOOM_LEVEL && 'btn-disabled text-gray-400',
+                'hover:bg-paperlight text-ink rounded-full p-2',
+                zoomLevel >= MAX_ZOOM_LEVEL && 'chrome-ghost-disabled text-gray-400',
               )}
             >
               <MdZoomIn />
@@ -317,14 +317,14 @@ const ViewMenu: React.FC<ViewMenuProps> = ({
 
           <div
             title={_('Contrast')}
-            className={clsx('mt-2 flex items-center justify-between rounded-md')}
+            className={clsx('mt-2 flex items-center justify-between rounded-[2px]')}
           >
             <button
               title={_('Decrease Contrast')}
               onClick={decreaseContrast}
               className={clsx(
-                'hover:bg-base-300 text-base-content rounded-full p-2',
-                contrast <= MIN_CONTRAST && 'btn-disabled text-gray-400',
+                'hover:bg-paperlight text-ink rounded-full p-2',
+                contrast <= MIN_CONTRAST && 'chrome-ghost-disabled text-gray-400',
               )}
             >
               <MdRemove />
@@ -332,7 +332,7 @@ const ViewMenu: React.FC<ViewMenuProps> = ({
             <button
               title={_('Reset Contrast')}
               className={clsx(
-                'hover:bg-base-300 text-base-content flex h-8 min-h-8 w-[50%] items-center justify-center gap-1 rounded-md p-1 text-center',
+                'hover:bg-paperlight text-ink flex h-8 min-h-8 w-[50%] items-center justify-center gap-1 rounded-[2px] p-1 text-center',
               )}
               onClick={resetContrast}
             >
@@ -343,8 +343,8 @@ const ViewMenu: React.FC<ViewMenuProps> = ({
               title={_('Increase Contrast')}
               onClick={increaseContrast}
               className={clsx(
-                'hover:bg-base-300 text-base-content rounded-full p-2',
-                contrast >= MAX_CONTRAST && 'btn-disabled text-gray-400',
+                'hover:bg-paperlight text-ink rounded-full p-2',
+                contrast >= MAX_CONTRAST && 'chrome-ghost-disabled text-gray-400',
               )}
             >
               <MdAdd />
@@ -354,7 +354,7 @@ const ViewMenu: React.FC<ViewMenuProps> = ({
           <>
             <div
               title={_('Zoom Mode')}
-              className={clsx('my-2 flex items-center justify-between rounded-md')}
+              className={clsx('my-2 flex items-center justify-between rounded-[2px]')}
             >
               <button
                 title={_('Single Page')}
@@ -363,8 +363,8 @@ const ViewMenu: React.FC<ViewMenuProps> = ({
                   if (isScrolledMode) setScrolledMode(false);
                 }}
                 className={clsx(
-                  'hover:bg-base-300 text-base-content rounded-full p-2',
-                  !isScrolledMode && spreadMode === 'none' && 'bg-base-300/75',
+                  'hover:bg-paperlight text-ink rounded-full p-2',
+                  !isScrolledMode && spreadMode === 'none' && 'bg-paperlight/75',
                 )}
               >
                 <TbColumns1 />
@@ -376,8 +376,8 @@ const ViewMenu: React.FC<ViewMenuProps> = ({
                   if (isScrolledMode) setScrolledMode(false);
                 }}
                 className={clsx(
-                  'hover:bg-base-300 text-base-content rounded-full p-2',
-                  !isScrolledMode && spreadMode === 'auto' && 'bg-base-300/75',
+                  'hover:bg-paperlight text-ink rounded-full p-2',
+                  !isScrolledMode && spreadMode === 'auto' && 'bg-paperlight/75',
                 )}
               >
                 <TbColumns2 />
@@ -389,8 +389,8 @@ const ViewMenu: React.FC<ViewMenuProps> = ({
                   if (!isScrolledMode) setScrolledMode(true);
                 }}
                 className={clsx(
-                  'hover:bg-base-300 text-base-content rounded-full p-2',
-                  isScrolledMode && scrolledDirection === 'vertical' && 'bg-base-300/75',
+                  'hover:bg-paperlight text-ink rounded-full p-2',
+                  isScrolledMode && scrolledDirection === 'vertical' && 'bg-paperlight/75',
                 )}
               >
                 <TbCarouselVertical />
@@ -403,19 +403,19 @@ const ViewMenu: React.FC<ViewMenuProps> = ({
                   if (!isScrolledMode) setScrolledMode(true);
                 }}
                 className={clsx(
-                  'hover:bg-base-300 text-base-content rounded-full p-2',
-                  isScrolledMode && scrolledDirection === 'horizontal' && 'bg-base-300/75',
+                  'hover:bg-paperlight text-ink rounded-full p-2',
+                  isScrolledMode && scrolledDirection === 'horizontal' && 'bg-paperlight/75',
                 )}
               >
                 <TbCarouselHorizontal />
               </button>
-              <div className='bg-base-300 mx-2 h-6 w-[1px]' />
+              <div className='bg-paperlight mx-2 h-6 w-[1px]' />
               <button
                 title={_('Fit Page')}
                 onClick={setZoomMode.bind(null, 'fit-page')}
                 className={clsx(
-                  'hover:bg-base-300 text-base-content rounded-full p-2',
-                  zoomMode === 'fit-page' && 'bg-base-300/75',
+                  'hover:bg-paperlight text-ink rounded-full p-2',
+                  zoomMode === 'fit-page' && 'bg-paperlight/75',
                 )}
               >
                 <IoMdExpand />
@@ -424,8 +424,8 @@ const ViewMenu: React.FC<ViewMenuProps> = ({
                 title={_('Fit Width')}
                 onClick={setZoomMode.bind(null, 'fit-width')}
                 className={clsx(
-                  'hover:bg-base-300 text-base-content rounded-full p-2',
-                  zoomMode === 'fit-width' && 'bg-base-300/75',
+                  'hover:bg-paperlight text-ink rounded-full p-2',
+                  zoomMode === 'fit-width' && 'bg-paperlight/75',
                 )}
               >
                 <TbArrowAutofitWidth />
@@ -445,7 +445,7 @@ const ViewMenu: React.FC<ViewMenuProps> = ({
             />
             <MenuItem label={_('Webtoon Mode')} toggled={webtoonMode} onClick={toggleWebtoonMode} />
           </>
-          <hr aria-hidden='true' className='border-base-300 my-1' />
+          <hr aria-hidden='true' className='border-ink/20 my-1' />
         </>
       )}
 
@@ -466,7 +466,7 @@ const ViewMenu: React.FC<ViewMenuProps> = ({
         disabled={!isScrolledMode}
       />
 
-      <hr aria-hidden='true' className='border-base-300 my-1' />
+      <hr aria-hidden='true' className='border-ink/20 my-1' />
 
       <MenuItem
         label={_('Paragraph Mode')}
@@ -476,7 +476,7 @@ const ViewMenu: React.FC<ViewMenuProps> = ({
         disabled={bookData.isFixedLayout}
       />
 
-      <hr aria-hidden='true' className='border-base-300 my-1' />
+      <hr aria-hidden='true' className='border-ink/20 my-1' />
 
       <MenuItem
         label={
@@ -495,7 +495,7 @@ const ViewMenu: React.FC<ViewMenuProps> = ({
           <button
             aria-label={_('Sync Info')}
             title={_('Sync Info')}
-            className='hover:bg-base-300 text-base-content/70 mx-1 rounded-md px-2'
+            className='hover:bg-paperlight text-ink/70 mx-1 rounded-[2px] px-2'
             onClick={() => {
               setIsDropdownOpen?.(false);
               onShowMetaHashDialog?.();
@@ -506,7 +506,7 @@ const ViewMenu: React.FC<ViewMenuProps> = ({
         }
       />
 
-      <hr aria-hidden='true' className='border-base-300 my-1' />
+      <hr aria-hidden='true' className='border-ink/20 my-1' />
 
       {appService?.hasWindow && <MenuItem label={_('Fullscreen')} onClick={handleFullScreen} />}
       <MenuItem
@@ -545,7 +545,7 @@ const ViewMenu: React.FC<ViewMenuProps> = ({
         onClick={() => setInvertImgColorInDark(!invertImgColorInDark)}
       />
 
-      <hr aria-hidden='true' className='border-base-300 my-1' />
+      <hr aria-hidden='true' className='border-ink/20 my-1' />
 
       <MenuItem label={_('Share Book')} Icon={IoShareOutline} onClick={handleShare} />
     </Menu>

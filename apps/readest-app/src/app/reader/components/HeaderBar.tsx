@@ -161,7 +161,7 @@ const HeaderBar: React.FC<HeaderBarProps> = ({
         // swallowed long presses on text rendered there (#5429) — children
         // that take input restore pointer-events themselves.
         'pointer-events-none left-0 top-0 w-full',
-        isHeaderVisible && 'bg-base-100',
+        isHeaderVisible && 'bg-paper',
         window.innerWidth < 640 ? 'fixed z-20' : 'absolute',
       )}
       style={{
@@ -192,7 +192,7 @@ const HeaderBar: React.FC<HeaderBarProps> = ({
       />
       <div
         className={clsx(
-          'bg-base-100 absolute left-0 right-0 top-0 z-10',
+          'bg-paper absolute left-0 right-0 top-0 z-10',
           appService?.hasRoundedWindow && 'rounded-window-top-right',
           isHeaderVisible ? 'visible' : 'hidden',
         )}
@@ -205,7 +205,7 @@ const HeaderBar: React.FC<HeaderBarProps> = ({
         role='banner'
         aria-label={_('Header Bar')}
         className={clsx(
-          `header-bar bg-base-100 absolute top-0 z-10 flex h-11 w-full items-center pr-4`,
+          `header-bar bg-paper absolute top-0 z-10 flex h-11 w-full items-center pr-4`,
           `shadow-xs transition-[opacity,margin-top] duration-300`,
           trafficLightInHeader ? 'pl-20' : isSideBarVisible ? 'ps-4' : 'ps-4 sm:ps-1.5',
           appService?.hasRoundedWindow && 'rounded-window-top-right',
@@ -226,7 +226,7 @@ const HeaderBar: React.FC<HeaderBarProps> = ({
           }
         }}
       >
-        <div className='header-tools-start bg-base-100 sidebar-bookmark-toggler z-20 flex h-full min-w-0 items-center gap-x-4 pe-2 max-[350px]:gap-x-2'>
+        <div className='header-tools-start bg-paper sidebar-bookmark-toggler z-20 flex h-full min-w-0 items-center gap-x-4 pe-2 max-[350px]:gap-x-2'>
           {/* h-full so this scroller spans the whole bar: `overflow-x-auto`
               also clips vertically, and shrink-wrapped to the 32px icons it
               cut the buttons' touch halos back down to 32px (#5401). */}
@@ -245,10 +245,10 @@ const HeaderBar: React.FC<HeaderBarProps> = ({
             )}
             <button
               title={_('Go to Library')}
-              className='btn btn-ghost hidden h-8 min-h-8 w-8 p-0 sm:flex'
+              className='chrome-ghost hidden h-8 min-h-8 w-8 p-0 sm:flex'
               onClick={onGoToLibrary}
             >
-              <VscLibrary size={iconSize18} className='fill-base-content' />
+              <VscLibrary size={iconSize18} className='fill-ink' />
             </button>
             <BookmarkToggler bookKey={bookKey} />
             <TranslationToggler bookKey={bookKey} />
@@ -263,8 +263,8 @@ const HeaderBar: React.FC<HeaderBarProps> = ({
               className='exclude-title-bar-mousedown dropdown-bottom dropdown-center'
               menuClassName='!relative'
               buttonClassName={clsx(
-                'btn btn-ghost h-8 min-h-8 w-8 p-0',
-                viewSettings?.annotationQuickAction && 'bg-base-300/50',
+                'chrome-ghost h-8 min-h-8 w-8 p-0',
+                viewSettings?.annotationQuickAction && 'bg-paperlight/50',
               )}
               toggleButton={
                 annotationQuickAction === 'highlight' || annotationQuickAction === null ? (
@@ -294,7 +294,7 @@ const HeaderBar: React.FC<HeaderBarProps> = ({
           role='contentinfo'
           aria-label={_('Title') + ' - ' + bookTitle}
           className={clsx(
-            'header-title z-15 bg-base-100 pointer-events-none hidden flex-1 items-center justify-center sm:flex',
+            'header-title z-15 bg-paper pointer-events-none hidden flex-1 items-center justify-center sm:flex',
             !windowButtonVisible && 'absolute inset-0',
             isHeaderCompact && '!hidden',
           )}
@@ -311,13 +311,13 @@ const HeaderBar: React.FC<HeaderBarProps> = ({
           </div>
         </div>
 
-        <div className='header-tools-end bg-base-100 z-20 ms-auto flex h-full min-w-max items-center gap-x-4 ps-2 max-[350px]:gap-x-2'>
+        <div className='header-tools-end bg-paper z-20 ms-auto flex h-full min-w-max items-center gap-x-4 ps-2 max-[350px]:gap-x-2'>
           <NotebookToggler bookKey={bookKey} />
           <Dropdown
             label={_('View Options')}
             containerClassName='h-8'
             className='exclude-title-bar-mousedown dropdown-bottom dropdown-end'
-            buttonClassName='btn btn-ghost h-8 min-h-8 w-8 p-0 mt-0'
+            buttonClassName='chrome-ghost h-8 min-h-8 w-8 p-0 mt-0'
             toggleButton={<MdOutlineMenu />}
             onToggle={handleToggleDropdown}
           >

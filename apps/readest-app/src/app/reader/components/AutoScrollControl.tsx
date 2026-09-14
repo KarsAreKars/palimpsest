@@ -94,7 +94,7 @@ const AutoScrollControl: React.FC<AutoScrollControlProps> = ({
   const buttonClass = clsx(
     'flex items-center justify-center rounded-full p-1.5',
     'transition-all duration-200 ease-out',
-    'not-eink:hover:bg-base-200 active:scale-90',
+    'not-eink:hover:bg-paperlight active:scale-90',
   );
 
   return (
@@ -125,9 +125,9 @@ const AutoScrollControl: React.FC<AutoScrollControlProps> = ({
     >
       <div
         className={clsx(
-          'text-base-content flex items-center gap-1 rounded-full px-3 py-1.5',
-          'not-eink:bg-base-300 eink-bordered',
-          'not-eink:border-base-content/10 not-eink:border',
+          'text-ink flex items-center gap-1 rounded-full px-3 py-1.5',
+          'not-eink:bg-paperlight eink-bordered',
+          'not-eink:border-ink/10 not-eink:border',
           'shadow-sm backdrop-blur-md',
         )}
       >
@@ -155,7 +155,7 @@ const AutoScrollControl: React.FC<AutoScrollControlProps> = ({
           <MdAdd size={iconSize} />
         </button>
 
-        <div className='bg-base-content/10 mx-1 h-4 w-px' />
+        <div className='bg-ink/10 mx-1 h-4 w-px' />
 
         <button
           onClick={onTogglePause}
@@ -166,7 +166,7 @@ const AutoScrollControl: React.FC<AutoScrollControlProps> = ({
           {paused ? <MdPlayArrow size={iconSize} /> : <MdPause size={iconSize} />}
         </button>
 
-        <div className='bg-base-content/10 mx-1 h-4 w-px' />
+        <div className='bg-ink/10 mx-1 h-4 w-px' />
 
         <button
           onClick={onStop}

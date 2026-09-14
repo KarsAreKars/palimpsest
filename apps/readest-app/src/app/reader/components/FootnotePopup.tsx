@@ -618,7 +618,7 @@ const FootnotePopup: React.FC<FootnotePopupProps> = ({ bookKey, bookDoc }) => {
               type='button'
               onClick={handleBack}
               className={clsx(
-                'btn btn-ghost btn-circle eink-bordered text-base-content bg-base-200/80 hover:bg-base-200',
+                'chrome-ghost rounded-full eink-bordered text-ink bg-paperlight/80 hover:bg-paperlight',
                 'z-10 h-8 min-h-8 w-8 p-0 shadow-sm',
               )}
             >

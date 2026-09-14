@@ -59,7 +59,7 @@ const QuickActionMenu: React.FC<QuickActionMenuProps> = ({
           key={button.type}
           label={_('Instant {{action}}', { action: _(button.label) })}
           tooltip={_(button.tooltip)}
-          buttonClass={selectedAction === button.type ? 'bg-base-300/85' : ''}
+          buttonClass={selectedAction === button.type ? 'bg-paperlight/85' : ''}
           Icon={button.Icon}
           onClick={() => handleActionClick(button.type)}
         />

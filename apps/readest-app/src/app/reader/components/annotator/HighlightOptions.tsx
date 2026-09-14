@@ -217,10 +217,10 @@ const HighlightOptions: React.FC<HighlightOptionsProps> = ({
             onClick={() => handleSelectStyle(style)}
             className={clsx(
               'eink-bordered not-eink:shadow-sm flex items-center justify-center rounded-full p-0',
-              'bg-base-300 theme-dark:bg-base-100',
+              'bg-paperlight theme-dark:bg-paper',
               selectedStyle === style
                 ? 'border-current border-2'
-                : 'not-eink:border-base-content/20 border',
+                : 'not-eink:border-ink/20 border',
             )}
             style={{ width: size30, height: size30, minHeight: size30 }}
           >
@@ -250,12 +250,12 @@ const HighlightOptions: React.FC<HighlightOptionsProps> = ({
               className={clsx(
                 'decoration-inherit rounded-sm p-0 leading-none',
                 // The marker glyph always sets its own ink above, so it must
-                // stay off `text-base-content`: the e-ink rule for that class
+                // stay off `text-ink`: the e-ink rule for that class
                 // flattens the color with `!important`, which outranks the
                 // inline style and painted the "A" base-content on a
                 // base-content chip -- a solid black square (#5667). The rules
                 // carry no inline ink and do want the flattening.
-                style !== 'highlight' && 'text-base-content',
+                style !== 'highlight' && 'text-ink',
                 style === 'highlight' ? 'flex items-center justify-center' : 'text-center',
                 style === 'underline' || style === 'squiggly' ? 'sm:mt-[-2px]' : '',
               )}
@@ -281,11 +281,11 @@ const HighlightOptions: React.FC<HighlightOptionsProps> = ({
           title={_('Apply to every occurrence in the book')}
           onClick={() => onToggleGlobal?.()}
           className={clsx(
-            'not-eink:border-base-content/20 eink-bordered not-eink:shadow-sm flex flex-shrink-0 items-center justify-center rounded-full border p-0 transition-colors',
-            'bg-base-300 theme-dark:bg-base-100',
+            'not-eink:border-ink/20 eink-bordered not-eink:shadow-sm flex flex-shrink-0 items-center justify-center rounded-full border p-0 transition-colors',
+            'bg-paperlight theme-dark:bg-paper',
             globalToggleActive
-              ? 'not-eink:text-primary'
-              : 'not-eink:text-base-content/80 hover:not-eink:text-base-content',
+              ? 'not-eink:text-stamp'
+              : 'not-eink:text-ink/80 hover:not-eink:text-ink',
           )}
           style={{ width: size30, height: size30 }}
         >
@@ -297,8 +297,8 @@ const HighlightOptions: React.FC<HighlightOptionsProps> = ({
         ref={colorStripRef}
         {...stripPointerHandlers}
         className={clsx(
-          'not-eink:border-base-content/20 eink-bordered not-eink:shadow-sm flex items-center gap-2 rounded-3xl border',
-          'bg-base-300 theme-dark:bg-base-100',
+          'not-eink:border-ink/20 eink-bordered not-eink:shadow-sm flex items-center gap-2 rounded-[2px] border',
+          'bg-paperlight theme-dark:bg-paper',
           isVertical ? 'flex-col overflow-y-auto py-2' : 'min-w-0 flex-row overflow-x-auto px-2',
           !isVertical && 'cursor-grab',
           !isVertical && isDraggingColorStrip && 'cursor-grabbing',
@@ -320,7 +320,7 @@ const HighlightOptions: React.FC<HighlightOptionsProps> = ({
               <div key={color} className='relative flex items-center justify-center'>
                 {previewColor === color && (
                   <div
-                    className='eink-bordered pointer-events-none absolute -top-7 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-md bg-gray-800 px-2 py-0.5 text-[10px] text-white'
+                    className='eink-bordered pointer-events-none absolute -top-7 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-[2px] bg-gray-800 px-2 py-0.5 text-[10px] text-white'
                     style={{ maxWidth: 120 }}
                   >
                     {label}
@@ -347,7 +347,7 @@ const HighlightOptions: React.FC<HighlightOptionsProps> = ({
                       // Same reason as the marker glyph: on B&W e-ink the dot
                       // is a base-content disc, so the check sets its own
                       // contrasting ink and must not be flattened back.
-                      className={clsx(!isBwEink && 'text-base-content')}
+                      className={clsx(!isBwEink && 'text-ink')}
                       style={isBwEink ? { color: einkBgColor } : undefined}
                     />
                   )}

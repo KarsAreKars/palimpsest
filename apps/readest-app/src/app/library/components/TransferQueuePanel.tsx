@@ -65,20 +65,20 @@ const StatusIcon: React.FC<{
 }> = ({ status, type, size }) => {
   switch (status) {
     case 'completed':
-      return <MdCheckCircle className='text-success' size={size} />;
+      return <MdCheckCircle className='chrome-success' size={size} />;
     case 'failed':
-      return <MdError className='text-error' size={size} />;
+      return <MdError className='text-stamp' size={size} />;
     case 'cancelled':
-      return <MdCancel className='text-warning' size={size} />;
+      return <MdCancel className='text-stamp' size={size} />;
     case 'in_progress':
     case 'pending':
     default:
       return type === 'upload' ? (
-        <MdCloudUpload className='text-primary' size={size} />
+        <MdCloudUpload className='text-stamp' size={size} />
       ) : type === 'delete' ? (
-        <MdDeleteSweep className='text-primary' size={size} />
+        <MdDeleteSweep className='text-stamp' size={size} />
       ) : (
-        <MdCloudDownload className='text-primary' size={size} />
+        <MdCloudDownload className='text-stamp' size={size} />
       );
   }
 };
@@ -98,23 +98,23 @@ const TransferItemRow: React.FC<{
   };
 
   return (
-    <div className='hover:bg-base-200 flex items-center gap-3 rounded-lg p-3'>
+    <div className='hover:bg-paperlight flex items-center gap-3 rounded-[2px] p-3'>
       <StatusIcon status={transfer.status} type={transfer.type} size={iconSize} />
 
       <div className='min-w-0 flex-1'>
         <div className='truncate font-medium'>{transfer.bookTitle}</div>
-        <div className='text-base-content/60 text-xs'>
+        <div className='text-ink/60 text-xs'>
           {transfer.status === 'in_progress' && (
             <>
               {Math.round(transfer.progress)}% - {formatSpeed(transfer.transferSpeed)}
             </>
           )}
           {transfer.status === 'pending' && transfer.error && (
-            <span className='text-warning'>{transfer.error}</span>
+            <span className='text-stamp'>{transfer.error}</span>
           )}
           {transfer.status === 'pending' && !transfer.error && _('Waiting...')}
           {transfer.status === 'failed' && (
-            <span className='text-error'>{transfer.error || _('Failed')}</span>
+            <span className='text-stamp'>{transfer.error || _('Failed')}</span>
           )}
           {transfer.status === 'completed' && (completedLabel[transfer.type] || _('Completed'))}
           {transfer.status === 'cancelled' &&
@@ -126,9 +126,9 @@ const TransferItemRow: React.FC<{
         </div>
 
         {transfer.status === 'in_progress' && (
-          <div className='bg-base-300 mt-1 h-1.5 w-full overflow-hidden rounded-full'>
+          <div className='bg-paperlight mt-1 h-1.5 w-full overflow-hidden rounded-full'>
             <div
-              className='bg-primary h-full transition-all'
+              className='bg-stamp h-full transition-all'
               style={{ width: `${transfer.progress}%` }}
             />
           </div>
@@ -139,7 +139,7 @@ const TransferItemRow: React.FC<{
         {isFailedLikeTransfer(transfer) && (
           <button
             onClick={() => onRetry(transfer.id)}
-            className='btn btn-ghost btn-sm btn-circle'
+            className='chrome-ghost chrome-ghost-sm rounded-full'
             aria-label={_('Retry')}
           >
             <MdRefresh size={iconSize} />
@@ -148,7 +148,7 @@ const TransferItemRow: React.FC<{
         {['pending', 'in_progress'].includes(transfer.status) && (
           <button
             onClick={() => onCancel(transfer.id)}
-            className='btn btn-ghost btn-sm btn-circle'
+            className='chrome-ghost chrome-ghost-sm rounded-full'
             aria-label={_('Cancel')}
           >
             <MdClose size={iconSize} />
@@ -253,18 +253,18 @@ const TransferQueuePanel: React.FC = () => {
       <div
         ref={divRef}
         className={clsx(
-          'modal-box bg-base-100 relative flex max-h-[85%] min-h-[65%] w-[95%] flex-col rounded-2xl p-0 shadow-xl',
+          'bg-paper border-ink rounded-[2px] relative flex max-h-[85%] min-h-[65%] w-[95%] flex-col border p-0 shadow-xl',
           'min-w-64 max-w-lg overflow-hidden',
         )}
       >
         {/* Header */}
-        <div className='border-base-300 flex items-center justify-between border-b p-4'>
+        <div className='border-ink/20 flex items-center justify-between border-b p-4'>
           <h2 className='text-lg font-semibold'>{_('Transfer Queue')}</h2>
           <div className='flex items-center gap-2'>
             {readestStorageActive && booksToUpload.length > 0 && (
               <button
                 onClick={handleUploadAll}
-                className='btn btn-ghost btn-sm gap-1'
+                className='chrome-ghost chrome-ghost-sm gap-1'
                 title={_('Upload All')}
                 aria-label={_('Upload All')}
               >
@@ -275,7 +275,7 @@ const TransferQueuePanel: React.FC = () => {
             {booksToDownload.length > 0 && (
               <button
                 onClick={handleDownloadAll}
-                className='btn btn-ghost btn-sm gap-1'
+                className='chrome-ghost chrome-ghost-sm gap-1'
                 title={_('Download All')}
                 aria-label={_('Download All')}
               >
@@ -285,7 +285,7 @@ const TransferQueuePanel: React.FC = () => {
             )}
             <button
               onClick={isQueuePaused ? resumeQueue : pauseQueue}
-              className='btn btn-ghost btn-sm btn-circle'
+              className='chrome-ghost chrome-ghost-sm rounded-full'
               title={isQueuePaused ? _('Resume Transfers') : _('Pause Transfers')}
               aria-label={isQueuePaused ? _('Resume Transfers') : _('Pause Transfers')}
             >
@@ -293,7 +293,7 @@ const TransferQueuePanel: React.FC = () => {
             </button>
             <button
               onClick={onClose}
-              className='btn btn-ghost btn-sm btn-circle'
+              className='chrome-ghost chrome-ghost-sm rounded-full'
               title={_('Close')}
               aria-label={_('Close')}
             >
@@ -303,7 +303,7 @@ const TransferQueuePanel: React.FC = () => {
         </div>
 
         {/* Stats bar */}
-        <div className='bg-base-200 flex items-center gap-4 px-4 py-2 text-sm'>
+        <div className='bg-paperlight flex items-center gap-4 px-4 py-2 text-sm'>
           <span>
             {_('Active')}: {stats.active}
           </span>
@@ -319,14 +319,14 @@ const TransferQueuePanel: React.FC = () => {
         </div>
 
         {/* Filter tabs */}
-        <div className='border-base-300 flex gap-2 border-b p-4'>
+        <div className='border-ink/20 flex gap-2 border-b p-4'>
           {(['all', 'active', 'completed', 'failed'] as const).map((f) => (
             <button
               key={f}
               onClick={() => setFilter(f)}
               className={clsx(
-                'rounded-lg px-3 py-1 text-sm transition-colors',
-                filter === f ? 'bg-primary text-primary-content' : 'bg-base-200 hover:bg-base-300',
+                'rounded-[2px] px-3 py-1 text-sm transition-colors',
+                filter === f ? 'bg-stamp text-paperlight' : 'bg-paperlight hover:bg-paperlight',
               )}
             >
               {filterLabels[f]}
@@ -337,7 +337,7 @@ const TransferQueuePanel: React.FC = () => {
         {/* Transfer list */}
         <div className='flex-1 overflow-y-auto p-2'>
           {filteredTransfers.length === 0 ? (
-            <div className='text-base-content/60 py-8 text-center'>{_('No transfers')}</div>
+            <div className='text-ink/60 py-8 text-center'>{_('No transfers')}</div>
           ) : (
             filteredTransfers.map((transfer) => (
               <TransferItemRow
@@ -352,27 +352,27 @@ const TransferQueuePanel: React.FC = () => {
         </div>
 
         {/* Footer actions */}
-        <div className='border-base-300 flex flex-wrap items-center justify-evenly gap-2 border-t p-4'>
+        <div className='border-ink/20 flex flex-wrap items-center justify-evenly gap-2 border-t p-4'>
           {stats.failed > 0 && (
-            <button onClick={retryAllFailed} className='btn btn-ghost btn-sm gap-1'>
+            <button onClick={retryAllFailed} className='chrome-ghost chrome-ghost-sm gap-1'>
               <MdRefresh size={iconSize - 2} />
               {_('Retry All')}
             </button>
           )}
           {stats.pending > 0 && (
-            <button onClick={clearPending} className='btn btn-ghost btn-sm gap-1'>
+            <button onClick={clearPending} className='chrome-ghost chrome-ghost-sm gap-1'>
               <MdDeleteSweep size={iconSize - 2} />
               {_('Clear Pending')}
             </button>
           )}
           {stats.completed > 0 && (
-            <button onClick={clearCompleted} className='btn btn-ghost btn-sm gap-1'>
+            <button onClick={clearCompleted} className='chrome-ghost chrome-ghost-sm gap-1'>
               <MdDeleteSweep size={iconSize - 2} />
               {_('Clear Completed')}
             </button>
           )}
           {stats.failed > 0 && (
-            <button onClick={clearFailed} className='btn btn-ghost btn-sm gap-1'>
+            <button onClick={clearFailed} className='chrome-ghost chrome-ghost-sm gap-1'>
               <MdDeleteSweep size={iconSize - 2} />
               {_('Clear Failed')}
             </button>

@@ -184,7 +184,7 @@ const TableViewer: React.FC<TableViewerProps> = ({ gridInsets, html, isDarkMode,
       <div
         role='button'
         tabIndex={0}
-        className='table-viewer-overlay absolute inset-0 not-eink:bg-black/50 eink:bg-base-100 not-eink:backdrop-blur-md'
+        className='table-viewer-overlay absolute inset-0 not-eink:bg-black/50 eink:bg-paper not-eink:backdrop-blur-md'
         onKeyDown={(e) => {
           if (e.key === 'Enter' || e.key === ' ') {
             onClose();
@@ -207,7 +207,7 @@ const TableViewer: React.FC<TableViewerProps> = ({ gridInsets, html, isDarkMode,
         <div
           role='presentation'
           ref={contentRef}
-          className='table-viewer-content max-h-full max-w-full transform-gpu select-none overflow-auto rounded-lg shadow-2xl'
+          className='table-viewer-content max-h-full max-w-full transform-gpu select-none overflow-auto rounded-[2px] shadow-2xl'
           onClick={handleContentClick}
           onMouseDown={handleContentMouseDown}
           onMouseMove={handleContentMouseMove}

@@ -62,13 +62,13 @@ const AddFeedModal: React.FC<AddFeedModalProps> = ({ isOpen, onClose, onSubmit }
       boxClassName='sm:!w-[480px] sm:!max-w-[480px] sm:!h-auto sm:!max-h-[80vh]'
     >
       <div className='flex flex-col gap-4 pb-6 pt-2'>
-        <p className='text-base-content/60 text-sm leading-relaxed'>
+        <p className='text-ink/60 text-sm leading-relaxed'>
           {_('Paste an RSS, Atom, or JSON Feed URL to subscribe.')}
         </p>
         <input
           type='url'
           autoFocus
-          className='input input-bordered eink-bordered placeholder:text-base-content/35 w-full'
+          className='paper-field eink-bordered placeholder:text-ink/35 w-full'
           placeholder='https://example.com/feed.xml'
           value={url}
           disabled={submitting}
@@ -77,11 +77,11 @@ const AddFeedModal: React.FC<AddFeedModalProps> = ({ isOpen, onClose, onSubmit }
             if (e.key === 'Enter') void submit();
           }}
         />
-        {error && <p className='text-error text-sm leading-relaxed'>{error}</p>}
+        {error && <p className='text-stamp text-sm leading-relaxed'>{error}</p>}
         <div className='flex justify-end gap-2 pt-1'>
           <button
             type='button'
-            className='btn btn-ghost btn-sm eink-bordered'
+            className='chrome-ghost chrome-ghost-sm eink-bordered'
             onClick={onClose}
             disabled={submitting}
           >
@@ -89,7 +89,7 @@ const AddFeedModal: React.FC<AddFeedModalProps> = ({ isOpen, onClose, onSubmit }
           </button>
           <button
             type='button'
-            className='btn btn-contrast btn-sm'
+            className='ink-btn chrome-ghost-sm'
             onClick={() => void submit()}
             disabled={submitting || !url.trim()}
           >

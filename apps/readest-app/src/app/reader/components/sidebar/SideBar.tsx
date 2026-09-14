@@ -193,7 +193,7 @@ const SideBar = ({}) => {
           'border-e border-[rgba(38,34,27,0.14)]',
           appService?.hasRoundedWindow && 'rounded-window-top-left rounded-window-bottom-left',
           isSideBarPinned ? 'z-20' : 'z-[45] shadow-2xl',
-          !isSideBarPinned && viewSettings?.isEink && 'border-base-content border-e',
+          !isSideBarPinned && viewSettings?.isEink && 'border-ink border-e',
         )}
         role='navigation'
         aria-label={_('Sidebar')}
@@ -248,7 +248,7 @@ const SideBar = ({}) => {
               onMouseDown={handleVerticalDragStart}
               onTouchStart={handleVerticalDragStart}
             >
-              <div className='bg-base-content/50 h-1 w-10 rounded-full'></div>
+              <div className='bg-ink/50 h-1 w-10 rounded-full'></div>
             </div>
           )}
           <SidebarHeader

@@ -110,7 +110,7 @@ const HintInfo: React.FC<SectionInfoProps> = ({
         <h2
           className={clsx(
             'text-center font-sans line-clamp-1',
-            isEink ? 'text-sm font-normal' : 'text-base-content text-xs font-light',
+            isEink ? 'text-sm font-normal' : 'text-ink text-xs font-light',
           )}
         >
           {hintMessage || ''}

@@ -12,7 +12,7 @@ const createExpanderIcon = (isExpanded: boolean) => {
       width='8'
       height='10'
       className={clsx(
-        'text-base-content transform transition-transform',
+        'text-ink transform transition-transform',
         isExpanded ? 'rotate-90' : 'rotate-0',
       )}
       style={{ transformOrigin: 'center' }}

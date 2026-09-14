@@ -32,7 +32,7 @@ const SetStatusAlert: React.FC<SetStatusAlertProps> = ({
       label: _('Mark as Finished'),
       status: 'finished' as ReadingStatus,
       className:
-        'not-eink:bg-success/15 not-eink:text-success not-eink:border-success/20 eink-bordered',
+        'not-eink:bg-[#4d6136]/15 chrome-success not-eink:border-[#4d6136]/20 eink-bordered',
     },
     {
       label: _('Mark as On hold'),
@@ -44,7 +44,7 @@ const SetStatusAlert: React.FC<SetStatusAlertProps> = ({
       label: _('Clear Status'),
       status: undefined,
       className:
-        'not-eink:bg-base-300 not-eink:text-base-content not-eink:border-base-content/10 eink-bordered',
+        'not-eink:bg-paperlight not-eink:text-ink not-eink:border-ink/10 eink-bordered',
     },
   ];
 
@@ -59,7 +59,7 @@ const SetStatusAlert: React.FC<SetStatusAlertProps> = ({
       <div
         className={clsx(
           'flex w-auto max-w-[90vw] flex-col gap-3',
-          'border-base-content/10 bg-base-200/95 rounded-2xl border p-4',
+          'border-ink/10 bg-paperlight/95 rounded-[2px] border p-4',
           'shadow-lg backdrop-blur-sm',
         )}
       >
@@ -71,7 +71,7 @@ const SetStatusAlert: React.FC<SetStatusAlertProps> = ({
           <button
             className={clsx(
               'absolute right-0 flex items-center justify-center',
-              'rounded-full p-1.5 transition-colors text-base-content/70 hover:text-base-content',
+              'rounded-full p-1.5 transition-colors text-ink/70 hover:text-ink',
               'sm:hidden',
             )}
             onClick={onCancel}
@@ -97,7 +97,7 @@ const SetStatusAlert: React.FC<SetStatusAlertProps> = ({
           <button
             className={clsx(
               'hidden items-center gap-2 rounded-full border px-4 py-2',
-              'not-eink:bg-base-300 not-eink:text-base-content not-eink:border-base-content/10 not-eink:shadow-sm',
+              'not-eink:bg-paperlight not-eink:text-ink not-eink:border-ink/10 not-eink:shadow-sm',
               'eink-bordered',
               'transition-all duration-200 ease-out active:scale-[0.97]',
               'sm:flex',

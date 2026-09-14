@@ -85,7 +85,7 @@ const TickRuler = ({
             <span
               key={mark}
               className={clsx(
-                'text-base-content/50 absolute top-0 -translate-x-1/2 text-xs tabular-nums',
+                'text-ink/50 absolute top-0 -translate-x-1/2 text-xs tabular-nums',
                 Math.round(Math.abs(mark - current) / step) < hideSteps && 'invisible',
               )}
               style={{ left: `${toPct(mark)}%` }}
@@ -94,7 +94,7 @@ const TickRuler = ({
             </span>
           ))}
           <span
-            className='text-base-content absolute top-0 -translate-x-1/2 text-xs font-semibold tabular-nums'
+            className='text-ink absolute top-0 -translate-x-1/2 text-xs font-semibold tabular-nums'
             style={{ left: `${toPct(current)}%` }}
           >
             {formatValue(current)}
@@ -109,10 +109,10 @@ const TickRuler = ({
                 className={clsx(
                   'absolute top-0 -translate-x-1/2 rounded-full',
                   isActive
-                    ? 'bg-base-content h-7 w-0.5'
+                    ? 'bg-ink h-7 w-0.5'
                     : isMark(tick)
-                      ? 'bg-base-content/40 h-5 w-0.5'
-                      : 'bg-base-content/25 h-3.5 w-px',
+                      ? 'bg-ink/40 h-5 w-0.5'
+                      : 'bg-ink/25 h-3.5 w-px',
                 )}
                 style={{ left: `${toPct(tick)}%` }}
               />

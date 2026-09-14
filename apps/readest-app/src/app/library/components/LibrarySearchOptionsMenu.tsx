@@ -19,14 +19,14 @@ const Option: React.FC<OptionProps> = ({ label, isActive, onClick, disabled }) =
     <button
       disabled={disabled}
       className={clsx(
-        'hover:bg-base-300 flex w-full items-center justify-between rounded-md p-2',
+        'hover:bg-paperlight flex w-full items-center justify-between rounded-[2px] p-2',
         disabled && 'cursor-not-allowed opacity-40 hover:bg-transparent',
       )}
       onClick={disabled ? undefined : onClick}
     >
       <div className='flex items-center'>
         <span style={{ minWidth: `${iconSize}px` }}>
-          {isActive && <MdCheck className='text-base-content' />}
+          {isActive && <MdCheck className='text-ink' />}
         </span>
         <span className='ml-2 whitespace-nowrap'>{label}</span>
       </div>
@@ -72,7 +72,7 @@ const LibrarySearchOptionsMenu: React.FC<LibrarySearchOptionsMenuProps> = ({
     <div
       role='menu'
       className={clsx(
-        'search-options dropdown-content border-base-200 bg-base-100 eink-bordered z-20 rounded-lg border p-1 shadow-2xl',
+        'search-options dropdown-content border-ink/15 bg-paper eink-bordered z-20 rounded-[2px] border p-1 shadow-2xl',
         // No fixed width: a device text scale (Android system font size) scales
         // every font-size but not a `w-56` box, so labels wrapped and the menu
         // outgrew the landscape viewport. `.dropdown-content` already sizes the
@@ -104,17 +104,17 @@ const LibrarySearchOptionsMenu: React.FC<LibrarySearchOptionsMenuProps> = ({
       />
       {config.mode === 'nearby-words' && (
         <div className='px-2 py-1' style={{ paddingInlineStart: labelIndent }}>
-          <div className='text-base-content/70 mb-1 text-xs'>{_('Within N words')}</div>
+          <div className='text-ink/70 mb-1 text-xs'>{_('Within N words')}</div>
           <div className='flex gap-1'>
             {NEARBY_WORDS_PRESETS.map((value) => (
               <button
                 key={value}
                 aria-pressed={(config.nearbyWords ?? DEFAULT_NEARBY_WORDS) === value}
                 className={clsx(
-                  'rounded-md px-2 py-1 text-xs',
+                  'rounded-[2px] px-2 py-1 text-xs',
                   (config.nearbyWords ?? DEFAULT_NEARBY_WORDS) === value
-                    ? 'bg-base-300 font-bold'
-                    : 'hover:bg-base-300',
+                    ? 'bg-paperlight font-bold'
+                    : 'hover:bg-paperlight',
                 )}
                 onClick={() => update('nearbyWords', value)}
               >
@@ -129,7 +129,7 @@ const LibrarySearchOptionsMenu: React.FC<LibrarySearchOptionsMenuProps> = ({
         isActive={config.mode === 'fuzzy'}
         onClick={() => setMode('fuzzy')}
       />
-      <hr aria-hidden='true' className='border-base-200 my-1' />
+      <hr aria-hidden='true' className='border-ink/15 my-1' />
       <Option
         label={_('Match Case')}
         isActive={config.matchCase}

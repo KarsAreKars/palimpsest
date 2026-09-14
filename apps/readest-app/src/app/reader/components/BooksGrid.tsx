@@ -167,14 +167,14 @@ const BookCellInner: React.FC<BookCellProps> = ({
         onDropdownOpenChange={onDropdownOpenChange}
       />
       {/*
-        bg-base-100: while the pull-down bookmark gesture translates this
+        bg-paper: while the pull-down bookmark gesture translates this
         wrapper, the transform makes it a stacking context, which isolates the
         texture's mix-blend-mode (.foliate-viewer::before) from any backdrop
         outside it — the page visibly brightens for the duration of the drag.
         An opaque background inside the wrapper keeps the blend backdrop with
         the transformed group, so the drag is luminance-invariant.
       */}
-      <div ref={slideRef} className='bg-base-100 absolute inset-0'>
+      <div ref={slideRef} className='bg-paper absolute inset-0'>
         <FoliateViewer
           key={viewerKey}
           bookKey={bookKey}
@@ -187,7 +187,7 @@ const BookCellInner: React.FC<BookCellProps> = ({
           <>
             {(showFooter || viewSettings.doubleBorder) && (
               <div
-                className='bg-base-100 absolute left-0 top-0 h-full'
+                className='bg-paper absolute left-0 top-0 h-full'
                 style={{
                   width: `calc(${contentInsets.left + (viewSettings.doubleBorder ? 32 : 0)}px)`,
                   height: `calc(100%)`,
@@ -196,7 +196,7 @@ const BookCellInner: React.FC<BookCellProps> = ({
             )}
             {(showHeader || viewSettings.doubleBorder) && (
               <div
-                className='bg-base-100 absolute right-0 top-0 h-full'
+                className='bg-paper absolute right-0 top-0 h-full'
                 style={{
                   width: `calc(${contentInsets.right + (viewSettings.doubleBorder ? 32 : 0)}px)`,
                   height: `calc(100%)`,
@@ -360,7 +360,7 @@ const BooksGrid: React.FC<BooksGridProps> = ({ bookKeys, onCloseBook, onGoToLibr
 
   return (
     <div
-      className={clsx('books-grid bg-base-100 relative grid h-full flex-grow')}
+      className={clsx('books-grid bg-paper relative grid h-full flex-grow')}
       style={gridStyle}
       role='main'
       aria-label={_('Books Content')}

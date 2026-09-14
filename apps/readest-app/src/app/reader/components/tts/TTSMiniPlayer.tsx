@@ -204,29 +204,29 @@ const TTSMiniPlayer = ({
       onMouseEnter={() => !appService?.isMobile && setHoveredBookKey('')}
       onTouchStart={() => !appService?.isMobile && setHoveredBookKey('')}
     >
-      <div className='not-eink:bg-base-300 eink-bordered relative overflow-hidden rounded-2xl shadow-lg'>
+      <div className='not-eink:bg-paperlight eink-bordered relative overflow-hidden rounded-[2px] shadow-lg'>
         {hasTimeline && (
           // E-ink has no legible grey tints: delineate the track with a crisp
           // 1px hairline, drop the buffer fill, and paint progress solid.
           <div
             aria-hidden='true'
             className={clsx(
-              'audio-track not-eink:bg-neutral-content/15 absolute inset-x-0 bottom-0 h-[3px]',
-              'eink:bg-base-100 eink:border-base-content eink:border-t eink:h-[5px]',
+              'audio-track not-eink:bg-paperlight/15 absolute inset-x-0 bottom-0 h-[3px]',
+              'eink:bg-paper eink:border-ink eink:border-t eink:h-[5px]',
             )}
           >
             <div
-              className='audio-buffered-part bg-base-content/35 eink:hidden absolute inset-y-0 left-0'
+              className='audio-buffered-part bg-ink/35 eink:hidden absolute inset-y-0 left-0'
               style={{ width: `${bufferedPct}%` }}
             />
             <div
-              className='audio-played-part not-eink:bg-primary eink:bg-base-content absolute inset-y-0 left-0'
+              className='audio-played-part not-eink:bg-stamp eink:bg-ink absolute inset-y-0 left-0'
               style={{ width: `${playedPct}%` }}
             />
           </div>
         )}
         {playerStyle === 'full' ? (
-          <div className='text-base-content flex h-14 items-center gap-1 px-2'>
+          <div className='text-ink flex h-14 items-center gap-1 px-2'>
             <div
               role='button'
               tabIndex={0}
@@ -242,14 +242,14 @@ const TTSMiniPlayer = ({
                 <img
                   src={book.coverImageUrl}
                   alt=''
-                  className='h-10 w-10 shrink-0 rounded-lg object-cover'
+                  className='h-10 w-10 shrink-0 rounded-[2px] object-cover'
                   onError={() => setCoverFailed(true)}
                 />
               ) : null}
               <div className='flex min-w-0 flex-col'>
                 <span className='truncate text-sm'>{book?.title ?? ''}</span>
                 {(sectionLabel || timeLabel) && (
-                  <span className='text-base-content/70 truncate text-xs tabular-nums'>
+                  <span className='text-ink/70 truncate text-xs tabular-nums'>
                     {[sectionLabel, timeLabel].filter(Boolean).join(' · ')}
                   </span>
                 )}
@@ -308,7 +308,7 @@ const TTSMiniPlayer = ({
           // mistaken for each other on a phone (#5310). The row is dir=ltr
           // because the progress line it annotates fills physically
           // left-to-right.
-          <div dir='ltr' className='text-base-content flex h-14 items-center justify-between px-3'>
+          <div dir='ltr' className='text-ink flex h-14 items-center justify-between px-3'>
             {/* Visible route into the full player: a settings glyph carrying
                 the live speed as a superscript (the sheet is where speed and
                 voice live). The time text expands too, but text alone reads
@@ -317,7 +317,7 @@ const TTSMiniPlayer = ({
               type='button'
               aria-label={_('Playback settings')}
               onClick={onExpand}
-              className='text-base-content/70 flex w-14 shrink justify-center rounded-full p-1'
+              className='text-ink/70 flex w-14 shrink justify-center rounded-full p-1'
             >
               <SpeedSettingsIcon
                 size={iconSize26}
@@ -393,12 +393,12 @@ const TTSMiniPlayer = ({
                 // max-w-full is load-bearing: a nowrap span is a flex item in a
                 // column, and without it the cross size resolves to the text's
                 // width and spills over the transport instead of truncating.
-                <span className='text-base-content max-w-full truncate text-sm font-medium tabular-nums'>
+                <span className='text-ink max-w-full truncate text-sm font-medium tabular-nums'>
                   {compactLabel}
                 </span>
               )}
               {timerLabel && (
-                <span className='text-base-content/60 flex shrink-0 items-center gap-0.5 text-xs tabular-nums'>
+                <span className='text-ink/60 flex shrink-0 items-center gap-0.5 text-xs tabular-nums'>
                   <MdAlarm size={iconSize14} aria-hidden='true' />
                   {timerLabel}
                 </span>

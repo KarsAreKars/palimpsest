@@ -42,17 +42,17 @@ const BrightnessOverlay: React.FC<BrightnessOverlayProps> = ({ visible, level })
       <div
         className={clsx(
           'eink-bordered flex flex-col items-center gap-2 rounded-full px-2 py-3',
-          'bg-base-100/90 not-eink:shadow-md',
+          'bg-paper/90 not-eink:shadow-md',
         )}
       >
-        <span className='text-base-content text-xs tabular-nums'>{valuePercent}</span>
-        <div className='bg-base-content/20 relative h-40 w-1.5 overflow-hidden rounded-full'>
+        <span className='text-ink text-xs tabular-nums'>{valuePercent}</span>
+        <div className='bg-ink/20 relative h-40 w-1.5 overflow-hidden rounded-full'>
           <div
-            className='bg-base-content absolute bottom-0 left-0 w-full rounded-full'
+            className='bg-ink absolute bottom-0 left-0 w-full rounded-full'
             style={{ height: `${fillPercent}%` }}
           />
         </div>
-        <PiSun className='text-base-content h-4 w-4' />
+        <PiSun className='text-ink h-4 w-4' />
       </div>
     </div>
   );

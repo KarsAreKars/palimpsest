@@ -63,7 +63,7 @@ const AnnotationsFilterPanel: React.FC<AnnotationsFilterPanelProps> = ({
   return (
     <div
       className={clsx(
-        'annotations-filter-panel dropdown-content eink-bordered bg-base-100 z-20 min-w-56 max-w-72 rounded-lg p-3 shadow-2xl',
+        'annotations-filter-panel dropdown-content eink-bordered bg-paper z-20 min-w-56 max-w-72 rounded-[2px] p-3 shadow-2xl',
         menuClassName,
       )}
       role='group'
@@ -77,8 +77,8 @@ const AnnotationsFilterPanel: React.FC<AnnotationsFilterPanelProps> = ({
             aria-pressed={filterKind === kind}
             onClick={() => onFilterKindChange(kind)}
             className={clsx(
-              'eink-bordered btn btn-ghost h-7 min-h-7 rounded-full px-3 text-xs font-normal',
-              filterKind === kind ? 'bg-base-300 hover:bg-base-300' : 'bg-base-200/60',
+              'eink-bordered chrome-ghost h-7 min-h-7 rounded-full px-3 text-xs font-normal',
+              filterKind === kind ? 'bg-paperlight hover:bg-paperlight' : 'bg-paperlight/60',
             )}
           >
             {filterLabels[kind]}
@@ -87,7 +87,7 @@ const AnnotationsFilterPanel: React.FC<AnnotationsFilterPanelProps> = ({
       </div>
       {showStyles && (
         <div className='mt-3'>
-          <div className='text-base-content/60 mb-1.5 text-xs'>{_('Styles')}</div>
+          <div className='text-ink/60 mb-1.5 text-xs'>{_('Styles')}</div>
           <div className='flex items-center gap-1.5'>
             {styles.map((style) => {
               const included = !excludedStyles.includes(style);
@@ -100,7 +100,7 @@ const AnnotationsFilterPanel: React.FC<AnnotationsFilterPanelProps> = ({
                   title={_(style)}
                   onClick={() => onToggleStyle(style)}
                   className={clsx(
-                    'eink-bordered bg-base-200/60 flex h-7 w-7 items-center justify-center rounded-full p-0',
+                    'eink-bordered bg-paperlight/60 flex h-7 w-7 items-center justify-center rounded-full p-0',
                     !included && 'opacity-40',
                   )}
                 >
@@ -128,7 +128,7 @@ const AnnotationsFilterPanel: React.FC<AnnotationsFilterPanelProps> = ({
       )}
       {showColors && (
         <div className='mt-3'>
-          <div className='text-base-content/60 mb-1.5 text-xs'>{_('Colors')}</div>
+          <div className='text-ink/60 mb-1.5 text-xs'>{_('Colors')}</div>
           <div className='flex flex-wrap items-center gap-1.5'>
             {colors.map((color) => {
               const included = !excludedColors.includes(color);
@@ -142,7 +142,7 @@ const AnnotationsFilterPanel: React.FC<AnnotationsFilterPanelProps> = ({
                   aria-label={label}
                   title={label}
                   onClick={() => onToggleColor(color)}
-                  className='eink-bordered btn btn-ghost h-6 min-h-6 w-6 rounded-full p-0'
+                  className='eink-bordered chrome-ghost h-6 min-h-6 w-6 rounded-full p-0'
                 >
                   <span
                     className='h-3.5 w-3.5 rounded-full border-2'
@@ -163,7 +163,7 @@ const AnnotationsFilterPanel: React.FC<AnnotationsFilterPanelProps> = ({
           type='button'
           disabled={!hasActiveFilters}
           onClick={onResetFilters}
-          className='eink-bordered btn btn-ghost h-7 min-h-7 rounded-full px-3 text-xs font-normal'
+          className='eink-bordered chrome-ghost h-7 min-h-7 rounded-full px-3 text-xs font-normal'
         >
           {_('Reset')}
         </button>
@@ -245,15 +245,15 @@ const AnnotationsToolbar: React.FC<AnnotationsToolbarProps> = ({
         <div
           data-testid='annotations-summary'
           aria-live='polite'
-          className='text-base-content/60 flex h-8 min-w-0 flex-1 items-center truncate text-xs tabular-nums'
+          className='text-ink/60 flex h-8 min-w-0 flex-1 items-center truncate text-xs tabular-nums'
         >
           {summary ?? kindLabels.join(' · ')}
         </div>
       )}
       {isSearchVisible && (
-        <div className='eink-bordered bg-base-100 flex h-8 min-w-0 flex-1 items-center rounded-lg'>
+        <div className='eink-bordered bg-paper flex h-8 min-w-0 flex-1 items-center rounded-[2px]'>
           <div className='ps-3'>
-            <FaSearch size={iconSize14} className='text-base-content/50' />
+            <FaSearch size={iconSize14} className='text-ink/50' />
           </div>
           <input
             ref={searchInputRef}
@@ -271,9 +271,9 @@ const AnnotationsToolbar: React.FC<AnnotationsToolbarProps> = ({
           <button
             onClick={onCloseSearch}
             aria-label={_('Clear')}
-            className='btn btn-ghost h-8 min-h-8 w-8 rounded-e-lg rounded-s-none p-0'
+            className='chrome-ghost h-8 min-h-8 w-8 rounded-e-[2px] rounded-s-none p-0'
           >
-            <FaTimes size={iconSize12} className='text-base-content/50' />
+            <FaTimes size={iconSize12} className='text-ink/50' />
           </button>
         </div>
       )}
@@ -283,13 +283,13 @@ const AnnotationsToolbar: React.FC<AnnotationsToolbarProps> = ({
         className='dropdown-bottom dropdown-end'
         menuClassName='no-triangle mt-1'
         buttonClassName={clsx(
-          'btn btn-ghost btn-circle h-6 min-h-6 w-6 p-0',
-          hasActiveFilters && 'bg-base-300',
+          'chrome-ghost rounded-full h-6 min-h-6 w-6 p-0',
+          hasActiveFilters && 'bg-paperlight',
         )}
         containerClassName='h-8 pt-1'
         toggleButton={
           <span className='relative inline-flex'>
-            <MdFilterList className='fill-base-content' />
+            <MdFilterList className='fill-ink' />
           </span>
         }
       >

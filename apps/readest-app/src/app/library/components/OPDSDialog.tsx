@@ -19,7 +19,7 @@ export function CatalogDialog({ onClose }: CatalogDialogProps) {
       bgClassName={'sm:!bg-black/75'}
       boxClassName='sm:min-w-[520px] sm:w-3/4 sm:h-[85%] sm:!max-w-screen-sm'
     >
-      <div className={clsx('bg-base-100 relative flex flex-col overflow-y-auto pb-4')}>
+      <div className={clsx('bg-paper relative flex flex-col overflow-y-auto pb-4')}>
         <CatalogManager />
       </div>
     </Dialog>

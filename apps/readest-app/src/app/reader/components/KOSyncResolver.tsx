@@ -26,7 +26,7 @@ const KOSyncConflictResolver: React.FC<KOSyncConflictResolverProps> = ({
 
   return (
     <Dialog isOpen={true} onClose={onClose} title={_('Sync Conflict')}>
-      <p className='text-base-content/70 mb-5 mt-1 px-1 text-center text-sm leading-relaxed'>
+      <p className='text-ink/70 mb-5 mt-1 px-1 text-center text-sm leading-relaxed'>
         {_('Reading progress on this device differs from "{{deviceName}}".', {
           deviceName: remoteDeviceName,
         })}
@@ -37,12 +37,12 @@ const KOSyncConflictResolver: React.FC<KOSyncConflictResolverProps> = ({
           onClick={onResolveWithLocal}
           className={clsx(
             'eink-bordered group',
-            'flex w-full items-start gap-3 rounded-xl text-left',
-            'border-base-200 bg-base-100 border px-4 py-3.5',
+            'flex w-full items-start gap-3 rounded-[2px] text-left',
+            'border-ink/15 bg-paper border px-4 py-3.5',
             'transition-colors duration-150',
-            'hover:border-base-300 hover:bg-base-200/60',
-            'active:bg-base-200/80',
-            'focus-visible:ring-base-content/15 focus-visible:outline-none focus-visible:ring-2',
+            'hover:border-ink/20 hover:bg-paperlight/60',
+            'active:bg-paperlight/80',
+            'focus-visible:ring-stamp/15 focus-visible:outline-none focus-visible:ring-2',
           )}
         >
           <div className='flex min-w-0 flex-1 flex-col gap-1'>
@@ -50,7 +50,7 @@ const KOSyncConflictResolver: React.FC<KOSyncConflictResolverProps> = ({
                 `as='span'` because this lives inside a button, not as a
                 document heading; opacity override expresses the
                 "secondary on this surface" relationship. */}
-            <SectionTitle as='span' className='!text-base-content/55 !ps-0'>
+            <SectionTitle as='span' className='!text-ink/55 !ps-0'>
               {_('This device')}
             </SectionTitle>
             <span className='line-clamp-2 text-sm font-medium leading-snug'>
@@ -62,10 +62,11 @@ const KOSyncConflictResolver: React.FC<KOSyncConflictResolverProps> = ({
           type='button'
           onClick={onResolveWithRemote}
           className={clsx(
-            'btn btn-primary group',
+            'bg-stamp text-paperlight group',
             'h-auto min-h-0 w-full justify-start gap-3',
-            'rounded-xl border-0 px-4 py-3.5 text-left font-normal normal-case',
-            'focus-visible:ring-primary/40 focus-visible:outline-none focus-visible:ring-2',
+            'rounded-[2px] border-0 px-4 py-3.5 text-left font-normal normal-case',
+            'transition-colors duration-150 hover:bg-stamp/90',
+            'focus-visible:ring-stamp/40 focus-visible:outline-none focus-visible:ring-2',
           )}
         >
           <div className='flex min-w-0 flex-1 flex-col items-start gap-1'>

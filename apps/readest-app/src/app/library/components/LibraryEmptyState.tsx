@@ -20,13 +20,13 @@ const LibraryEmptyState: React.FC<LibraryEmptyStateProps> = ({ onImport }) => {
   const isMobile = appService?.isMobile ?? false;
 
   return (
-    <div className='hero-content text-neutral-content text-center'>
+    <div className='hero-content text-paperlight text-center'>
       <div className='flex max-w-md flex-col items-center'>
-        <PiBooks aria-hidden className='text-base-content/60 mb-10 size-16' />
+        <PiBooks aria-hidden className='text-ink/60 mb-10 size-16' />
         <h1 className='mb-5 text-balance text-4xl font-semibold leading-tight tracking-tight'>
           {_('Start your library')}
         </h1>
-        <p className='text-base-content/70 mb-12 text-pretty text-base leading-relaxed'>
+        <p className='text-ink/70 mb-12 text-pretty text-base leading-relaxed'>
           {isMobile
             ? _('Pick a book from your device to add it to your library.')
             : _('Drop a book anywhere on this window, or pick one from your computer.')}
@@ -35,7 +35,7 @@ const LibraryEmptyState: React.FC<LibraryEmptyStateProps> = ({ onImport }) => {
           <button
             type='button'
             aria-haspopup='menu'
-            className='btn btn-primary h-11 min-h-11 rounded-lg'
+            className='stamp-btn h-11 min-h-11 rounded-[2px]'
             onClick={(event) => onImport(event.currentTarget)}
           >
             {_('Import Books')}
@@ -46,9 +46,9 @@ const LibraryEmptyState: React.FC<LibraryEmptyStateProps> = ({ onImport }) => {
             <button
               type='button'
               className={clsx(
-                'text-base-content/70 hover:text-base-content mt-1 py-2 text-sm font-medium',
+                'text-ink/70 hover:text-ink mt-1 py-2 text-sm font-medium',
                 'underline underline-offset-4',
-                'focus-visible:text-base-content focus-visible:outline-none',
+                'focus-visible:text-ink focus-visible:outline-none',
               )}
               onClick={() => navigateToLogin(router)}
             >

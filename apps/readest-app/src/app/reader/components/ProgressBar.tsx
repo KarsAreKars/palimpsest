@@ -157,7 +157,7 @@ const ProgressBar: React.FC<ProgressBarProps> = ({
     viewSettings.scrolled &&
     !isVertical &&
     !stickyBarActive &&
-    'progress-pill eink-bordered pointer-events-auto cursor-pointer rounded-md bg-base-100/85 px-1.5';
+    'progress-pill eink-bordered pointer-events-auto cursor-pointer rounded-[2px] bg-paper/85 px-1.5';
   const showStatusInfo = hasTimeInfo || hasBatteryInfo;
 
   return (
@@ -173,7 +173,7 @@ const ProgressBar: React.FC<ProgressBarProps> = ({
         // takes over from the blend whenever it is present.
         bookData?.isFixedLayout && !isEink && !pillClass
           ? 'text-white/75 mix-blend-difference'
-          : 'text-base-content',
+          : 'text-ink',
         isVertical ? 'writing-vertical-rl' : 'w-full',
       )}
       aria-label={[
@@ -288,7 +288,7 @@ const ProgressBar: React.FC<ProgressBarProps> = ({
 
         <div
           className={clsx(
-            'progress-info items-center text-end tabular-nums truncate',
+            'items-center text-end tabular-nums truncate',
             !stickyBarActive && 'flex-1 min-w-0',
           )}
         >

@@ -370,7 +370,7 @@ const SettingsMenu: React.FC<SettingsMenuProps> = ({ onPullLibrary, setIsDropdow
             {readestEnabled ? (
               <button
                 onClick={handleUserProfile}
-                className='hover:bg-base-300 w-full rounded-md'
+                className='hover:bg-paperlight w-full rounded-[2px]'
                 style={{
                   paddingInlineStart: `${iconSize}px`,
                 }}
@@ -399,7 +399,7 @@ const SettingsMenu: React.FC<SettingsMenuProps> = ({ onPullLibrary, setIsDropdow
           onClick={toggleOpenLastBooks}
         />
       )}
-      <hr aria-hidden='true' className='border-base-200 my-1' />
+      <hr aria-hidden='true' className='border-ink/15 my-1' />
       {appService?.hasWindow && (
         <MenuItem
           label={_('Open Book in New Window')}
@@ -432,7 +432,7 @@ const SettingsMenu: React.FC<SettingsMenuProps> = ({ onPullLibrary, setIsDropdow
         onClick={cycleThemeMode}
       />
       <MenuItem label={_('Settings')} Icon={PiGear} onClick={openSettingsDialog} />
-      <hr aria-hidden='true' className='border-base-200 my-1' />
+      <hr aria-hidden='true' className='border-ink/15 my-1' />
       <MenuItem label={_('Advanced Settings')}>
         <ul className='ms-0 flex flex-col ps-0 before:hidden'>
           <MenuItem label={_('Backup & Restore')} onClick={handleBackupRestore} />
@@ -484,7 +484,7 @@ const SettingsMenu: React.FC<SettingsMenuProps> = ({ onPullLibrary, setIsDropdow
           )}
         </ul>
       </MenuItem>
-      <hr aria-hidden='true' className='border-base-200 my-1' />
+      <hr aria-hidden='true' className='border-ink/15 my-1' />
       {user && userProfilePlan === 'free' && (
         <MenuItem label={_('Upgrade to Readest Premium')} onClick={handleUpgrade} />
       )}

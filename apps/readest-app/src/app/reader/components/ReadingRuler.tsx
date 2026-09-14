@@ -1115,7 +1115,7 @@ const ReadingRuler: React.FC<ReadingRulerProps> = ({
       >
         {/* Left overlay */}
         <div
-          className='bg-base-100 pointer-events-none absolute bottom-0 left-0 top-0'
+          className='bg-paper pointer-events-none absolute bottom-0 left-0 top-0'
           style={{
             width: `${rulerStartPx}px`,
             opacity: fadeOpacity,
@@ -1125,7 +1125,7 @@ const ReadingRuler: React.FC<ReadingRulerProps> = ({
 
         {/* Right overlay */}
         <div
-          className='bg-base-100 pointer-events-none absolute bottom-0 right-0 top-0'
+          className='bg-paper pointer-events-none absolute bottom-0 right-0 top-0'
           style={{
             width: `${containerSize.width - rulerEndPx}px`,
             opacity: fadeOpacity,
@@ -1136,8 +1136,8 @@ const ReadingRuler: React.FC<ReadingRulerProps> = ({
         {/* Vertical ruler */}
         <div
           className={clsx(
-            'ruler pointer-events-none absolute bottom-0 top-0 my-2 rounded-2xl',
-            color === 'transparent' ? 'border-base-content/55 border' : '',
+            'ruler pointer-events-none absolute bottom-0 top-0 my-2 rounded-[2px]',
+            color === 'transparent' ? 'border-ink/55 border' : '',
           )}
           style={{
             left: `${renderPosPct}%`,
@@ -1194,17 +1194,17 @@ const ReadingRuler: React.FC<ReadingRulerProps> = ({
       >
         {/* Top dim */}
         <div
-          className='bg-base-100 pointer-events-none absolute left-0 right-0 top-0'
+          className='bg-paper pointer-events-none absolute left-0 right-0 top-0'
           style={{ height: `${bandTop}px`, opacity: fadeOpacity, transition: dimTransition }}
         />
         {/* Bottom dim */}
         <div
-          className='bg-base-100 pointer-events-none absolute bottom-0 left-0 right-0'
+          className='bg-paper pointer-events-none absolute bottom-0 left-0 right-0'
           style={{ height: `${H - bandBottom}px`, opacity: fadeOpacity, transition: dimTransition }}
         />
         {/* Left dim (covers the inactive column to the left of the band) */}
         <div
-          className='bg-base-100 pointer-events-none absolute left-0'
+          className='bg-paper pointer-events-none absolute left-0'
           style={{
             top: `${bandTop}px`,
             height: `${bandHeight}px`,
@@ -1215,7 +1215,7 @@ const ReadingRuler: React.FC<ReadingRulerProps> = ({
         />
         {/* Right dim (covers the inactive column to the right of the band) */}
         <div
-          className='bg-base-100 pointer-events-none absolute right-0'
+          className='bg-paper pointer-events-none absolute right-0'
           style={{
             top: `${bandTop}px`,
             height: `${bandHeight}px`,
@@ -1228,8 +1228,8 @@ const ReadingRuler: React.FC<ReadingRulerProps> = ({
         {/* Column band */}
         <div
           className={clsx(
-            'ruler pointer-events-none absolute rounded-2xl',
-            color === 'transparent' ? 'border-base-content/55 border' : '',
+            'ruler pointer-events-none absolute rounded-[2px]',
+            color === 'transparent' ? 'border-ink/55 border' : '',
           )}
           style={{
             left: `${bandLeft}px`,
@@ -1264,7 +1264,7 @@ const ReadingRuler: React.FC<ReadingRulerProps> = ({
     >
       {/* Top overlay */}
       <div
-        className='bg-base-100 pointer-events-none absolute left-0 right-0 top-0'
+        className='bg-paper pointer-events-none absolute left-0 right-0 top-0'
         style={{
           height: `${rulerStartPx}px`,
           opacity: fadeOpacity,
@@ -1274,7 +1274,7 @@ const ReadingRuler: React.FC<ReadingRulerProps> = ({
 
       {/* Bottom overlay */}
       <div
-        className='bg-base-100 pointer-events-none absolute bottom-0 left-0 right-0'
+        className='bg-paper pointer-events-none absolute bottom-0 left-0 right-0'
         style={{
           height: `${containerSize.height - rulerEndPx}px`,
           opacity: fadeOpacity,
@@ -1285,8 +1285,8 @@ const ReadingRuler: React.FC<ReadingRulerProps> = ({
       {/* Horizontal ruler */}
       <div
         className={clsx(
-          'ruler pointer-events-none absolute left-0 right-0 mx-2 rounded-2xl',
-          color === 'transparent' ? 'border-base-content/55 border' : '',
+          'ruler pointer-events-none absolute left-0 right-0 mx-2 rounded-[2px]',
+          color === 'transparent' ? 'border-ink/55 border' : '',
         )}
         style={{
           top: `${currentPosition}%`,

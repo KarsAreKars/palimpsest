@@ -59,12 +59,12 @@ const mappingRecord = (mappings: AudiobookChapterMapping[]): Record<string, stri
 const SurfaceHeader = ({ title, description }: { title: string; description: string }) => (
   <div className='mb-5'>
     <h2 className='mb-1.5 text-lg font-semibold tracking-tight'>{title}</h2>
-    <p className='text-neutral-content leading-relaxed'>{description}</p>
+    <p className='text-paperlight leading-relaxed'>{description}</p>
   </div>
 );
 
 const WizardActions = ({ children }: { children: ReactNode }) => (
-  <div className='border-base-200 bg-base-100 sticky bottom-0 z-10 -mx-6 mt-5 flex justify-end gap-2 border-t px-6 py-4 sm:-mx-8 sm:px-8'>
+  <div className='border-ink/15 bg-paper sticky bottom-0 z-10 -mx-6 mt-5 flex justify-end gap-2 border-t px-6 py-4 sm:-mx-8 sm:px-8'>
     {children}
   </div>
 );
@@ -351,14 +351,14 @@ const AudiobookPairingDialog = ({ bookKey, bookDoc, onClose }: AudiobookPairingD
           title={_('Paired Audiobook')}
           description={_('Manage the local recording paired with this ebook.')}
         />
-        <div className='eink-bordered border-base-200 bg-base-100 mb-5 rounded-lg border'>
+        <div className='eink-bordered border-ink/15 bg-paper mb-5 rounded-[2px] border'>
           <div className='flex min-h-14 items-center gap-3 px-4 py-3'>
-            <span className='bg-base-200 flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full'>
+            <span className='bg-paperlight flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full'>
               <MdAudiotrack className='h-5 w-5' />
             </span>
             <div className='min-w-0 flex-1'>
               <p className='truncate font-medium'>{association.title || book?.title}</p>
-              <p className='text-neutral-content text-[0.85em]'>
+              <p className='text-paperlight text-[0.85em]'>
                 {_('{{files}} files · {{chapters}} audio chapters · {{duration}}', {
                   files: association.files.length,
                   chapters: association.chapters.length,
@@ -369,20 +369,20 @@ const AudiobookPairingDialog = ({ bookKey, bookDoc, onClose }: AudiobookPairingD
           </div>
         </div>
         {confirmRemove ? (
-          <div className='eink-bordered border-error/50 bg-base-100 mb-5 rounded-lg border p-4'>
+          <div className='eink-bordered border-stamp/50 bg-paper mb-5 rounded-[2px] border p-4'>
             <p className='font-medium'>{_('Remove audiobook files from this device?')}</p>
-            <p className='text-neutral-content mt-1 text-[0.85em]'>
+            <p className='text-paperlight mt-1 text-[0.85em]'>
               {_('The ebook, notes, and reading progress will be kept.')}
             </p>
             <div className='mt-4 flex justify-end gap-2'>
               <button
-                className='btn btn-ghost'
+                className='chrome-ghost'
                 disabled={busy}
                 onClick={() => setConfirmRemove(false)}
               >
                 {_('Cancel')}
               </button>
-              <button className='btn btn-error' disabled={busy} onClick={removePairing}>
+              <button className='stamp-btn' disabled={busy} onClick={removePairing}>
                 {_('Remove')}
               </button>
             </div>
@@ -390,17 +390,17 @@ const AudiobookPairingDialog = ({ bookKey, bookDoc, onClose }: AudiobookPairingD
         ) : (
           <div className='flex flex-wrap justify-end gap-2'>
             <button
-              className='btn btn-ghost text-error'
+              className='chrome-ghost text-stamp'
               disabled={busy}
               onClick={() => setConfirmRemove(true)}
             >
               <MdDeleteOutline className='h-5 w-5' />
               {_('Remove')}
             </button>
-            <button className='btn btn-ghost' disabled={busy} onClick={() => setStep('select')}>
+            <button className='chrome-ghost' disabled={busy} onClick={() => setStep('select')}>
               {_('Replace Audio')}
             </button>
-            <button className='btn btn-contrast' disabled={busy} onClick={editExistingMapping}>
+            <button className='ink-btn' disabled={busy} onClick={editExistingMapping}>
               {_('Edit Mapping')}
             </button>
           </div>
@@ -425,20 +425,20 @@ const AudiobookPairingDialog = ({ bookKey, bookDoc, onClose }: AudiobookPairingD
         disabled={busy}
         className={clsx(
           'eink-bordered group flex min-h-28 w-full flex-col items-center justify-center gap-3',
-          'border-base-200 bg-base-100 rounded-lg border px-6 py-5',
-          'hover:border-base-300 hover:bg-base-200/60 transition-colors duration-150',
-          'focus-visible:ring-base-content/15 focus-visible:outline-none focus-visible:ring-2',
+          'border-ink/15 bg-paper rounded-[2px] border px-6 py-5',
+          'hover:border-ink/20 hover:bg-paperlight/60 transition-colors duration-150',
+          'focus-visible:ring-stamp/15 focus-visible:outline-none focus-visible:ring-2',
         )}
       >
-        <span className='bg-base-200 group-hover:bg-base-content group-hover:text-base-100 flex h-10 w-10 items-center justify-center rounded-full transition-colors duration-150'>
+        <span className='bg-paperlight group-hover:bg-ink group-hover:text-ink flex h-10 w-10 items-center justify-center rounded-full transition-colors duration-150'>
           <MdFolderOpen className='h-6 w-6' />
         </span>
         <span className='font-medium'>{_('Select Audio Files')}</span>
-        <span className='text-neutral-content text-[0.85em]'>MP3 · M4A · M4B</span>
+        <span className='text-paperlight text-[0.85em]'>MP3 · M4A · M4B</span>
       </button>
       {association && (
         <div className='mt-5 flex justify-start'>
-          <button className='btn btn-ghost' disabled={busy} onClick={() => setStep('summary')}>
+          <button className='chrome-ghost' disabled={busy} onClick={() => setStep('summary')}>
             {_('Back')}
           </button>
         </div>
@@ -455,15 +455,15 @@ const AudiobookPairingDialog = ({ bookKey, bookDoc, onClose }: AudiobookPairingD
           'Choose one known match. Readest will map the remaining chapters sequentially from it.',
         )}
       />
-      <div className='eink-bordered border-base-200 bg-base-100 divide-base-200 mb-5 rounded-lg border divide-y'>
+      <div className='eink-bordered border-ink/15 bg-paper divide-ink/10 mb-5 rounded-[2px] border divide-y'>
         <div className='flex min-h-16 flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center sm:justify-between'>
           <label className='font-medium' htmlFor='audiobook-ebook-anchor'>
             {_('Ebook chapter')}
           </label>
-          <div className='hover:bg-base-200/60 focus-within:bg-base-200/60 flex w-full items-center rounded-md sm:max-w-[60%]'>
+          <div className='hover:bg-paperlight/60 focus-within:bg-paperlight/60 flex w-full items-center rounded-[2px] sm:max-w-[60%]'>
             <select
               id='audiobook-ebook-anchor'
-              className='select h-9 min-w-0 flex-1 cursor-pointer !appearance-none truncate !border-0 !bg-transparent !bg-none !pe-1 !ps-2 text-end focus:!border-0 focus:!shadow-none focus:!outline-none focus:!ring-0'
+              className='chrome-select h-9 min-w-0 flex-1 cursor-pointer !appearance-none truncate !border-0 !bg-transparent !bg-none !pe-1 !ps-2 text-end focus:!border-0 focus:!shadow-none focus:!outline-none focus:!ring-0'
               value={selectedEbookChapterId}
               onChange={(event) => setSelectedEbookChapterId(event.target.value)}
             >
@@ -475,7 +475,7 @@ const AudiobookPairingDialog = ({ bookKey, bookDoc, onClose }: AudiobookPairingD
             </select>
             <MdArrowDropDown
               aria-hidden='true'
-              className='text-base-content/55 pointer-events-none h-5 w-5 flex-shrink-0'
+              className='text-ink/55 pointer-events-none h-5 w-5 flex-shrink-0'
             />
           </div>
         </div>
@@ -484,10 +484,10 @@ const AudiobookPairingDialog = ({ bookKey, bookDoc, onClose }: AudiobookPairingD
             {_('Audio chapter or track')}
           </label>
           <div className='flex w-full items-center sm:max-w-[60%]'>
-            <div className='hover:bg-base-200/60 focus-within:bg-base-200/60 flex min-w-0 flex-1 items-center rounded-md'>
+            <div className='hover:bg-paperlight/60 focus-within:bg-paperlight/60 flex min-w-0 flex-1 items-center rounded-[2px]'>
               <select
                 id='audiobook-audio-anchor'
-                className='select h-9 min-w-0 flex-1 cursor-pointer !appearance-none truncate !border-0 !bg-transparent !bg-none !pe-1 !ps-2 text-end focus:!border-0 focus:!shadow-none focus:!outline-none focus:!ring-0'
+                className='chrome-select h-9 min-w-0 flex-1 cursor-pointer !appearance-none truncate !border-0 !bg-transparent !bg-none !pe-1 !ps-2 text-end focus:!border-0 focus:!shadow-none focus:!outline-none focus:!ring-0'
                 value={selectedAudioChapterId}
                 onChange={(event) => setSelectedAudioChapterId(event.target.value)}
               >
@@ -499,13 +499,13 @@ const AudiobookPairingDialog = ({ bookKey, bookDoc, onClose }: AudiobookPairingD
               </select>
               <MdArrowDropDown
                 aria-hidden='true'
-                className='text-base-content/55 pointer-events-none h-5 w-5 flex-shrink-0'
+                className='text-ink/55 pointer-events-none h-5 w-5 flex-shrink-0'
               />
             </div>
             {audioChapterById.get(selectedAudioChapterId) && (
               <button
                 type='button'
-                className='btn btn-ghost btn-sm btn-square flex-shrink-0'
+                className='chrome-ghost chrome-ghost-sm flex-shrink-0'
                 aria-label={
                   previewingAudioChapterId === selectedAudioChapterId
                     ? _('Stop audio preview')
@@ -524,7 +524,7 @@ const AudiobookPairingDialog = ({ bookKey, bookDoc, onClose }: AudiobookPairingD
         </div>
       </div>
       {ebookChapters.length !== importedAudioChapters.length && (
-        <p className='bg-base-200/60 text-neutral-content mb-5 rounded-lg px-4 py-3 text-[0.85em]'>
+        <p className='bg-paperlight/60 text-paperlight mb-5 rounded-[2px] px-4 py-3 text-[0.85em]'>
           {_(
             '{{ebook}} ebook chapters and {{audio}} audio chapters were found. Unmatched items will stay unpaired.',
             {
@@ -535,11 +535,11 @@ const AudiobookPairingDialog = ({ bookKey, bookDoc, onClose }: AudiobookPairingD
         </p>
       )}
       <WizardActions>
-        <button className='btn btn-ghost' disabled={busy} onClick={() => setStep('select')}>
+        <button className='chrome-ghost' disabled={busy} onClick={() => setStep('select')}>
           {_('Back')}
         </button>
         <button
-          className='btn btn-contrast'
+          className='ink-btn'
           disabled={!selectedEbookChapterId || !selectedAudioChapterId || busy}
           onClick={buildAutomaticMapping}
         >
@@ -559,7 +559,7 @@ const AudiobookPairingDialog = ({ bookKey, bookDoc, onClose }: AudiobookPairingD
         )}
       />
       {(unmappedEbookCount > 0 || unusedAudioCount > 0) && (
-        <p className='bg-base-200/60 text-neutral-content mb-4 rounded-lg px-4 py-3 text-[0.85em]'>
+        <p className='bg-paperlight/60 text-paperlight mb-4 rounded-[2px] px-4 py-3 text-[0.85em]'>
           {_(
             '{{mapped}} mapped · {{unmapped}} ebook chapters without audio · {{unused}} unused audio chapters',
             {
@@ -570,7 +570,7 @@ const AudiobookPairingDialog = ({ bookKey, bookDoc, onClose }: AudiobookPairingD
           )}
         </p>
       )}
-      <div className='eink-bordered border-base-200 bg-base-100 divide-base-200 mb-5 rounded-lg border divide-y'>
+      <div className='eink-bordered border-ink/15 bg-paper divide-ink/10 mb-5 rounded-[2px] border divide-y'>
         {ebookChapters.map((chapter) => {
           const mappedId = mappings[chapter.id] ?? '';
           const mappedAudio = audioChapterById.get(mappedId);
@@ -590,7 +590,7 @@ const AudiobookPairingDialog = ({ bookKey, bookDoc, onClose }: AudiobookPairingD
                 <div className='flex min-h-10 items-center'>
                   <button
                     type='button'
-                    className='hover:bg-base-200 flex min-w-0 flex-1 items-center rounded-md px-2 py-2 text-start'
+                    className='hover:bg-paperlight flex min-w-0 flex-1 items-center rounded-[2px] px-2 py-2 text-start'
                     aria-label={_('Audio for {{chapter}}', { chapter: chapter.label })}
                     aria-haspopup='listbox'
                     aria-expanded={pickerOpen}
@@ -610,7 +610,7 @@ const AudiobookPairingDialog = ({ bookKey, bookDoc, onClose }: AudiobookPairingD
                   {mappedAudio && (
                     <button
                       type='button'
-                      className='btn btn-ghost btn-sm btn-square flex-shrink-0'
+                      className='chrome-ghost chrome-ghost-sm flex-shrink-0'
                       aria-label={
                         previewingAudioChapterId === mappedAudio.id
                           ? _('Stop previewing {{chapter}}', { chapter: mappedAudio.label })
@@ -646,14 +646,14 @@ const AudiobookPairingDialog = ({ bookKey, bookDoc, onClose }: AudiobookPairingD
       </div>
       <WizardActions>
         <button
-          className='btn btn-ghost'
+          className='chrome-ghost'
           disabled={busy}
           onClick={() => setStep(preparedFiles.length ? 'anchor' : 'summary')}
         >
           {_('Back')}
         </button>
         <button
-          className='btn btn-contrast'
+          className='ink-btn'
           disabled={mappedCount === 0 || busy}
           onClick={savePairing}
         >
@@ -677,7 +677,7 @@ const AudiobookPairingDialog = ({ bookKey, bookDoc, onClose }: AudiobookPairingD
       <div className='pb-6 pt-2'>
         {busyMessage && (
           <div
-            className='bg-base-200/60 mb-4 flex items-center gap-3 rounded-lg px-4 py-3'
+            className='bg-paperlight/60 mb-4 flex items-center gap-3 rounded-[2px] px-4 py-3'
             role='status'
           >
             <span className='loading loading-spinner loading-sm' />
@@ -686,7 +686,7 @@ const AudiobookPairingDialog = ({ bookKey, bookDoc, onClose }: AudiobookPairingD
         )}
         {error && (
           <div
-            className='eink-bordered border-error/50 bg-base-100 text-error mb-4 rounded-lg border px-4 py-3'
+            className='eink-bordered border-stamp/50 bg-paper text-stamp mb-4 rounded-[2px] border px-4 py-3'
             role='alert'
           >
             {error}

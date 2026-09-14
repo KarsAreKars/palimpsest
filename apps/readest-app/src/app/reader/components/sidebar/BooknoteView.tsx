@@ -371,7 +371,7 @@ const BooknoteView: React.FC<{
   const isEmpty = sortedGroups.length === 0;
 
   return (
-    <div className='booknote-list rounded' role='tree'>
+    <div className='booknote-list rounded-[2px]' role='tree'>
       {type === 'annotation' && (
         <AnnotationsToolbar
           filterKind={filterKind}
@@ -414,7 +414,7 @@ const BooknoteView: React.FC<{
                 type === 'bookmark' ? (
                   <button
                     type='button'
-                    className='btn btn-contrast h-9 min-h-0 max-w-full flex-nowrap gap-1.5 rounded-lg px-4 text-sm font-medium'
+                    className='ink-btn h-9 min-h-0 max-w-full flex-nowrap gap-1.5 rounded-[2px] px-4 text-sm font-medium'
                     onClick={() => eventDispatcher.dispatch('toggle-bookmark', { bookKey })}
                   >
                     <RiBookmarkLine className='shrink-0 text-base' />

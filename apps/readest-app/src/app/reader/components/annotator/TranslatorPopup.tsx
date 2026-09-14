@@ -168,7 +168,7 @@ const TranslatorPopup: React.FC<TranslatorPopupProps> = ({
           <p className='text-base'>{text}</p>
         </div>
 
-        <div className='mx-4 flex-shrink-0 border-t border-base-content/20'></div>
+        <div className='mx-4 flex-shrink-0 border-t border-ink/20'></div>
 
         <div className='overflow-y-auto p-4 font-sans'>
           <div className='mb-2 flex items-center justify-between'>
@@ -185,7 +185,7 @@ const TranslatorPopup: React.FC<TranslatorPopupProps> = ({
             />
           </div>
           {loading ? (
-            <p className='text-base-content/80 italic'>{_('Loading...')}</p>
+            <p className='text-ink/80 italic'>{_('Loading...')}</p>
           ) : (
             <div>
               {error ? (
@@ -198,8 +198,8 @@ const TranslatorPopup: React.FC<TranslatorPopupProps> = ({
         </div>
         {/* No top border or tinted fill: the footer reads as part of the popup
             surface, so its provider select can sit flush on the same color. */}
-        <div className='flex shrink-0 items-center justify-between gap-2 rounded-b-lg px-4 py-2'>
-          <div className='line-clamp-1 text-xs text-base-content/60'>
+        <div className='flex shrink-0 items-center justify-between gap-2 rounded-b-[2px] px-4 py-2'>
+          <div className='line-clamp-1 text-xs text-ink/60'>
             {provider &&
               !loading &&
               !error &&

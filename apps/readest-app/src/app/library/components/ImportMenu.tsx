@@ -64,7 +64,7 @@ const ImportMenu: React.FC<ImportMenuProps> = ({
   return (
     <Menu
       className={clsx(
-        'dropdown-content bg-base-100 rounded-box !relative z-[1] mt-3 p-2 shadow',
+        'dropdown-content bg-paper rounded-box !relative z-[1] mt-3 p-2 shadow',
         menuClassName,
       )}
       onCancel={() => setIsDropdownOpen?.(false)}

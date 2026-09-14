@@ -14,13 +14,13 @@ const AutoscrollIndicator: React.FC<{ anchor: AutoscrollAnchor }> = ({ anchor })
       width='30'
       height='30'
       viewBox='0 0 30 30'
-      className={clsx('text-base-content', anchor.axis === 'x' && 'rotate-90')}
+      className={clsx('text-ink', anchor.axis === 'x' && 'rotate-90')}
     >
       <circle
         cx='15'
         cy='15'
         r='13.5'
-        className='fill-base-100'
+        className='fill-ink'
         fillOpacity='0.85'
         stroke='currentColor'
         strokeWidth='1'

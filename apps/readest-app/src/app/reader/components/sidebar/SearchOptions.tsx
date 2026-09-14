@@ -26,18 +26,18 @@ const Option: React.FC<OptionProps> = ({ label, isActive, onClick, disabled, cap
   <button
     disabled={disabled}
     className={clsx(
-      'hover:bg-base-300 flex w-full items-center justify-between rounded-md p-2',
+      'hover:bg-paperlight flex w-full items-center justify-between rounded-[2px] p-2',
       disabled && 'cursor-not-allowed opacity-40 hover:bg-transparent',
     )}
     onClick={disabled ? undefined : onClick}
   >
     <div className='flex items-center'>
       <span style={{ minWidth: `${useDefaultIconSize()}px` }}>
-        {isActive && <MdCheck className='text-base-content' />}
+        {isActive && <MdCheck className='text-ink' />}
       </span>
       <span className='ml-2 whitespace-nowrap'>{label}</span>
     </div>
-    {caption && <span className='text-base-content/50 ml-2 text-xs'>{caption}</span>}
+    {caption && <span className='text-ink/50 ml-2 text-xs'>{caption}</span>}
   </button>
 );
 
@@ -72,13 +72,13 @@ const SearchOptions: React.FC<SearchOptionsProps> = ({
   return (
     <div
       className={clsx(
-        'search-options dropdown-content border-base-200 z-20 border shadow-2xl',
+        'search-options dropdown-content border-ink/15 z-20 border shadow-2xl',
         // No fixed width: a device text scale (Android system font size) scales
         // every font-size but not a `w-56` box, so labels wrapped onto a second
         // line. `.dropdown-content` sizes the box to its content and caps it at
         // the viewport; the max-height keeps a tall menu scrollable in landscape.
         'max-h-[calc(100vh-96px)] overflow-y-auto',
-        isEink ? 'bordercolor-content border-base-content !bg-base-100 border' : '',
+        isEink ? 'bordercolor-content border-ink !bg-paper border' : '',
         menuClassName,
       )}
     >
@@ -92,7 +92,7 @@ const SearchOptions: React.FC<SearchOptionsProps> = ({
         isActive={searchConfig.scope === 'section'}
         onClick={() => updateConfig('scope', 'section')}
       />
-      <hr aria-hidden='true' className='border-base-200 my-1' />
+      <hr aria-hidden='true' className='border-ink/15 my-1' />
       <Option
         label={_('Contains')}
         isActive={mode === 'contains'}
@@ -115,16 +115,16 @@ const SearchOptions: React.FC<SearchOptionsProps> = ({
       />
       {mode === 'nearby-words' && (
         <div className='px-2 py-1' style={{ paddingInlineStart: labelIndent }}>
-          <div className='text-base-content/70 mb-1 text-xs'>{_('Within N words')}</div>
+          <div className='text-ink/70 mb-1 text-xs'>{_('Within N words')}</div>
           <div className='flex gap-1'>
             {NEARBY_WORDS_PRESETS.map((n) => (
               <button
                 key={n}
                 className={clsx(
-                  'rounded-md px-2 py-1 text-xs',
+                  'rounded-[2px] px-2 py-1 text-xs',
                   (searchConfig.nearbyWords ?? DEFAULT_NEARBY_WORDS) === n
-                    ? 'bg-base-300 font-bold'
-                    : 'hover:bg-base-300',
+                    ? 'bg-paperlight font-bold'
+                    : 'hover:bg-paperlight',
                 )}
                 onClick={() => updateConfig('nearbyWords', n)}
               >
@@ -134,7 +134,7 @@ const SearchOptions: React.FC<SearchOptionsProps> = ({
           </div>
         </div>
       )}
-      <hr aria-hidden='true' className='border-base-200 my-1' />
+      <hr aria-hidden='true' className='border-ink/15 my-1' />
       <Option
         label={_('Match Case')}
         isActive={searchConfig.matchCase}

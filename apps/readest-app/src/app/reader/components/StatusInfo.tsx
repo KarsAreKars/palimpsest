@@ -77,7 +77,7 @@ const StatusInfo: React.FC<StatusInfoProps> = ({
                 // a mid tone in any theme, which themed text reads against. In
                 // eink the fill is opaque base-content, so the number is
                 // knocked out of it in the page color instead.
-                isEink ? 'text-base-100' : 'text-base-content',
+                isEink ? 'text-ink' : 'text-ink',
                 isVertical && '[writing-mode:horizontal-tb]',
               )}
               style={{ left: '11px', transform: 'translateX(-50%)' }}

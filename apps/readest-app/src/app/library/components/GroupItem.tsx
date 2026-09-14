@@ -103,8 +103,8 @@ const GroupItem: React.FC<GroupItemProps> = ({ mode, group, isSelectMode, groupS
     <div className={clsx('group-item', appService?.hasContextMenu ? 'cursor-pointer' : '')}>
       <div
         className={clsx(
-          'groupitem-main relative flex overflow-hidden rounded',
-          mode === 'grid' && 'bg-base-100 aspect-[28/41] items-center justify-center shadow-md',
+          'groupitem-main relative flex overflow-hidden rounded-[2px]',
+          mode === 'grid' && 'bg-paper aspect-[28/41] items-center justify-center shadow-md',
           mode === 'list' && 'items-center justify-start gap-4 py-2',
         )}
       >
@@ -165,10 +165,10 @@ const GroupItem: React.FC<GroupItemProps> = ({ mode, group, isSelectMode, groupS
                 onPointerLeave={(e) => stopEvent(e)}
                 className='absolute left-2 top-1/2 -translate-y-1/2 transition-all duration-200 hover:scale-110'
               >
-                <div className='bg-base-100 border-base-content/10 hover:border-base-content/30 rounded-full border p-1 shadow-sm transition-colors duration-200'>
+                <div className='bg-paper border-ink/10 hover:border-ink/30 rounded-full border p-1 shadow-sm transition-colors duration-200'>
                   <MdChevronLeft
                     size={16}
-                    className='text-base-content/50 hover:text-base-content/70'
+                    className='text-ink/50 hover:text-ink/70'
                   />
                 </div>
               </button>
@@ -187,10 +187,10 @@ const GroupItem: React.FC<GroupItemProps> = ({ mode, group, isSelectMode, groupS
                 onPointerLeave={(e) => stopEvent(e)}
                 className='absolute right-2 top-1/2 -translate-y-1/2 transition-all duration-200 hover:scale-110'
               >
-                <div className='bg-base-100 border-base-content/10 hover:border-base-content/30 rounded-full border p-1 shadow-sm transition-colors duration-200'>
+                <div className='bg-paper border-ink/10 hover:border-ink/30 rounded-full border p-1 shadow-sm transition-colors duration-200'>
                   <MdChevronRight
                     size={16}
-                    className='text-base-content/50 hover:text-base-content/70'
+                    className='text-ink/50 hover:text-ink/70'
                   />
                 </div>
               </button>
@@ -198,7 +198,7 @@ const GroupItem: React.FC<GroupItemProps> = ({ mode, group, isSelectMode, groupS
           )}
         </div>
         {mode === 'list' && (
-          <div className='text-base-content/75 w-28 min-w-24 max-w-40 overflow-hidden text-ellipsis text-base font-semibold'>
+          <div className='text-ink/75 w-28 min-w-24 max-w-40 overflow-hidden text-ellipsis text-base font-semibold'>
             {group.displayName}
           </div>
         )}

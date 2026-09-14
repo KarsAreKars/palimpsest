@@ -364,23 +364,23 @@ const ImportFromFolderDialog: React.FC<ImportFromFolderDialogProps> = ({
             keyboard navigation work, but style it as an input row so the
             visual matches the original screenshot's design. */}
         <div className='flex flex-col gap-1.5'>
-          <span className='text-base-content/70 text-xs'>{_('Folder')}</span>
+          <span className='text-ink/70 text-xs'>{_('Folder')}</span>
           <button
             type='button'
             onClick={handlePickDirectory}
             disabled={picking}
             className={clsx(
-              'eink-bordered flex w-full items-center gap-2 rounded-lg px-3 py-2.5',
+              'eink-bordered flex w-full items-center gap-2 rounded-[2px] px-3 py-2.5',
               'text-start text-sm transition-colors duration-150',
-              'border-base-300 bg-base-200/40 hover:bg-base-200/70',
-              'focus-visible:ring-primary/40 focus-visible:outline-none focus-visible:ring-2',
+              'border-ink/20 bg-paperlight/40 hover:bg-paperlight/70',
+              'focus-visible:ring-stamp/40 focus-visible:outline-none focus-visible:ring-2',
               picking && 'opacity-60',
             )}
             title={directory || _('Choose a folder')}
             aria-label={_('Choose a folder')}
           >
-            <MdFolderOpen className='text-base-content/70 h-5 w-5 flex-shrink-0' />
-            <span className={clsx('min-w-0 flex-1 truncate', !directory && 'text-base-content/50')}>
+            <MdFolderOpen className='text-ink/70 h-5 w-5 flex-shrink-0' />
+            <span className={clsx('min-w-0 flex-1 truncate', !directory && 'text-ink/50')}>
               {directory || _('Choose a folder')}
             </span>
           </button>
@@ -389,7 +389,7 @@ const ImportFromFolderDialog: React.FC<ImportFromFolderDialogProps> = ({
         {/* Format checkboxes — laid out as a 2-column grid so 6 entries
             fit in three rows on phones without horizontal scrolling. */}
         <div className='flex flex-col gap-1.5'>
-          <span className='text-base-content/70 text-xs'>{_('File Formats')}</span>
+          <span className='text-ink/70 text-xs'>{_('File Formats')}</span>
           <div className='grid grid-cols-2 gap-x-3 gap-y-2'>
             {DEFAULT_FORMAT_GROUPS.map((group) => {
               const checked = selectedGroups.has(group.id);
@@ -398,13 +398,13 @@ const ImportFromFolderDialog: React.FC<ImportFromFolderDialogProps> = ({
                   key={group.id}
                   className={clsx(
                     'flex cursor-pointer items-center gap-2',
-                    'rounded-md px-1 py-1 text-sm',
-                    'hover:bg-base-200/50',
+                    'rounded-[2px] px-1 py-1 text-sm',
+                    'hover:bg-paperlight/50',
                   )}
                 >
                   <input
                     type='checkbox'
-                    className='checkbox checkbox-sm'
+                    className='chrome-check'
                     checked={checked}
                     onChange={() => toggleGroup(group.id)}
                   />
@@ -424,9 +424,9 @@ const ImportFromFolderDialog: React.FC<ImportFromFolderDialogProps> = ({
           <div
             className={clsx(
               'eink-bordered flex items-center',
-              'border-base-300 bg-base-200/40',
-              'h-9 w-24 rounded-lg',
-              'focus-within:ring-primary/40 focus-within:ring-2',
+              'border-ink/20 bg-paperlight/40',
+              'h-9 w-24 rounded-[2px]',
+              'focus-within:ring-stamp/40 focus-within:ring-2',
             )}
           >
             <input
@@ -441,13 +441,13 @@ const ImportFromFolderDialog: React.FC<ImportFromFolderDialogProps> = ({
               }}
               className={clsx(
                 'no-spinner',
-                'h-full min-w-0 flex-1 rounded-s-lg bg-transparent',
+                'h-full min-w-0 flex-1 rounded-s-[2px] bg-transparent',
                 'ps-2 pe-1 text-end text-sm',
                 'focus:outline-none',
               )}
               aria-label={_('Minimum file size (KB)')}
             />
-            <span className='text-base-content/70 select-none pe-2 text-xs'>{_('KB')}</span>
+            <span className='text-ink/70 select-none pe-2 text-xs'>{_('KB')}</span>
           </div>
         </div>
 
@@ -462,19 +462,19 @@ const ImportFromFolderDialog: React.FC<ImportFromFolderDialogProps> = ({
         <div className='flex flex-col gap-1.5'>
           <label
             className={clsx(
-              'flex items-start gap-2 rounded-md px-1 py-1 text-sm',
-              'cursor-pointer hover:bg-base-200/50',
+              'flex items-start gap-2 rounded-[2px] px-1 py-1 text-sm',
+              'cursor-pointer hover:bg-paperlight/50',
             )}
           >
             <input
               type='checkbox'
-              className='checkbox checkbox-sm mt-0.5'
+              className='chrome-check mt-0.5'
               checked={readInPlace}
               onChange={(e) => setReadInPlaceChoice(e.target.checked)}
             />
             <span className='select-none'>
               <span className='block'>{_('Read books in place')}</span>
-              <span className='text-base-content/60 block text-xs'>
+              <span className='text-ink/60 block text-xs'>
                 {isRegisteredRoot
                   ? _(
                       'This folder is an external library. Uncheck to stop reading its books in place; future imports will copy books into the library.',
@@ -489,16 +489,16 @@ const ImportFromFolderDialog: React.FC<ImportFromFolderDialogProps> = ({
               place — auto-import re-scans and reads books straight from the
               folder, so it has no meaning for copied imports. */}
           {readInPlace && (
-            <label className='ms-6 flex cursor-pointer items-start gap-2 rounded-md px-1 py-1 text-sm hover:bg-base-200/50'>
+            <label className='ms-6 flex cursor-pointer items-start gap-2 rounded-[2px] px-1 py-1 text-sm hover:bg-paperlight/50'>
               <input
                 type='checkbox'
-                className='checkbox checkbox-sm mt-0.5'
+                className='chrome-check mt-0.5'
                 checked={autoImport}
                 onChange={(e) => setAutoImport(e.target.checked)}
               />
               <span className='select-none'>
                 <span className='block'>{_('Auto-import new books from this folder')}</span>
-                <span className='text-base-content/60 block text-xs'>
+                <span className='text-ink/60 block text-xs'>
                   {_(
                     'When new books are added to this folder, import them automatically the next time Readest opens or returns to the foreground.',
                   )}
@@ -512,43 +512,43 @@ const ImportFromFolderDialog: React.FC<ImportFromFolderDialogProps> = ({
             mirroring subfolders as nested library groups (legacy) or
             flattening everything straight into the library. */}
         <div className='flex flex-col gap-1.5' role='radiogroup' aria-label={_('Folder Structure')}>
-          <span className='text-base-content/70 text-xs'>{_('Folder Structure')}</span>
+          <span className='text-ink/70 text-xs'>{_('Folder Structure')}</span>
           <label
             className={clsx(
-              'flex cursor-pointer items-start gap-2 rounded-md px-1 py-1 text-sm',
-              'hover:bg-base-200/50',
+              'flex cursor-pointer items-start gap-2 rounded-[2px] px-1 py-1 text-sm',
+              'hover:bg-paperlight/50',
             )}
           >
             <input
               type='radio'
               name='import-folder-mode'
-              className='radio radio-sm mt-0.5'
+              className='chrome-check mt-0.5'
               checked={folderMode === 'keep'}
               onChange={() => setFolderMode('keep')}
             />
             <span className='select-none'>
               <span className='block'>{_('Create groups from subfolders')}</span>
-              <span className='text-base-content/60 block text-xs'>
+              <span className='text-ink/60 block text-xs'>
                 {_('Each first-level subfolder becomes a library group.')}
               </span>
             </span>
           </label>
           <label
             className={clsx(
-              'flex cursor-pointer items-start gap-2 rounded-md px-1 py-1 text-sm',
-              'hover:bg-base-200/50',
+              'flex cursor-pointer items-start gap-2 rounded-[2px] px-1 py-1 text-sm',
+              'hover:bg-paperlight/50',
             )}
           >
             <input
               type='radio'
               name='import-folder-mode'
-              className='radio radio-sm mt-0.5'
+              className='chrome-check mt-0.5'
               checked={folderMode === 'flatten'}
               onChange={() => setFolderMode('flatten')}
             />
             <span className='select-none'>
               <span className='block'>{_('Import all into library')}</span>
-              <span className='text-base-content/60 block text-xs'>
+              <span className='text-ink/60 block text-xs'>
                 {_('Recursively add every matching file directly to the library.')}
               </span>
             </span>
@@ -568,12 +568,12 @@ const ImportFromFolderDialog: React.FC<ImportFromFolderDialogProps> = ({
         )}
 
         <div className='mt-1 flex justify-end gap-2 pb-2'>
-          <button type='button' className='btn btn-ghost btn-sm' onClick={onCancel}>
+          <button type='button' className='chrome-ghost chrome-ghost-sm' onClick={onCancel}>
             {_('Cancel')}
           </button>
           <button
             type='button'
-            className={clsx('btn btn-contrast btn-sm', confirmDisabled && 'btn-disabled')}
+            className={clsx('ink-btn chrome-ghost-sm', confirmDisabled && 'chrome-ghost-disabled')}
             disabled={confirmDisabled}
             onClick={handleConfirm}
           >

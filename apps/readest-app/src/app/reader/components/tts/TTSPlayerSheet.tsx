@@ -270,7 +270,7 @@ const TTSPlayerSheet = ({
         type='button'
         aria-label={_('Close')}
         onClick={onClose}
-        className='bg-base-300/65 btn btn-ghost btn-circle absolute end-3 top-1 z-10 hidden h-6 min-h-6 w-6 focus:outline-none sm:flex'
+        className='bg-paperlight/65 chrome-ghost rounded-full absolute end-3 top-1 z-10 hidden h-6 min-h-6 w-6 focus:outline-none sm:flex'
       >
         <svg xmlns='http://www.w3.org/2000/svg' width='1em' height='1em' viewBox='0 0 24 24'>
           <path
@@ -285,7 +285,7 @@ const TTSPlayerSheet = ({
           type='button'
           aria-label={_('Go Back')}
           onClick={() => setView('main')}
-          className='btn btn-ghost btn-circle z-10 flex h-8 min-h-8 w-8 hover:bg-transparent focus:outline-none'
+          className='chrome-ghost rounded-full z-10 flex h-8 min-h-8 w-8 hover:bg-transparent focus:outline-none'
         >
           <MdArrowBackIosNew size={iconSize24 * 0.8} className='rtl:rotate-180' />
         </button>
@@ -324,14 +324,14 @@ const TTSPlayerSheet = ({
             <img
               src={book.coverImageUrl}
               alt=''
-              className='not-eink:shadow-lg eink-bordered h-32 w-auto rounded-xl object-cover'
+              className='not-eink:shadow-lg eink-bordered h-32 w-auto rounded-[2px] object-cover'
               onError={() => setCoverFailed(true)}
             />
           ) : null}
           <div className='flex w-full flex-col items-center gap-0.5 text-center'>
             <span className='line-clamp-1 font-semibold'>{book?.title ?? ''}</span>
             {sectionLabel && (
-              <span className='text-base-content/70 line-clamp-1 text-sm'>{sectionLabel}</span>
+              <span className='text-ink/70 line-clamp-1 text-sm'>{sectionLabel}</span>
             )}
           </div>
           {hasTimeline ? (
@@ -344,7 +344,7 @@ const TTSPlayerSheet = ({
             />
           ) : (
             chapterRemainingSec !== null && (
-              <span className='text-base-content/70 text-xs'>
+              <span className='text-ink/70 text-xs'>
                 {_('{{time}} left in chapter', { time: formatPlaybackTime(chapterRemainingSec) })}
               </span>
             )
@@ -370,7 +370,7 @@ const TTSPlayerSheet = ({
             </button>
             <button
               type='button'
-              className='btn btn-primary btn-circle mx-2 h-14 min-h-14 w-14'
+              className='stamp-btn rounded-full mx-2 h-14 min-h-14 w-14'
               aria-label={isPlaying ? _('Pause') : _('Play')}
               onClick={onTogglePlay}
             >
@@ -400,10 +400,10 @@ const TTSPlayerSheet = ({
               type='button'
               aria-label={_('Speed')}
               onClick={() => setView('speed')}
-              className='not-eink:bg-base-200 eink-bordered flex h-14 min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-xl'
+              className='not-eink:bg-paperlight eink-bordered flex h-14 min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-[2px]'
             >
               <span className='text-sm font-semibold tabular-nums'>{formatRate(rate)}</span>
-              <span className='text-base-content/60 max-w-full truncate px-1 text-xs'>
+              <span className='text-ink/60 max-w-full truncate px-1 text-xs'>
                 {_('Speed')}
               </span>
             </button>
@@ -411,10 +411,10 @@ const TTSPlayerSheet = ({
               type='button'
               aria-label={_('Voice')}
               onClick={() => setView('voice')}
-              className='not-eink:bg-base-200 eink-bordered flex h-14 min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-xl'
+              className='not-eink:bg-paperlight eink-bordered flex h-14 min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-[2px]'
             >
               <RiVoiceAiFill size={iconSize18} />
-              <span className='text-base-content/60 max-w-full truncate px-1 text-xs'>
+              <span className='text-ink/60 max-w-full truncate px-1 text-xs'>
                 {currentVoiceName ? _(currentVoiceName) : _('Voice')}
               </span>
             </button>
@@ -422,10 +422,10 @@ const TTSPlayerSheet = ({
               type='button'
               aria-label={_('Sleep Timer')}
               onClick={() => setView('timer')}
-              className='not-eink:bg-base-200 eink-bordered flex h-14 min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-xl'
+              className='not-eink:bg-paperlight eink-bordered flex h-14 min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-[2px]'
             >
               <MdAlarm size={iconSize18} />
-              <span className='text-base-content/60 max-w-full truncate px-1 text-xs tabular-nums'>
+              <span className='text-ink/60 max-w-full truncate px-1 text-xs tabular-nums'>
                 {timerCaption}
               </span>
             </button>
@@ -435,12 +435,12 @@ const TTSPlayerSheet = ({
               type='button'
               aria-label={_('Offline Audio')}
               onClick={handleOpenDownloads}
-              className='not-eink:bg-base-200 eink-bordered flex w-full items-center gap-3 rounded-xl px-3 py-2.5'
+              className='not-eink:bg-paperlight eink-bordered flex w-full items-center gap-3 rounded-[2px] px-3 py-2.5'
             >
               <MdOutlineFileDownload size={iconSize24} className='shrink-0' />
               <div className='flex min-w-0 flex-1 flex-col items-start'>
                 <span className='text-sm font-semibold'>{_('Offline Audio')}</span>
-                <span className='text-base-content/60 line-clamp-1 text-start text-xs'>
+                <span className='text-ink/60 line-clamp-1 text-start text-xs'>
                   {premiumBadge
                     ? _('Download chapters for offline playback')
                     : _('{{done}} of {{total}} downloaded', {
@@ -451,7 +451,7 @@ const TTSPlayerSheet = ({
                 </span>
               </div>
               {premiumBadge && (
-                <span className='badge badge-sm badge-ghost shrink-0'>{premiumBadge}</span>
+                <span className='chrome-chip chrome-chip-ghost shrink-0'>{premiumBadge}</span>
               )}
               <MdChevronRight size={iconSize24} className='shrink-0 rtl:rotate-180' />
             </button>
@@ -474,7 +474,7 @@ const TTSPlayerSheet = ({
         <div className='flex w-full flex-col pb-4'>
           {voiceGroups.map((voiceGroup) => (
             <div key={voiceGroup.id}>
-              <div className='text-base-content/60 px-2 py-1 text-sm sm:text-xs'>
+              <div className='text-ink/60 px-2 py-1 text-sm sm:text-xs'>
                 {/* A single-voice group (a book's own narrator) would otherwise
                     read "Narration: 1 voices". */}
                 {voiceGroup.voices.length === 1
@@ -490,15 +490,15 @@ const TTSPlayerSheet = ({
                   type='button'
                   disabled={voice.disabled}
                   onClick={() => handleSelectVoice(voice.id, voice.lang)}
-                  className='flex w-full items-center gap-2 rounded-lg px-2 py-2 text-start'
+                  className='flex w-full items-center gap-2 rounded-[2px] px-2 py-2 text-start'
                 >
                   <span className='flex h-6 w-6 items-center justify-center'>
-                    {selectedVoice === voice.id && <MdCheck className='text-base-content' />}
+                    {selectedVoice === voice.id && <MdCheck className='text-ink' />}
                   </span>
                   <span
                     className={clsx(
                       'overflow-hidden text-ellipsis text-base sm:text-sm',
-                      voice.disabled && 'text-base-content/40',
+                      voice.disabled && 'text-ink/40',
                     )}
                   >
                     {_(voice.name)}
@@ -516,10 +516,10 @@ const TTSPlayerSheet = ({
               key={option.value}
               type='button'
               onClick={() => handleSelectTimeout(option.value)}
-              className='flex w-full items-center gap-2 rounded-lg px-2 py-2 text-start'
+              className='flex w-full items-center gap-2 rounded-[2px] px-2 py-2 text-start'
             >
               <span className='flex h-6 w-6 items-center justify-center'>
-                {timeoutOption === option.value && <MdCheck className='text-base-content' />}
+                {timeoutOption === option.value && <MdCheck className='text-ink' />}
               </span>
               <span className='text-base sm:text-sm'>{option.label}</span>
             </button>

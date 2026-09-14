@@ -95,7 +95,7 @@ const TTSScrubber = ({
     <div dir='ltr' className={clsx('flex w-full items-center gap-2 py-1', stale && 'opacity-60')}>
       <span className='min-w-9 text-center text-xs tabular-nums'>{elapsedLabel}</span>
       <input
-        className='tts-scrubber text-base-content min-w-0 grow'
+        className='tts-scrubber text-ink min-w-0 grow'
         type='range'
         min={0}
         max={total || 1}

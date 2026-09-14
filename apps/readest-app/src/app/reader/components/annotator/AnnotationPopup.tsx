@@ -60,13 +60,13 @@ const AnnotationPopup: React.FC<AnnotationPopupProps> = ({
         minHeight={isVertical ? popupWidth : popupHeight}
         position={position}
         trianglePosition={trianglePosition}
-        className={clsx('selection-popup', notes.length > 0 && 'bg-transparent')}
+        className={clsx('chrome-selection-popup', notes.length > 0 && 'bg-transparent')}
         onDismiss={onDismiss}
       >
         <div className={clsx('flex h-full gap-4', isVertical ? 'flex-row' : 'flex-col')}>
           <div
             className={clsx(
-              'selection-buttons flex h-full w-full items-center justify-between p-2',
+              'chrome-selection-buttons flex h-full w-full items-center justify-between p-2',
               isVertical ? 'flex-col overflow-y-auto' : 'flex-row overflow-x-auto',
               notes.length > 0 && 'hidden',
             )}

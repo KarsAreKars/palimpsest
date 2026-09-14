@@ -288,45 +288,45 @@ export const MigrateDataWindow = () => {
         <div className='migrate-data-dir-content flex flex-col gap-6 px-6 py-4'>
           {/* Current Data Directory */}
           <div className='space-y-2'>
-            <h3 className='text-base-content text-sm font-semibold'>
+            <h3 className='text-ink text-sm font-semibold'>
               {_('Current Data Location')}
             </h3>
             <button
               title={_(fileRevealLabel)}
-              className='bg-base-200 flex w-full items-center gap-2 rounded-lg p-3'
+              className='bg-paperlight flex w-full items-center gap-2 rounded-[2px] p-3'
               onClick={() => handleRevealDir(currentDataDir)}
             >
-              <RiFolderOpenLine className='text-base-content/70 h-4 w-4 flex-shrink-0' />
-              <span className='text-base-content/80 break-all text-start font-mono text-sm'>
+              <RiFolderOpenLine className='text-ink/70 h-4 w-4 flex-shrink-0' />
+              <span className='text-ink/80 break-all text-start font-mono text-sm'>
                 {currentDataDir || _('Loading...')}
               </span>
             </button>
             {currentDirFileCount ? (
               <div className='flex space-x-4'>
-                <p className='text-base-content/60 text-xs'>
+                <p className='text-ink/60 text-xs'>
                   {_('File count: {{size}}', { size: currentDirFileCount })}
                 </p>
-                <p className='text-base-content/60 text-xs'>
+                <p className='text-ink/60 text-xs'>
                   {_('Total size: {{size}}', { size: formatBytes(currentDirFileSize) })}
                 </p>
               </div>
             ) : (
-              <p className='text-base-content/60 text-xs'>{_('Calculating file info...')}</p>
+              <p className='text-ink/60 text-xs'>{_('Calculating file info...')}</p>
             )}
           </div>
 
           {/* New Data Directory Selection */}
           <div className='space-y-3'>
-            <h3 className='text-base-content text-sm font-semibold'>{_('New Data Location')}</h3>
+            <h3 className='text-ink text-sm font-semibold'>{_('New Data Location')}</h3>
 
             {newDataDir && (
               <button
                 title={_(fileRevealLabel)}
-                className='bg-primary/10 border-primary/20 flex w-full items-center gap-2 rounded-lg border p-3'
+                className='bg-stamp/10 border-stamp/20 flex w-full items-center gap-2 rounded-[2px] border p-3'
                 onClick={() => handleRevealDir(newDataDir)}
               >
-                <RiFolderOpenLine className='text-primary h-4 w-4 flex-shrink-0' />
-                <span className='text-primary break-all text-start font-mono text-sm'>
+                <RiFolderOpenLine className='text-stamp h-4 w-4 flex-shrink-0' />
+                <span className='text-stamp break-all text-start font-mono text-sm'>
                   {newDataDir}
                 </span>
               </button>
@@ -335,7 +335,7 @@ export const MigrateDataWindow = () => {
               <Dropdown
                 label={_('Choose New Folder')}
                 className='dropdown-bottom flex w-full justify-center'
-                buttonClassName='btn btn-ghost btn-outline w-full'
+                buttonClassName='stamp-btn w-full'
                 toggleButton={
                   <div>{newDataDir ? _('Choose Different Folder') : _('Choose New Folder')}</div>
                 }
@@ -343,7 +343,7 @@ export const MigrateDataWindow = () => {
                 <div
                   className={clsx(
                     'folder-menu dropdown-content no-triangle left-0',
-                    'border-base-300 !bg-base-200 z-20 mt-1 max-w-[90vw] shadow-2xl',
+                    'border-ink/20 !bg-paperlight z-20 mt-1 max-w-[90vw] shadow-2xl',
                   )}
                 >
                   {androidNewDirs.map((dir) => (
@@ -360,7 +360,7 @@ export const MigrateDataWindow = () => {
               </Dropdown>
             ) : (
               <button
-                className='btn btn-outline btn-sm w-full'
+                className='stamp-btn chrome-ghost-sm w-full'
                 onClick={handleSelectNewDir}
                 disabled={migrationStatus === 'migrating' || migrationStatus === 'selecting'}
               >
@@ -376,23 +376,23 @@ export const MigrateDataWindow = () => {
           {migrationStatus === 'migrating' && (
             <div className='space-y-3'>
               <div className='flex items-center gap-2'>
-                <RiLoader2Line className='text-primary h-4 w-4 animate-spin' />
-                <span className='text-base-content text-sm font-medium'>
+                <RiLoader2Line className='text-stamp h-4 w-4 animate-spin' />
+                <span className='text-ink text-sm font-medium'>
                   {_('Migrating data...')}
                 </span>
-                <span className='text-base-content/70 text-sm'>{progressPercentage}%</span>
+                <span className='text-ink/70 text-sm'>{progressPercentage}%</span>
               </div>
 
-              <div className='bg-base-200 h-2 w-full rounded-full'>
+              <div className='bg-paperlight h-2 w-full rounded-full'>
                 <div
-                  className='bg-primary h-2 rounded-full transition-all duration-300'
+                  className='bg-stamp h-2 rounded-full transition-all duration-300'
                   style={{ width: `${progressPercentage}%` }}
                 />
               </div>
 
               {migrationProgress.currentFile && (
                 <p
-                  className='text-base-content/60 overflow-hidden font-mono text-xs'
+                  className='text-ink/60 overflow-hidden font-mono text-xs'
                   style={{
                     direction: 'rtl',
                     textAlign: 'left',
@@ -404,7 +404,7 @@ export const MigrateDataWindow = () => {
                 </p>
               )}
 
-              <p className='text-base-content/60 text-xs'>
+              <p className='text-ink/60 text-xs'>
                 {_('{{current}} of {{total}} files', {
                   current: migrationProgress.current.toLocaleString(),
                   total: migrationProgress.total.toLocaleString(),
@@ -416,12 +416,12 @@ export const MigrateDataWindow = () => {
           {/* Success State */}
           {migrationStatus === 'completed' && (
             <div className='space-y-3'>
-              <div className='text-success flex items-center gap-2'>
+              <div className='chrome-success flex items-center gap-2'>
                 <RiCheckboxCircleFill className='h-5 w-5' />
                 <span className='font-medium'>{_('Migration completed successfully!')}</span>
               </div>
-              <div className='bg-success/10 border-success/20 rounded-lg border p-3'>
-                <p className='text-success/80 text-sm'>
+              <div className='bg-[#4d6136]/10 border-[#4d6136]/20 rounded-[2px] border p-3'>
+                <p className='text-[#4d6136]/80 text-sm'>
                   {_(
                     'Your data has been moved to the new location. Please restart the application to complete the process.',
                   )}
@@ -433,24 +433,24 @@ export const MigrateDataWindow = () => {
           {/* Error State */}
           {migrationStatus === 'error' && errorMessage && (
             <div className='space-y-2'>
-              <div className='text-error flex items-center gap-2'>
+              <div className='text-stamp flex items-center gap-2'>
                 <RiErrorWarningFill className='h-5 w-5' />
                 <span className='font-medium'>{_('Migration failed')}</span>
               </div>
-              <div className='bg-error/10 border-error/20 rounded-lg border p-3'>
-                <p className='text-error/80 break-all text-sm'>{errorMessage}</p>
+              <div className='bg-stamp/10 border-stamp/20 rounded-[2px] border p-3'>
+                <p className='text-stamp/80 break-all text-sm'>{errorMessage}</p>
               </div>
             </div>
           )}
 
           {/* Warning */}
           {canStartMigration && (
-            <div className='bg-warning/10 border-warning/20 rounded-lg border p-3'>
+            <div className='bg-stamp/10 border-stamp/20 rounded-[2px] border p-3'>
               <div className='flex items-start gap-2'>
-                <RiErrorWarningFill className='text-warning mt-0.5 h-4 w-4 flex-shrink-0' />
+                <RiErrorWarningFill className='text-stamp mt-0.5 h-4 w-4 flex-shrink-0' />
                 <div className='space-y-1'>
-                  <p className='text-base-content text-sm font-medium'>{_('Important Notice')}</p>
-                  <p className='text-base-content/80 text-sm'>
+                  <p className='text-ink text-sm font-medium'>{_('Important Notice')}</p>
+                  <p className='text-ink/80 text-sm'>
                     {_(
                       'This will move all your app data to the new location. Make sure the destination has enough free space.',
                     )}
@@ -464,24 +464,24 @@ export const MigrateDataWindow = () => {
           <div className='flex gap-3 pt-2'>
             {migrationStatus === 'completed' ? (
               <>
-                <button className='btn btn-ghost flex-1' onClick={handleClose}>
+                <button className='chrome-ghost flex-1' onClick={handleClose}>
                   {_('Close')}
                 </button>
-                <button className='btn btn-primary flex-1' onClick={handleRestartApp}>
+                <button className='stamp-btn flex-1' onClick={handleRestartApp}>
                   {_('Restart App')}
                 </button>
               </>
             ) : (
               <>
                 <button
-                  className='btn btn-ghost flex-1'
+                  className='chrome-ghost flex-1'
                   onClick={handleClose}
                   disabled={migrationStatus === 'migrating'}
                 >
                   {_('Cancel')}
                 </button>
                 <button
-                  className='btn btn-primary flex-1'
+                  className='stamp-btn flex-1'
                   onClick={handleStartMigration}
                   disabled={!canStartMigration || migrationStatus !== 'idle'}
                 >

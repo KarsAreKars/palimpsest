@@ -63,7 +63,7 @@ const AnimatedParagraph: React.FC<{
       lang={presentation.lang}
       dir={presentation.dir}
       className={clsx(
-        'paragraph-content text-base-content transition-[opacity,transform] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]',
+        'paragraph-content text-ink transition-[opacity,transform] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]',
         presentation.vertical ? 'mx-auto w-auto max-w-none' : 'w-full',
         isReady ? 'translate-y-0 opacity-100' : 'translate-y-2 opacity-0',
       )}
@@ -113,7 +113,7 @@ const SectionTransitionIndicator: React.FC<{
           {[0, 1, 2].map((i) => (
             <div
               key={i}
-              className='bg-base-content/30 h-1.5 w-1.5 rounded-full'
+              className='bg-ink/30 h-1.5 w-1.5 rounded-full'
               style={{
                 animation: 'pulse 800ms ease-in-out infinite',
                 animationDelay: `${i * 150}ms`,
@@ -121,7 +121,7 @@ const SectionTransitionIndicator: React.FC<{
             />
           ))}
         </div>
-        <span className='text-base-content/40 text-base font-medium'>
+        <span className='text-ink/40 text-base font-medium'>
           {direction === 'next' ? 'Next chapter' : 'Previous chapter'}
         </span>
       </div>
@@ -548,7 +548,7 @@ const ParagraphOverlay: React.FC<ParagraphOverlayProps> = ({
         // Solid page color, not a translucent blur of the book behind it — the
         // blurred backdrop read as foreign chrome next to the rest of the app
         // (#5275), and without the blur any translucency leaks ghost text.
-        'bg-base-100',
+        'bg-paper',
         // The dialog is focused programmatically (so it receives keys); it is not
         // a tab stop, so suppress the focus ring that would otherwise outline the
         // whole viewport.

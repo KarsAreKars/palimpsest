@@ -133,6 +133,7 @@ import DropIndicator from '@/components/DropIndicator';
 import SettingsDialog from '@/components/settings/SettingsDialog';
 import ModalPortal from '@/components/ModalPortal';
 import TransferQueuePanel from './components/TransferQueuePanel';
+import './library.css';
 
 /** Skip tiny non-book artifacts during folder auto-scan (matches the manual import dialog default). */
 const AUTO_IMPORT_MIN_SIZE_BYTES = 20 * 1024;
@@ -1944,7 +1945,7 @@ const LibraryPageContent = ({ searchParams }: { searchParams: ReadonlyURLSearchP
   };
 
   if (!appService || !insets || checkOpenWithBooks || checkLastOpenBooks) {
-    return <div className='full-height bg-base-200' />;
+    return <div className='full-height bg-paperlight' />;
   }
 
   const showBookshelf = libraryLoaded || libraryBooks.length > 0;
@@ -1954,8 +1955,8 @@ const LibraryPageContent = ({ searchParams }: { searchParams: ReadonlyURLSearchP
       ref={pageRef}
       aria-label={_('Your Library')}
       className={clsx(
-        'library-page paper-bg paper-vignette text-base-content full-height flex select-none flex-col overflow-hidden',
-        viewSettings?.isEink ? 'bg-base-100' : 'bg-base-200',
+        'library-page paper-bg paper-vignette text-ink full-height flex select-none flex-col overflow-hidden',
+        viewSettings?.isEink ? 'bg-paper' : 'bg-paperlight',
         appService?.hasRoundedWindow && isRoundedWindow && 'window-border rounded-window',
       )}
     >
@@ -1993,7 +1994,7 @@ const LibraryPageContent = ({ searchParams }: { searchParams: ReadonlyURLSearchP
           aria-label={_('Library Search Progress')}
           aria-hidden={librarySearchProgress != null ? 'false' : 'true'}
           className={clsx(
-            'progress progress-success absolute bottom-0 left-0 right-0 h-1 translate-y-[2px] transition-opacity duration-200 sm:translate-y-[4px]',
+            'chrome-progress absolute bottom-0 left-0 right-0 h-1 translate-y-[2px] transition-opacity duration-200 sm:translate-y-[4px]',
             librarySearchProgress != null ? 'opacity-100' : 'opacity-0',
           )}
           value={librarySearchProgress ?? 0}
@@ -2003,7 +2004,7 @@ const LibraryPageContent = ({ searchParams }: { searchParams: ReadonlyURLSearchP
           aria-label={_('Library Sync Progress')}
           aria-hidden={isSyncing ? 'false' : 'true'}
           className={clsx(
-            'progress progress-success absolute bottom-0 left-0 right-0 h-1 translate-y-[2px] transition-opacity duration-200 sm:translate-y-[4px]',
+            'chrome-progress absolute bottom-0 left-0 right-0 h-1 translate-y-[2px] transition-opacity duration-200 sm:translate-y-[4px]',
             isSyncing ? 'opacity-100' : 'opacity-0',
           )}
           value={syncProgress * 100}
@@ -2025,7 +2026,7 @@ const LibraryPageContent = ({ searchParams }: { searchParams: ReadonlyURLSearchP
                   key={term}
                   type='button'
                   onClick={() => handleSearchQueryApply(term)}
-                  className='bg-base-300/45 hover:bg-base-300/70 text-base-content/70 max-w-[60%] flex-shrink-0 whitespace-nowrap rounded-full px-3 py-0.5 text-xs'
+                  className='bg-paperlight/45 hover:bg-paperlight/70 text-ink/70 max-w-[60%] flex-shrink-0 whitespace-nowrap rounded-full px-3 py-0.5 text-xs'
                 >
                   <p className='truncate'>{term}</p>
                 </button>
@@ -2039,7 +2040,7 @@ const LibraryPageContent = ({ searchParams }: { searchParams: ReadonlyURLSearchP
               }}
               title={_('Clear search history')}
               aria-label={_('Clear search history')}
-              className='text-base-content/50 hover:text-base-content/80 flex h-6 w-8 shrink-0 items-center justify-center'
+              className='text-ink/50 hover:text-ink/80 flex h-6 w-8 shrink-0 items-center justify-center'
             >
               <MdClose className='h-4 w-4' />
             </button>
@@ -2054,7 +2055,7 @@ const LibraryPageContent = ({ searchParams }: { searchParams: ReadonlyURLSearchP
           <div className='flex flex-wrap items-center gap-y-1 px-4 text-base'>
             <button
               onClick={() => handleNavigateToPath(undefined)}
-              className='hover:bg-base-300 text-base-content/85 rounded px-2 py-1'
+              className='hover:bg-paperlight text-ink/85 rounded-[2px] px-2 py-1'
             >
               {_('All')}
             </button>
@@ -2062,13 +2063,13 @@ const LibraryPageContent = ({ searchParams }: { searchParams: ReadonlyURLSearchP
               const isLast = index === array.length - 1;
               return (
                 <React.Fragment key={index}>
-                  <MdChevronRight size={iconSize} className='text-neutral-content' />
+                  <MdChevronRight size={iconSize} className='text-paperlight' />
                   {isLast ? (
-                    <span className='truncate rounded px-2 py-1'>{crumb.name}</span>
+                    <span className='truncate rounded-[2px] px-2 py-1'>{crumb.name}</span>
                   ) : (
                     <button
                       onClick={() => handleNavigateToPath(crumb.path)}
-                      className='hover:bg-base-300 text-base-content/85 truncate rounded px-2 py-1'
+                      className='hover:bg-paperlight text-ink/85 truncate rounded-[2px] px-2 py-1'
                     >
                       {crumb.name}
                     </button>

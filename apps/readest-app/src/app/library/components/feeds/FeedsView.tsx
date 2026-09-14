@@ -115,13 +115,13 @@ export function FeedsView({ onClose }: FeedsViewProps) {
         bgClassName='sm:!bg-black/75'
         boxClassName='sm:min-w-[520px] sm:w-3/4 sm:h-[85%] sm:!max-w-screen-sm'
       >
-        <div className='bg-base-100 relative flex flex-col overflow-y-auto pb-4'>
+        <div className='bg-paper relative flex flex-col overflow-y-auto pb-4'>
           {liveFeed ? (
             /* Article list */
             <div className='flex flex-col'>
               <button
                 type='button'
-                className='btn btn-ghost btn-sm mb-2 flex items-center gap-1 self-start'
+                className='chrome-ghost chrome-ghost-sm mb-2 flex items-center gap-1 self-start'
                 onClick={() => setSelectedFeed(null)}
                 aria-label={_('Back to feed list')}
               >
@@ -129,16 +129,16 @@ export function FeedsView({ onClose }: FeedsViewProps) {
                 {_('Feeds')}
               </button>
               {sortedItems.length === 0 ? (
-                <p className='text-base-content/50 px-4 py-8 text-center text-sm'>
+                <p className='text-ink/50 px-4 py-8 text-center text-sm'>
                   {_('No articles in this feed.')}
                 </p>
               ) : (
-                <ul className='divide-base-200 divide-y'>
+                <ul className='divide-ink/10 divide-y'>
                   {sortedItems.map((item) => (
                     <li key={item.id}>
                       <button
                         type='button'
-                        className={`hover:bg-base-200 w-full cursor-pointer px-4 py-3 text-start transition-colors ${item.read ? 'text-base-content/50' : ''}`}
+                        className={`hover:bg-paperlight w-full cursor-pointer px-4 py-3 text-start transition-colors ${item.read ? 'text-ink/50' : ''}`}
                         onClick={() => void handleOpenItem(item, liveFeed)}
                       >
                         <div className='flex flex-col gap-1'>
@@ -148,12 +148,12 @@ export function FeedsView({ onClose }: FeedsViewProps) {
                             {item.title}
                           </span>
                           {item.publishedAt && (
-                            <span className='text-base-content/40 text-xs'>
+                            <span className='text-ink/40 text-xs'>
                               {formatDate(item.publishedAt)}
                             </span>
                           )}
                           {item.summary && (
-                            <span className='text-base-content/60 line-clamp-2 text-xs leading-relaxed'>
+                            <span className='text-ink/60 line-clamp-2 text-xs leading-relaxed'>
                               {item.summary}
                             </span>
                           )}
@@ -168,12 +168,12 @@ export function FeedsView({ onClose }: FeedsViewProps) {
             /* Feed list */
             <div className='flex flex-col'>
               <div className='flex items-center justify-between px-4 py-2'>
-                <span className='text-base-content/60 text-sm'>
+                <span className='text-ink/60 text-sm'>
                   {feeds.length === 0 ? _('No feeds yet.') : ''}
                 </span>
                 <button
                   type='button'
-                  className='btn btn-ghost btn-sm flex items-center gap-1'
+                  className='chrome-ghost chrome-ghost-sm flex items-center gap-1'
                   onClick={() => setShowAddModal(true)}
                   aria-label={_('Add feed')}
                 >
@@ -182,11 +182,11 @@ export function FeedsView({ onClose }: FeedsViewProps) {
                 </button>
               </div>
               {feeds.length === 0 ? (
-                <p className='text-base-content/40 px-4 py-8 text-center text-sm'>
+                <p className='text-ink/40 px-4 py-8 text-center text-sm'>
                   {_('Subscribe to a feed to see articles here.')}
                 </p>
               ) : (
-                <ul className='divide-base-200 divide-y'>
+                <ul className='divide-ink/10 divide-y'>
                   {feeds.map((feed) => {
                     const unread = useFeedStore.getState().unreadCount(feed.id);
                     return (
@@ -194,19 +194,19 @@ export function FeedsView({ onClose }: FeedsViewProps) {
                         <div className='flex items-center gap-2 px-4 py-3'>
                           <button
                             type='button'
-                            className='hover:bg-base-200 flex min-w-0 flex-1 cursor-pointer flex-col gap-0.5 rounded text-start transition-colors'
+                            className='hover:bg-paperlight flex min-w-0 flex-1 cursor-pointer flex-col gap-0.5 rounded-[2px] text-start transition-colors'
                             onClick={() => setSelectedFeed(feed)}
                           >
                             <div className='flex items-center gap-2'>
                               <span className='text-sm font-medium leading-snug'>{feed.title}</span>
                               {unread > 0 && (
-                                <span className='badge badge-primary badge-sm shrink-0 text-xs'>
+                                <span className='chrome-chip chrome-chip-stamp shrink-0 text-xs'>
                                   {unread}
                                 </span>
                               )}
                             </div>
                             {feed.description && (
-                              <span className='text-base-content/50 truncate text-xs'>
+                              <span className='text-ink/50 truncate text-xs'>
                                 {feed.description}
                               </span>
                             )}
@@ -214,7 +214,7 @@ export function FeedsView({ onClose }: FeedsViewProps) {
                           <div className='flex shrink-0 items-center gap-1'>
                             <button
                               type='button'
-                              className='btn btn-ghost btn-xs'
+                              className='chrome-ghost chrome-ghost-xs'
                               aria-label={_('Refresh feed')}
                               title={_('Refresh')}
                               disabled={refreshing === feed.id}
@@ -228,7 +228,7 @@ export function FeedsView({ onClose }: FeedsViewProps) {
                             </button>
                             <button
                               type='button'
-                              className='btn btn-ghost btn-xs text-error'
+                              className='chrome-ghost chrome-ghost-xs text-stamp'
                               aria-label={_('Remove feed')}
                               title={_('Remove')}
                               onClick={() => handleRemove(feed.id)}
@@ -238,7 +238,7 @@ export function FeedsView({ onClose }: FeedsViewProps) {
                           </div>
                         </div>
                         {feed.errorMessage && (
-                          <p className='text-error px-4 pb-2 text-xs'>{feed.errorMessage}</p>
+                          <p className='text-stamp px-4 pb-2 text-xs'>{feed.errorMessage}</p>
                         )}
                       </li>
                     );

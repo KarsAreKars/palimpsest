@@ -581,7 +581,7 @@ const ImageViewer: React.FC<ImageViewerProps> = ({
       <div
         role='button'
         tabIndex={0}
-        className='image-viewer-overlay not-eink:bg-black/50 eink:bg-base-100 not-eink:backdrop-blur-md absolute inset-0'
+        className='image-viewer-overlay not-eink:bg-black/50 eink:bg-paper not-eink:backdrop-blur-md absolute inset-0'
         onKeyDown={(e) => {
           if (e.key === 'Enter' || e.key === ' ') {
             onClose();
@@ -685,7 +685,7 @@ const ImageViewer: React.FC<ImageViewerProps> = ({
           // The description comes from the book, whose language need not match
           // the UI's, so let the text pick its own direction.
           dir='auto'
-          className='image-caption eink-bordered not-eink:text-white not-eink:bg-black/50 absolute bottom-4 left-1/2 z-10 max-h-[30%] w-[calc(100%-2rem)] max-w-2xl -translate-x-1/2 overflow-y-auto rounded-lg px-4 py-2 text-center text-sm'
+          className='image-caption eink-bordered not-eink:text-white not-eink:bg-black/50 absolute bottom-4 left-1/2 z-10 max-h-[30%] w-[calc(100%-2rem)] max-w-2xl -translate-x-1/2 overflow-y-auto rounded-[2px] px-4 py-2 text-center text-sm'
           style={{ marginBottom: `${gridInsets.bottom}px` }}
         >
           {caption}

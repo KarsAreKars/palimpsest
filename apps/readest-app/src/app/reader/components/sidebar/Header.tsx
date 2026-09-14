@@ -38,7 +38,7 @@ const SidebarHeader: React.FC<{
         <button
           title={_('Close')}
           onClick={onClose}
-          className={'btn btn-ghost btn-circle flex h-6 min-h-6 w-6 hover:bg-transparent sm:hidden'}
+          className={'chrome-ghost rounded-full flex h-6 min-h-6 w-6 hover:bg-transparent sm:hidden'}
         >
           <MdArrowBackIosNew size={iconSize22} />
         </button>
@@ -51,11 +51,11 @@ const SidebarHeader: React.FC<{
           title={isSearchBarVisible ? _('Hide Search Bar') : _('Show Search Bar')}
           onClick={onToggleSearchBar}
           className={clsx(
-            'btn btn-ghost left-0 h-8 min-h-8 w-8 p-0',
-            isSearchBarVisible ? 'bg-base-300' : '',
+            'chrome-ghost left-0 h-8 min-h-8 w-8 p-0',
+            isSearchBarVisible ? 'bg-paperlight' : '',
           )}
         >
-          <FiSearch size={iconSize18} className='text-base-content' />
+          <FiSearch size={iconSize18} className='text-ink' />
         </button>
         <Dropdown
           label={_('Book Menu')}
@@ -65,9 +65,9 @@ const SidebarHeader: React.FC<{
             'dropdown-bottom',
           )}
           menuClassName={clsx('no-triangle mt-1', window.innerWidth < 640 ? '' : '!relative')}
-          buttonClassName='btn btn-ghost h-8 min-h-8 w-8 p-0'
+          buttonClassName='chrome-ghost h-8 min-h-8 w-8 p-0'
           containerClassName='h-8'
-          toggleButton={<MdOutlineMenu className='fill-base-content' />}
+          toggleButton={<MdOutlineMenu className='fill-ink' />}
         >
           <BookMenu />
         </Dropdown>
@@ -76,8 +76,8 @@ const SidebarHeader: React.FC<{
             title={isPinned ? _('Unpin Sidebar') : _('Pin Sidebar')}
             onClick={onTogglePin}
             className={clsx(
-              'sidebar-pin-btn btn btn-ghost btn-circle hidden h-6 min-h-6 w-6 sm:flex',
-              isPinned ? 'bg-base-300' : 'bg-base-300/65',
+              'sidebar-pin-btn chrome-ghost rounded-full hidden h-6 min-h-6 w-6 sm:flex',
+              isPinned ? 'bg-paperlight' : 'bg-paperlight/65',
             )}
           >
             {isPinned ? <MdPushPin size={iconSize15} /> : <MdOutlinePushPin size={iconSize15} />}

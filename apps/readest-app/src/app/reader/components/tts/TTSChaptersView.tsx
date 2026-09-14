@@ -56,7 +56,7 @@ const TTSChaptersView: React.FC<TTSChaptersViewProps> = ({
   return (
     <div className='flex w-full flex-col pb-4'>
       <div className='flex items-center justify-between gap-2 px-2 py-1'>
-        <span className='text-base-content/60 text-sm sm:text-xs'>
+        <span className='text-ink/60 text-sm sm:text-xs'>
           {_('{{done}} of {{total}} chapters offline', {
             done: completeCount,
             total: chapters.length,
@@ -67,7 +67,7 @@ const TTSChaptersView: React.FC<TTSChaptersViewProps> = ({
           {hasExplicitDownloads && (
             <button
               type='button'
-              className='touch-target text-base-content/70 shrink-0 text-sm font-medium disabled:opacity-40 sm:text-xs'
+              className='touch-target text-ink/70 shrink-0 text-sm font-medium disabled:opacity-40 sm:text-xs'
               disabled={clearing}
               onClick={() => void clearDownloads()}
             >
@@ -77,7 +77,7 @@ const TTSChaptersView: React.FC<TTSChaptersViewProps> = ({
           {queueCount > 0 ? (
             <button
               type='button'
-              className='touch-target text-primary shrink-0 text-sm font-medium sm:text-xs'
+              className='touch-target text-stamp shrink-0 text-sm font-medium sm:text-xs'
               disabled={clearing}
               onClick={cancelAll}
             >
@@ -86,7 +86,7 @@ const TTSChaptersView: React.FC<TTSChaptersViewProps> = ({
           ) : (
             <button
               type='button'
-              className='touch-target text-primary shrink-0 text-sm font-medium disabled:opacity-40 sm:text-xs'
+              className='touch-target text-stamp shrink-0 text-sm font-medium disabled:opacity-40 sm:text-xs'
               disabled={!anyIncomplete || clearing}
               onClick={() => void downloadAll()}
             >
@@ -124,14 +124,14 @@ const TTSChaptersView: React.FC<TTSChaptersViewProps> = ({
             <div
               key={chapter.key}
               ref={isPlaying ? activeRowRef : undefined}
-              className='flex w-full items-center gap-3 rounded-lg px-2 py-2'
+              className='flex w-full items-center gap-3 rounded-[2px] px-2 py-2'
               style={{ paddingInlineStart: `${8 + chapter.depth * 14}px` }}
             >
               <div className='flex min-w-0 flex-1 flex-col'>
                 <div className='flex items-center gap-1.5'>
                   {isPlaying && (
                     <MdGraphicEq
-                      className={isEink ? 'text-base-content' : 'text-primary'}
+                      className={isEink ? 'text-ink' : 'text-stamp'}
                       aria-label={_('Now playing')}
                     />
                   )}
@@ -145,7 +145,7 @@ const TTSChaptersView: React.FC<TTSChaptersViewProps> = ({
                   </span>
                 </div>
                 {subtitle && (
-                  <span className='text-base-content/60 line-clamp-1 text-xs tabular-nums'>
+                  <span className='text-ink/60 line-clamp-1 text-xs tabular-nums'>
                     {subtitle}
                   </span>
                 )}

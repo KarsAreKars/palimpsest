@@ -59,8 +59,8 @@ export const NavigationPanel: React.FC<NavigationPanelProps> = ({
   );
 
   const classes = clsx(
-    'footerbar-progress-mobile not-eink:bg-base-200 eink:bg-base-100 absolute flex w-full flex-col items-center gap-y-8 px-4 transition-all',
-    'eink:border-base-content eink:border-t',
+    'footerbar-progress-mobile not-eink:bg-paperlight eink:bg-paper absolute flex w-full flex-col items-center gap-y-8 px-4 transition-all',
+    'eink:border-ink eink:border-t',
     !forceMobileLayout && 'sm:hidden',
     // Paddings stay constant in both states (the slide is transform-only) so
     // offsetHeight always reports the panel's settled height; the TTS mini
@@ -82,7 +82,7 @@ export const NavigationPanel: React.FC<NavigationPanelProps> = ({
     >
       <div className='flex w-full flex-col items-center gap-y-4'>
         {progressValid && (
-          <div className='eink-bordered bg-base-100 rounded-full px-2 py-1'>
+          <div className='eink-bordered bg-paper rounded-full px-2 py-1'>
             <PageJumpInput bookKey={bookKey} showFraction className='text-base' />
           </div>
         )}

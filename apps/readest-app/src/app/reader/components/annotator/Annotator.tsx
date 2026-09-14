@@ -2233,8 +2233,8 @@ const Annotator: React.FC<{ bookKey: string; contentInsets: Insets }> = ({
           data-capture-blocking-overlay='true'
           className='fixed inset-0 z-50 flex items-center justify-center bg-black/30'
         >
-          <div className='modal-box bg-base-100 flex flex-col items-center gap-3 px-8 py-6 shadow-2xl'>
-            <svg className='text-primary h-8 w-8 animate-spin' viewBox='0 0 24 24' fill='none'>
+          <div className='bg-paper border-ink rounded-[2px] flex flex-col items-center gap-3 border px-8 py-6 shadow-2xl'>
+            <svg className='text-stamp h-8 w-8 animate-spin' viewBox='0 0 24 24' fill='none'>
               <circle
                 className='opacity-25'
                 cx='12'
@@ -2249,7 +2249,7 @@ const Annotator: React.FC<{ bookKey: string; contentInsets: Insets }> = ({
                 d='M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z'
               />
             </svg>
-            <p className='font-size-sm text-base-content'>{_('Importing annotations...')}</p>
+            <p className='font-size-sm text-ink'>{_('Importing annotations...')}</p>
           </div>
         </div>
       )}

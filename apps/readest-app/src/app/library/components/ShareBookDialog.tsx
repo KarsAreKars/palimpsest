@@ -253,19 +253,19 @@ const ShareBookDialog: React.FC<ShareBookDialogProps> = ({ isOpen, book, cfi, on
             <img
               src={book.coverImageUrl}
               alt=''
-              className='h-28 w-20 shrink-0 rounded-lg object-cover shadow-md'
+              className='h-28 w-20 shrink-0 rounded-[2px] object-cover shadow-md'
               loading='lazy'
             />
           ) : (
-            <div className='bg-base-200 flex h-28 w-20 shrink-0 items-center justify-center rounded-lg shadow-md'>
-              <IoLinkOutline className='text-base-content/30 h-8 w-8' aria-hidden='true' />
+            <div className='bg-paperlight flex h-28 w-20 shrink-0 items-center justify-center rounded-[2px] shadow-md'>
+              <IoLinkOutline className='text-ink/30 h-8 w-8' aria-hidden='true' />
             </div>
           )}
           <div className='min-w-0 flex-1'>
-            <div className='text-base-content line-clamp-2 text-lg font-semibold leading-tight'>
+            <div className='text-ink line-clamp-2 text-lg font-semibold leading-tight'>
               {book.title}
             </div>
-            <div className='text-base-content/60 mt-1.5 truncate text-sm'>
+            <div className='text-ink/60 mt-1.5 truncate text-sm'>
               {[book.author, book.format, formatBytes(fileSize)].filter(Boolean).join(' · ')}
             </div>
           </div>
@@ -275,12 +275,12 @@ const ShareBookDialog: React.FC<ShareBookDialogProps> = ({ isOpen, book, cfi, on
           <>
             {/* Settings-card group: each row is a label + control, separated
                 by a hairline divider. Mirrors the iOS native settings idiom. */}
-            <div className='bg-base-200/60 divide-base-content/5 divide-y overflow-hidden rounded-2xl'>
+            <div className='bg-paperlight/60 divide-ink/5 divide-y overflow-hidden rounded-[2px]'>
               {/* Both rows share min-h-12 so the segmented control's internal
                   pill height doesn't make this row visibly taller than the
                   toggle row below. */}
               <div className='flex min-h-12 items-center justify-between gap-3 px-4 py-2'>
-                <span className='text-base-content text-sm font-medium'>{_('Expires in')}</span>
+                <span className='text-ink text-sm font-medium'>{_('Expires in')}</span>
                 <SegmentedControl<number>
                   ariaLabel={_('Expires in')}
                   value={expirationDays}
@@ -295,12 +295,12 @@ const ShareBookDialog: React.FC<ShareBookDialogProps> = ({ isOpen, book, cfi, on
 
               {cfi && (
                 <label className='flex min-h-12 cursor-pointer select-none items-center justify-between gap-3 px-4 py-2'>
-                  <span className='text-base-content text-sm font-medium'>
+                  <span className='text-ink text-sm font-medium'>
                     {_('Share reading progress')}
                   </span>
                   <input
                     type='checkbox'
-                    className='toggle toggle-primary'
+                    className='chrome-toggle'
                     checked={includeCfi}
                     onChange={(e) => setIncludeCfi(e.target.checked)}
                     disabled={generating}
@@ -311,11 +311,11 @@ const ShareBookDialog: React.FC<ShareBookDialogProps> = ({ isOpen, book, cfi, on
 
             {uploadProgress !== null && (
               <div>
-                <div className='text-base-content/70 mb-1.5 text-xs'>
+                <div className='text-ink/70 mb-1.5 text-xs'>
                   {_('Uploading book…')} {Math.round(uploadProgress)}%
                 </div>
                 <progress
-                  className='progress progress-primary w-full'
+                  className='chrome-progress w-full'
                   value={uploadProgress}
                   max={100}
                 />
@@ -323,7 +323,7 @@ const ShareBookDialog: React.FC<ShareBookDialogProps> = ({ isOpen, book, cfi, on
             )}
 
             {errorMessage && (
-              <p className='text-error text-xs' role='alert'>
+              <p className='text-stamp text-xs' role='alert'>
                 {errorMessage}
               </p>
             )}
@@ -332,7 +332,7 @@ const ShareBookDialog: React.FC<ShareBookDialogProps> = ({ isOpen, book, cfi, on
               type='button'
               onClick={handleGenerate}
               disabled={generating}
-              className='btn btn-primary btn-block gap-2 rounded-2xl'
+              className='stamp-btn inline-flex w-full items-center justify-center gap-2 rounded-[2px]'
             >
               <IoLinkOutline className='h-5 w-5' aria-hidden='true' />
               {generating ? _('Generating…') : _('Generate share link')}
@@ -341,7 +341,7 @@ const ShareBookDialog: React.FC<ShareBookDialogProps> = ({ isOpen, book, cfi, on
         ) : (
           <>
             {created.hasCfi && (
-              <div className='text-primary inline-flex items-center gap-1.5 self-start text-xs font-medium'>
+              <div className='text-stamp inline-flex items-center gap-1.5 self-start text-xs font-medium'>
                 <IoCheckmarkCircle className='h-4 w-4' aria-hidden='true' />
                 {_('Includes your reading progress')}
               </div>
@@ -349,19 +349,19 @@ const ShareBookDialog: React.FC<ShareBookDialogProps> = ({ isOpen, book, cfi, on
 
             {/* URL pill: softer than a bordered input, with the copy button
                 as an inline action chip. */}
-            <div className='bg-base-200/60 flex items-center gap-2 rounded-2xl p-2 pl-4'>
+            <div className='bg-paperlight/60 flex items-center gap-2 rounded-[2px] p-2 pl-4'>
               <input
                 type='text'
                 readOnly
                 value={created.url}
                 aria-label={_('Share URL')}
-                className='text-base-content min-w-0 flex-1 bg-transparent font-mono text-xs outline-none'
+                className='text-ink min-w-0 flex-1 bg-transparent font-mono text-xs outline-none'
                 onFocus={(e) => e.currentTarget.select()}
               />
               <button
                 type='button'
                 onClick={handleCopy}
-                className={`btn btn-sm gap-1 rounded-xl ${copied ? 'btn-success' : 'btn-primary'}`}
+                className={`chrome-ghost-sm inline-flex items-center gap-1 rounded-[2px] ${copied ? 'ink-btn' : 'stamp-btn'}`}
                 aria-label={_('Copy link')}
               >
                 {copied ? (
@@ -376,13 +376,13 @@ const ShareBookDialog: React.FC<ShareBookDialogProps> = ({ isOpen, book, cfi, on
             <button
               type='button'
               onClick={(e) => handleNativeShare(e)}
-              className='btn btn-block gap-2 rounded-2xl'
+              className='w-full gap-2 rounded-[2px]'
             >
               <IoShareSocialOutline className='h-5 w-5' aria-hidden='true' />
               {_('Share via…')}
             </button>
 
-            <p className='text-base-content/60 text-center text-xs'>
+            <p className='text-ink/60 text-center text-xs'>
               {_('Expires {{date}}', { date: expiryLabel ?? '' })}
               <span className='mx-1.5'>·</span>
               <button
@@ -396,7 +396,7 @@ const ShareBookDialog: React.FC<ShareBookDialogProps> = ({ isOpen, book, cfi, on
             </p>
 
             {errorMessage && (
-              <p className='text-error text-xs' role='alert'>
+              <p className='text-stamp text-xs' role='alert'>
                 {errorMessage}
               </p>
             )}

@@ -38,7 +38,7 @@ interface TTSFollowIndicatorProps {
 }
 
 // Shared pill chassis. eink-bordered is applied unconditionally: in eink mode it
-// swaps to bg-base-100 + a 1px base-content border, and full-screen immersive
+// swaps to bg-paper + a 1px ink border, and full-screen immersive
 // overlays paint their own theme surface where the global [data-eink] rules
 // don't auto-apply. Glyph + text together so the meaning never
 // rests on color alone — required to read in e-ink monochrome.
@@ -48,11 +48,11 @@ const PILL_BASE =
 // Per-variant fills. 'plain' inherits text color (currentColor) so it reads on
 // any book theme a full-screen immersive overlay paints.
 const STATUS_FILL: Record<NonNullable<TTSFollowIndicatorProps['variant']>, string> = {
-  base: 'bg-base-content/10 text-base-content',
+  base: 'bg-ink/10 text-ink',
   plain: 'bg-gray-500/15',
 };
 const ACTION_FILL: Record<NonNullable<TTSFollowIndicatorProps['variant']>, string> = {
-  base: 'bg-base-200 text-base-content transition-colors hover:bg-base-300',
+  base: 'bg-paperlight text-ink transition-colors hover:bg-paperlight',
   plain: 'bg-gray-500/20 transition-colors hover:bg-gray-500/30',
 };
 
@@ -81,7 +81,7 @@ const TTSFollowIndicator: React.FC<TTSFollowIndicatorProps> = ({
           PILL_BASE,
           'touch-target',
           ACTION_FILL[variant],
-          'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-base-content/15',
+          'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stamp/15',
           className,
         )}
       >

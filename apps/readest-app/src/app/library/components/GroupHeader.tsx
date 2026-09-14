@@ -55,13 +55,13 @@ const GroupHeader: React.FC<GroupHeaderProps> = ({ groupBy, groupName }) => {
     <div className='flex items-center gap-2 px-4 py-2'>
       <button
         onClick={handleBack}
-        className='btn btn-ghost btn-sm h-8 min-h-8 px-2'
+        className='chrome-ghost chrome-ghost-sm h-8 min-h-8 px-2'
         aria-label={_('Back to library')}
       >
         <MdArrowBack size={iconSize} />
       </button>
       <div className='flex items-center gap-2 overflow-hidden'>
-        <span className='text-neutral-content text-sm'>{getGroupTypeLabel()}:</span>
+        <span className='text-paperlight text-sm'>{getGroupTypeLabel()}:</span>
         <span className='truncate text-base font-medium'>{groupName}</span>
       </div>
     </div>

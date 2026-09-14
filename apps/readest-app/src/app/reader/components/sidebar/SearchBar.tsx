@@ -338,9 +338,9 @@ const SearchBar: React.FC<SearchBarProps> = ({ isVisible, bookKey, onHideSearchB
 
   return (
     <div className='relative flex flex-col gap-3 p-2'>
-      <div className='bg-base-100 flex h-8 items-center rounded-lg'>
+      <div className='bg-paper flex h-8 items-center rounded-[2px]'>
         <div className='absolute ps-3'>
-          <FaSearch size={iconSize16} className='text-base-content/50' />
+          <FaSearch size={iconSize16} className='text-ink/50' />
         </div>
 
         <input
@@ -365,14 +365,14 @@ const SearchBar: React.FC<SearchBarProps> = ({ isVisible, bookKey, onHideSearchB
             className='absolute end-10 flex h-8 w-8 items-center justify-center bg-transparent'
             aria-label={_('Clear search')}
           >
-            <IoMdCloseCircle size={iconSize16} className='text-base-content/75' />
+            <IoMdCloseCircle size={iconSize16} className='text-ink/75' />
           </button>
         )}
 
         <div
           className={clsx(
-            'absolute end-2 flex h-8 w-8 items-center rounded-r-lg',
-            viewSettings?.isEink ? 'bg-transparent' : 'bg-base-300',
+            'absolute end-2 flex h-8 w-8 items-center rounded-r-[2px]',
+            viewSettings?.isEink ? 'bg-transparent' : 'bg-paperlight',
           )}
         >
           <Dropdown
@@ -383,10 +383,10 @@ const SearchBar: React.FC<SearchBarProps> = ({ isVisible, bookKey, onHideSearchB
             )}
             menuClassName={clsx('no-triangle mt-1', window.innerWidth < 640 ? '' : '!relative')}
             buttonClassName={clsx(
-              'btn btn-ghost h-8 min-h-8 w-8 p-0 rounded-none rounded-r-lg',
+              'chrome-ghost h-8 min-h-8 w-8 p-0 rounded-none rounded-r-[2px]',
               viewSettings?.isEink ? '!bg-transparent hover:!bg-transparent' : '',
             )}
-            toggleButton={<FaChevronDown size={iconSize12} className='text-base-content/50' />}
+            toggleButton={<FaChevronDown size={iconSize12} className='text-ink/50' />}
           >
             <SearchOptions
               isEink={!!viewSettings?.isEink}
@@ -397,7 +397,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ isVisible, bookKey, onHideSearchB
         </div>
       </div>
 
-      {searchError && <div className='text-error px-2 text-xs'>{searchError}</div>}
+      {searchError && <div className='text-stamp px-2 text-xs'>{searchError}</div>}
 
       {searchHistory.length > 0 && !searchTerm && (
         <div className='relative flex'>
@@ -416,7 +416,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ isVisible, bookKey, onHideSearchB
               <button
                 key={index}
                 onClick={() => handleHistoryClick(term)}
-                className='hover:bg-base-200/20 text-base-content/70 bg-base-100 max-w-[60%] flex-shrink-0 whitespace-nowrap rounded-full px-3 py-0.5 text-xs'
+                className='hover:bg-paperlight/20 text-ink/70 bg-paper max-w-[60%] flex-shrink-0 whitespace-nowrap rounded-full px-3 py-0.5 text-xs'
               >
                 <p className='truncate'>{term}</p>
               </button>
@@ -432,7 +432,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ isVisible, bookKey, onHideSearchB
           <button
             onClick={handleClearHistory}
             className={clsx(
-              'text-base-content/50 hover:text-base-content/80 flex-shrink-0 items-center',
+              'text-ink/50 hover:text-ink/80 flex-shrink-0 items-center',
               'flex h-6 min-h-6 w-8 min-w-8 items-center justify-center p-0',
             )}
             title={_('Clear search history')}

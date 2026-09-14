@@ -54,7 +54,7 @@ const WatchedFoldersPane: React.FC<WatchedFoldersPaneProps> = ({
           <button
             type='button'
             onClick={onBack}
-            className='btn btn-ghost btn-sm px-1'
+            className='chrome-ghost chrome-ghost-sm px-1'
             aria-label={_('Back')}
             title={_('Back')}
           >
@@ -62,7 +62,7 @@ const WatchedFoldersPane: React.FC<WatchedFoldersPaneProps> = ({
           </button>
           <span className='text-base font-semibold tracking-tight'>{_('Watched Folders')}</span>
         </div>
-        <span className='text-base-content/65 text-[0.85em] leading-relaxed'>
+        <span className='text-ink/65 text-[0.85em] leading-relaxed'>
           {_(
             'Readest re-scans these folders when it opens or returns to the foreground and imports any new books. Each folder keeps the structure it was imported with.',
           )}
@@ -70,7 +70,7 @@ const WatchedFoldersPane: React.FC<WatchedFoldersPaneProps> = ({
       </div>
 
       {folders.length === 0 ? (
-        <span className='text-base-content/65 py-4 text-center text-[0.85em]'>
+        <span className='text-ink/65 py-4 text-center text-[0.85em]'>
           {_('No folders are watched.')}
         </span>
       ) : (
@@ -81,7 +81,7 @@ const WatchedFoldersPane: React.FC<WatchedFoldersPaneProps> = ({
                 <div className='truncate font-medium' title={folder.path}>
                   {getFilename(folder.path) || folder.path}
                 </div>
-                <div className='text-base-content/65 truncate text-[0.85em]'>{folder.path}</div>
+                <div className='text-ink/65 truncate text-[0.85em]'>{folder.path}</div>
               </div>
               <SettingsSelect
                 value={folder.flatten ? 'flatten' : 'keep'}
@@ -95,11 +95,11 @@ const WatchedFoldersPane: React.FC<WatchedFoldersPaneProps> = ({
               <button
                 type='button'
                 onClick={() => onUnwatch(folder.path)}
-                className='btn btn-ghost btn-sm shrink-0 px-1'
+                className='chrome-ghost chrome-ghost-sm shrink-0 px-1'
                 aria-label={_('Stop watching')}
                 title={_('Stop watching')}
               >
-                <IoMdCloseCircleOutline className='text-base-content/75 h-5 w-5' />
+                <IoMdCloseCircleOutline className='text-ink/75 h-5 w-5' />
               </button>
             </div>
           ))}
