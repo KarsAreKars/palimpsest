@@ -61,3 +61,12 @@ actual code before action. Fixed in `149f0eb8f`; this file tracks the rest.
     dialogs call readest.com backends → 404 for strangers. Strip or hide.
 13. **Dead code**: `/stt` + `mlx-whisper` unused by the app (TypeWhisper
     owns voice input) — remove or wire, and trim bootstrap accordingly.
+
+## UI critique loop follow-ups (2026-09-14, post round-2)
+
+- **globals.css:1014-1026** — `outline: none !important` on all inputs kills the global stamp focus ring on typed surfaces. Pre-existing. Fix: scope that reset to the specific widget it was written for.
+- **globals.css:379-380** — `.drag-over` still blue `#4a90e2`. Pre-existing. Move to stamp.
+- **SettingsDialog e23d5ff0d `!important`** — scoped, leaks nowhere, but the cleaner fix is layering `.plate-modal` chrome properly (non-blocking).
+- **NarrationBar i18n** — aria-labels and VOICES strings still hardcoded English (adjudicated out of the fix pass; sweep with the next translation pass).
+- **MobileFooterBar** — still uses shared daisyUI `Button.tsx` (needs a lane that owns `components/`).
+- **ProfBlob** — unused on disk; its canvas palette is token-constant based; reskin would mean drawing-API changes.
