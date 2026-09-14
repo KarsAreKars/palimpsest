@@ -121,7 +121,6 @@ import ImportFromFolderDialog, {
 import ImportFromUrlDialog from './components/ImportFromUrlDialog';
 import ImportNovelDialog from './components/ImportNovelDialog';
 import NowPlayingBar from './components/NowPlayingBar';
-import NarrationBar from '@/components/apothecary/NarrationBar';
 import { clipPageWithSignInFallback } from '@/services/send/clipSignIn';
 import ClipSignInAlert from '@/components/ClipSignInAlert';
 import useShortcuts from '@/hooks/useShortcuts';
@@ -2101,8 +2100,6 @@ const LibraryPageContent = ({ searchParams }: { searchParams: ReadonlyURLSearchP
         />
       )}
       <NowPlayingBar isSelectMode={isSelectMode} />
-      {/* the same oak narration bar as the reader's — the voice follows you */}
-      <NarrationBar />
       {showDetailsBook && (
         <BookDetailModal
           isOpen={!!showDetailsBook}

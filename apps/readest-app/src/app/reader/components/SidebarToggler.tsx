@@ -3,6 +3,7 @@ import { TbLayoutSidebar, TbLayoutSidebarFilled } from 'react-icons/tb';
 
 import { useSidebarStore } from '@/store/sidebarStore';
 import { useTranslation } from '@/hooks/useTranslation';
+import { useResponsiveSize } from '@/hooks/useResponsiveSize';
 import Button from '@/components/Button';
 
 interface SidebarTogglerProps {
@@ -11,6 +12,7 @@ interface SidebarTogglerProps {
 
 const SidebarToggler: React.FC<SidebarTogglerProps> = ({ bookKey }) => {
   const _ = useTranslation();
+  const iconSize18 = useResponsiveSize(18);
   const { sideBarBookKey, isSideBarVisible, setSideBarBookKey, toggleSideBar } = useSidebarStore();
   const handleToggleSidebar = () => {
     if (sideBarBookKey === bookKey) {
@@ -24,9 +26,9 @@ const SidebarToggler: React.FC<SidebarTogglerProps> = ({ bookKey }) => {
     <Button
       icon={
         sideBarBookKey === bookKey && isSideBarVisible ? (
-          <TbLayoutSidebarFilled className='text-ink' />
+          <TbLayoutSidebarFilled size={iconSize18} className='text-ink' />
         ) : (
-          <TbLayoutSidebar className='text-ink' />
+          <TbLayoutSidebar size={iconSize18} className='text-ink' />
         )
       }
       onClick={handleToggleSidebar}

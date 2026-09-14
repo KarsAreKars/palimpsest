@@ -2,10 +2,8 @@ import clsx from 'clsx';
 import React, { useEffect } from 'react';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { BiMoon, BiSun } from 'react-icons/bi';
 import { PiGear } from 'react-icons/pi';
-import { TbSunMoon } from 'react-icons/tb';
-import { MdZoomOut, MdZoomIn, MdCheck, MdInfoOutline, MdOutlineSensors } from 'react-icons/md';
+import { MdZoomOut, MdZoomIn, MdCheck, MdInfoOutline } from 'react-icons/md';
 import { MdRemove, MdAdd, MdContrast } from 'react-icons/md';
 import { MdSync, MdSyncProblem } from 'react-icons/md';
 import { IoMdExpand } from 'react-icons/io';
@@ -24,7 +22,6 @@ import {
 } from '@/services/constants';
 import { useEnv } from '@/context/EnvContext';
 import { useAuth } from '@/context/AuthContext';
-import { useThemeStore } from '@/store/themeStore';
 import { useReaderStore } from '@/store/readerStore';
 import { useBookDataStore } from '@/store/bookDataStore';
 import { useSettingsStore } from '@/store/settingsStore';
@@ -35,7 +32,6 @@ import { getScrollGapAttr } from '@/utils/webtoon';
 import { applyPageTurnAttributes } from '@/app/reader/hooks/useCapturedTurn';
 import { eventDispatcher } from '@/utils/event';
 import { getMaxInlineSize } from '@/utils/config';
-import { nextThemeMode } from '@/utils/ambientLight';
 import dayjs from 'dayjs';
 import { clampSyncTimeForDisplay } from '@/utils/time';
 import { saveViewSettings } from '@/helpers/settings';
@@ -67,7 +63,6 @@ const ViewMenu: React.FC<ViewMenuProps> = ({
   const viewSettings = getViewSettings(bookKey)!;
   const viewState = getViewState(bookKey);
 
-  const { themeMode, isDarkMode, setThemeMode } = useThemeStore();
   const [isScrolledMode, setScrolledMode] = useState(viewSettings!.scrolled);
   const [scrolledDirection, setScrolledDirection] = useState(
     viewSettings!.scrolledDirection ?? 'vertical',
@@ -81,9 +76,6 @@ const ViewMenu: React.FC<ViewMenuProps> = ({
   const [zoomMode, setZoomMode] = useState(viewSettings!.zoomMode!);
   const [spreadMode, setSpreadMode] = useState(viewSettings!.spreadMode!);
   const [keepCoverSpread, setKeepCoverSpread] = useState(viewSettings!.keepCoverSpread!);
-  const [invertImgColorInDark, setInvertImgColorInDark] = useState(
-    viewSettings!.invertImgColorInDark,
-  );
   const [applyThemeToPDF, setApplyThemeToPDF] = useState(viewSettings!.applyThemeToPDF!);
   const [rtlSpread, setRtlSpread] = useState(bookData?.bookDoc?.dir === 'rtl');
 
@@ -109,9 +101,6 @@ const ViewMenu: React.FC<ViewMenuProps> = ({
     setSettingsDialogOpen(true);
   };
 
-  const cycleThemeMode = () => {
-    setThemeMode(nextThemeMode(themeMode, !!appService?.hasAmbientLightSensor));
-  };
 
   const handleFullScreen = () => {
     tauriHandleToggleFullScreen();
@@ -204,12 +193,6 @@ const ViewMenu: React.FC<ViewMenuProps> = ({
     saveViewSettings(envConfig, bookKey, 'contrast', contrast, true, true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [contrast]);
-
-  useEffect(() => {
-    if (invertImgColorInDark === viewSettings.invertImgColorInDark) return;
-    saveViewSettings(envConfig, bookKey, 'invertImgColorInDark', invertImgColorInDark, true, true);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [invertImgColorInDark]);
 
   useEffect(() => {
     if (applyThemeToPDF === viewSettings.applyThemeToPDF) return;
@@ -509,27 +492,7 @@ const ViewMenu: React.FC<ViewMenuProps> = ({
       <hr aria-hidden='true' className='border-ink/20 my-1' />
 
       {appService?.hasWindow && <MenuItem label={_('Fullscreen')} onClick={handleFullScreen} />}
-      <MenuItem
-        label={
-          themeMode === 'dark'
-            ? _('Dark Mode')
-            : themeMode === 'light'
-              ? _('Light Mode')
-              : themeMode === 'ambient'
-                ? _('Ambient Mode')
-                : _('Auto Mode')
-        }
-        Icon={
-          themeMode === 'dark'
-            ? BiMoon
-            : themeMode === 'light'
-              ? BiSun
-              : themeMode === 'ambient'
-                ? MdOutlineSensors
-                : TbSunMoon
-        }
-        onClick={cycleThemeMode}
-      />
+      {/* Paper only: the dark palette was removed — no theme toggle. */}
       <MenuItem label={_('Settings')} Icon={PiGear} onClick={openSettingsDialog} />
       {bookData.book?.format === 'PDF' && appService?.supportsCanvasContext2DFilter && (
         <MenuItem
@@ -538,13 +501,6 @@ const ViewMenu: React.FC<ViewMenuProps> = ({
           onClick={() => setApplyThemeToPDF(!applyThemeToPDF)}
         />
       )}
-      <MenuItem
-        label={_('Invert Image In Dark Mode')}
-        disabled={!isDarkMode}
-        Icon={invertImgColorInDark ? MdCheck : undefined}
-        onClick={() => setInvertImgColorInDark(!invertImgColorInDark)}
-      />
-
       <hr aria-hidden='true' className='border-ink/20 my-1' />
 
       <MenuItem label={_('Share Book')} Icon={IoShareOutline} onClick={handleShare} />

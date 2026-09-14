@@ -7,6 +7,7 @@ import { RiArrowLeftDoubleLine, RiArrowRightDoubleLine } from 'react-icons/ri';
 import { useReaderStore } from '@/store/readerStore';
 import { useTranslation } from '@/hooks/useTranslation';
 import { getNarration } from '@/services/narration/speakMode';
+import NarrationControls from '@/components/apothecary/NarrationControls';
 import type { FooterBarChildProps } from './types';
 import { getNavigationIcon } from './utils';
 import PageJumpInput from './PageJumpInput';
@@ -171,6 +172,7 @@ const DesktopFooterBar: React.FC<FooterBarChildProps> = ({
         value={progressValue}
         onChange={(e) => handleProgressChange(parseInt(e.target.value, 10))}
       />
+      <NarrationControls bookKey={bookKey} />
       <NavButton
         icon={<FaHeadphones className={viewState?.ttsEnabled ? 'text-stamp' : ''} />}
         onClick={onSpeakText!}

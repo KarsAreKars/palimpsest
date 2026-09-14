@@ -60,18 +60,23 @@ const MenuItem: React.FC<MenuItemProps> = ({
     <>
       <div className='flex w-full items-center justify-between'>
         <div className='flex min-w-0 items-center'>
-          {!noIcon && (
-            <span style={{ minWidth: `${iconSize}px` }}>
-              {typeof IconType === 'function' ? (
+          {/* A fixed, centred icon slot — rows without an icon keep the same
+              leading space so every label lines up. */}
+          <span
+            className='flex items-center justify-center'
+            style={{ width: iconSize, minWidth: iconSize, height: iconSize }}
+            aria-hidden={noIcon ? 'true' : undefined}
+          >
+            {!noIcon &&
+              (typeof IconType === 'function' ? (
                 <IconType
                   className={clsx(disabled ? 'text-faint' : 'text-ink', iconClassName)}
                   size={iconSize}
                 />
               ) : (
                 IconType
-              )}
-            </span>
-          )}
+              ))}
+          </span>
           <span
             className={clsx(
               'mx-2 flex-1 break-words text-pretty text-start text-base sm:text-sm',
@@ -98,7 +103,7 @@ const MenuItem: React.FC<MenuItemProps> = ({
         {description && (
           <span
             className='text-mutedink mt-1 truncate text-start text-xs'
-            style={{ minWidth: 0, paddingInlineStart: noIcon ? '0' : `${iconSize + 8}px` }}
+            style={{ minWidth: 0, paddingInlineStart: `${iconSize + 8}px` }}
           >
             {description}
           </span>

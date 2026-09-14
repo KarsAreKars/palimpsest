@@ -16,7 +16,7 @@ const TranslationToggler = ({ bookKey }: { bookKey: string }) => {
   const { getBookData } = useBookDataStore();
   const { getViewSettings, setViewSettings, setHoveredBookKey } = useReaderStore();
 
-  const iconSize20 = useResponsiveSize(20);
+  const iconSize20 = useResponsiveSize(18);
   const bookData = getBookData(bookKey);
   const viewSettings = getViewSettings(bookKey)!;
   const [translationEnabled, setTranslationEnabled] = useState(viewSettings.translationEnabled!);

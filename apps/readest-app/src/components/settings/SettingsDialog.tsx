@@ -403,7 +403,7 @@ const SettingsDialog: React.FC<{ bookKey: string }> = ({ bookKey }) => {
                     )}
                     onClick={() => handleSetActivePanel(tab)}
                   >
-                    <Icon className='mr-0' />
+                    <Icon className='mr-0' size={16} />
                     <span
                       className={clsx(
                         window.innerWidth < 640 && 'hidden',

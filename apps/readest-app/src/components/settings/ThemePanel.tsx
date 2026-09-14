@@ -34,7 +34,6 @@ import clsx from 'clsx';
 import { SettingLabel } from './primitives';
 import { HIGHLIGHT_COLOR_HEX } from '@/services/constants';
 import ThemeEditor from './theme/ThemeEditor';
-import ThemeModeSelector from './theme/ThemeModeSelector';
 import ThemeColorSelector from './theme/ThemeColorSelector';
 import BackgroundTextureSelector from './theme/BackgroundTextureSelector';
 import HighlightColorsEditor from './theme/HighlightColorsEditor';
@@ -45,8 +44,7 @@ import LibrarySettings from './theme/LibrarySettings';
 
 const ThemePanel: React.FC<SettingsPanelPanelProp> = ({ bookKey, onRegisterReset }) => {
   const _ = useTranslation();
-  const { themeMode, themeColor, isDarkMode, setThemeMode, setThemeColor, saveCustomTheme } =
-    useThemeStore();
+  const { themeColor, isDarkMode, setThemeColor, saveCustomTheme } = useThemeStore();
   const { envConfig, appService } = useEnv();
   const { settings, setSettings, saveSettings } = useSettingsStore();
   const { getView, getViewSettings } = useReaderStore();
@@ -69,9 +67,6 @@ const ThemePanel: React.FC<SettingsPanelPanelProp> = ({ bookKey, onRegisterReset
   const currentBackgroundOpacity = currentBackground.backgroundOpacity;
   const currentBackgroundSize = currentBackground.backgroundSize;
 
-  const [invertImgColorInDark, setInvertImgColorInDark] = useState(
-    viewSettings.invertImgColorInDark,
-  );
   const [editTheme, setEditTheme] = useState<CustomTheme | null>(null);
   const [customThemes, setCustomThemes] = useState<Theme[]>([]);
   const [showCustomThemeEditor, setShowCustomThemeEditor] = useState(false);
@@ -115,7 +110,6 @@ const ThemePanel: React.FC<SettingsPanelPanelProp> = ({ bookKey, onRegisterReset
   const handleReset = () => {
     resetToDefaults({
       overrideColor: setOverrideColor,
-      invertImgColorInDark: setInvertImgColorInDark,
       highlightOpacity: setHighlightOpacity,
       codeHighlighting: setcodeHighlighting,
       codeLanguage: setCodeLanguage,
@@ -124,7 +118,6 @@ const ThemePanel: React.FC<SettingsPanelPanelProp> = ({ bookKey, onRegisterReset
       readingRulerOpacity: setReadingRulerOpacity,
     });
     setThemeColor('default');
-    setThemeMode('auto');
     setSelectedTextureId('none');
     setBackgroundOpacity(0.6);
     setBackgroundSize('cover');
@@ -165,12 +158,6 @@ const ThemePanel: React.FC<SettingsPanelPanelProp> = ({ bookKey, onRegisterReset
   useEffect(() => {
     loadCustomTextures(envConfig);
   }, [loadCustomTextures, envConfig]);
-
-  useEffect(() => {
-    if (invertImgColorInDark === viewSettings.invertImgColorInDark) return;
-    saveViewSettings(envConfig, bookKey, 'invertImgColorInDark', invertImgColorInDark);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [invertImgColorInDark]);
 
   useEffect(() => {
     if (overrideColor === viewSettings.overrideColor) return;
@@ -394,29 +381,8 @@ const ThemePanel: React.FC<SettingsPanelPanelProp> = ({ bookKey, onRegisterReset
         />
       ) : (
         <>
-          <ThemeModeSelector
-            themeMode={themeMode}
-            onThemeModeChange={setThemeMode}
-            hasAmbientLightSensor={!!appService?.hasAmbientLightSensor}
-            data-setting-id='settings.color.themeMode'
-          />
-
-          <label
-            data-setting-id='settings.color.invertImageInDarkMode'
-            className={clsx(
-              'flex items-center justify-between px-4',
-              !isDarkMode && 'cursor-not-allowed opacity-50',
-              isDarkMode && 'cursor-pointer',
-            )}
-          >
-            <SettingLabel>{_('Invert Image In Dark Mode')}</SettingLabel>
-            <Toggle
-              checked={invertImgColorInDark}
-              disabled={!isDarkMode}
-              onChange={() => setInvertImgColorInDark(!invertImgColorInDark)}
-            />
-          </label>
-
+          {/* Paper only: dark mode was removed — no mode selector, and the
+              invert-in-dark toggle has nothing to attach to. */}
           <label
             data-setting-id='settings.color.overrideBookColor'
             className='flex cursor-pointer items-center justify-between px-4'

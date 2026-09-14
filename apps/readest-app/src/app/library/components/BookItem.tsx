@@ -146,9 +146,6 @@ const BookItem: React.FC<BookItemProps> = ({
           mode === 'list' && 'min-w-20 items-center',
         )}
       >
-        {mode === 'grid' && plateLabel && (
-          <span className='plate-num catalogue-plate-num'>{plateLabel}</span>
-        )}
         {/* Apothecary: real cover art is a must — the cloth + typed label is
             the fallback for books that have none. */}
         {hasCoverArt ? (

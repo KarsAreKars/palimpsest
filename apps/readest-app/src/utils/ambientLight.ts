@@ -43,10 +43,14 @@ export function resolveThemeIsDarkMode(
   systemIsDarkMode: boolean,
   ambientIsDarkMode: boolean,
 ): boolean {
-  if (mode === 'dark') return true;
-  if (mode === 'light') return false;
-  if (mode === 'ambient') return ambientIsDarkMode;
-  return systemIsDarkMode;
+  // Palimpsest is a paper product: light only, under every mode. The dark
+  // palette shipped with the reskin and the user rejected it outright —
+  // keep the hook (callers still pass their mode) but the answer is always
+  // the reading room at noon.
+  void mode;
+  void systemIsDarkMode;
+  void ambientIsDarkMode;
+  return false;
 }
 
 const THEME_MODES_BASE: ThemeMode[] = ['auto', 'light', 'dark'];

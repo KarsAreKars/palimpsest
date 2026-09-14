@@ -16,7 +16,6 @@ import MobileFooterBar from './MobileFooterBar';
 import DesktopFooterBar from './DesktopFooterBar';
 import { getFooterBarPosition } from './position';
 import TTSControl from '../tts/TTSControl';
-import NarrationBar from '@/components/apothecary/NarrationBar';
 import ProfOverlay from '../professor/ProfOverlay';
 import ProfAnnotations from '../professor/ProfAnnotations';
 
@@ -270,9 +269,9 @@ const FooterBar: React.FC<FooterBarProps> = ({
       )}
 
       <TTSControl bookKey={bookKey} gridInsets={gridInsets} />
-      {/* Palimpsest: the oak narration bar (UX spec D) — one MiniPlayer,
-          mounted here and in the library; audio survives navigation. */}
-      <NarrationBar bookKey={bookKey} />
+      {/* Palimpsest: the narrator's transport lives in the footer's right
+          cluster (NarrationControls inside DesktopFooterBar) — no floating
+          plate; the book keeps talking while the user navigates. */}
       {/* Palimpsest: the "Hey Prof" overlay (⌥Space) — HP-1 bubble. */}
       <ProfOverlay bookKey={bookKey} />
       {/* Palimpsest: the professor's pen — HP-2 page annotations. */}

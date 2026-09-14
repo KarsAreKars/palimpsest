@@ -277,7 +277,39 @@ const ElevenLabsForm: React.FC<{ onBack: () => void }> = ({ onBack }) => {
   const [keyDraft, setKeyDraft] = useState(settings.elevenlabsApiKey);
   const [voices, setVoices] = useState<TTSVoice[]>([]);
   const [quota, setQuota] = useState<ElevenLabsQuota | null>(null);
-  const [keyStatus, setKeyStatus] = useState<'idle' | 'checking' | 'ok' | 'bad'>('idle');
+  const [keyStatus, setKeyStatus] = useState<'idle' | 'checking' | 'ok' | 'bad'>(
+    settings.elevenlabsApiKey ? 'ok' : 'idle',
+  );
+
+  // A stored key must restore its voice library on mount — otherwise the
+  // Voice box stays hidden until the user re-Connects every single time.
+  useEffect(() => {
+    const stored = settings.elevenlabsApiKey;
+    if (!stored) return;
+    let alive = true;
+    const provider = new ElevenLabsProvider({
+      apiKey: stored,
+      tier: settings.elevenlabsTier,
+      fetchImpl: getAIFetch(),
+    });
+    provider
+      .init()
+      .then(async (ok) => {
+        if (!alive || !ok) return;
+        const [voiceList, q] = await Promise.all([provider.getAllVoices(), provider.getQuota()]);
+        if (!alive) return;
+        setVoices(voiceList);
+        setQuota(q);
+        if (!useNarrationSettings.getState().elevenlabsVoiceId && voiceList[0]) {
+          useNarrationSettings.getState().setElevenlabsVoiceId(voiceList[0].id);
+        }
+      })
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const validateKey = async () => {
     const key = keyDraft.trim();
