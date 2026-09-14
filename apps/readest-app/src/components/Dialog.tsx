@@ -122,7 +122,7 @@ const Dialog: React.FC<DialogProps> = ({
   const handleDragMove = (data: { clientY: number; deltaY: number }) => {
     if (!dismissible || !isMobile || !dialogRef.current) return;
 
-    const modal = dialogRef.current.querySelector('.modal-box') as HTMLElement;
+    const modal = dialogRef.current.querySelector('.plate-modal') as HTMLElement;
     const overlay = dialogRef.current.querySelector('.overlay') as HTMLElement;
 
     const heightFraction = data.clientY / window.innerHeight;
@@ -140,7 +140,7 @@ const Dialog: React.FC<DialogProps> = ({
 
   const handleDragEnd = (data: { velocity: number; clientY: number }) => {
     if (!dismissible || !isMobile || !dialogRef.current) return;
-    const modal = dialogRef.current.querySelector('.modal-box') as HTMLElement;
+    const modal = dialogRef.current.querySelector('.plate-modal') as HTMLElement;
     const overlay = dialogRef.current.querySelector('.overlay') as HTMLElement;
     if (!modal || !overlay) return;
 
@@ -215,11 +215,9 @@ const Dialog: React.FC<DialogProps> = ({
       />
       <div
         className={clsx(
-          'modal-box settings-content absolute z-20 flex flex-col rounded-none p-0 sm:rounded-sm',
-          'h-full max-h-full w-full max-w-full',
-          window.innerWidth < window.innerHeight
-            ? 'sm:h-[50%] sm:w-3/4'
-            : 'sm:h-[65%] sm:w-1/2 sm:max-w-[600px]',
+          'plate-modal settings-content absolute z-20 flex flex-col p-0',
+          'h-full max-h-full w-full max-w-full sm:h-auto sm:max-h-[85vh]',
+          window.innerWidth < window.innerHeight ? 'sm:w-3/4' : 'sm:w-1/2 sm:max-w-[600px]',
           boxClassName,
         )}
         style={{
@@ -243,7 +241,7 @@ const Dialog: React.FC<DialogProps> = ({
           onMouseDown={handleDragStart}
           onTouchStart={handleDragStart}
         >
-          <div className='bg-base-content/50 h-1 w-10 rounded-full'></div>
+          <div className='bg-ink/30 h-1 w-10 rounded-[2px]'></div>
         </div>
         <div className='dialog-header sticky top-1 z-10 flex items-center justify-between px-2 sm:pe-3 sm:ps-2'>
           {header ? (
@@ -256,7 +254,7 @@ const Dialog: React.FC<DialogProps> = ({
                 onClick={onClose}
                 disabled={!dismissible}
                 className={
-                  'btn btn-ghost btn-circle flex h-8 min-h-8 w-8 hover:bg-transparent focus:outline-none disabled:bg-transparent sm:hidden'
+                  'flex h-8 min-h-8 w-8 items-center justify-center text-ink hover:text-stamp disabled:opacity-40 sm:hidden'
                 }
               >
                 {isRtl ? (
@@ -274,7 +272,7 @@ const Dialog: React.FC<DialogProps> = ({
                 onClick={onClose}
                 disabled={!dismissible}
                 className={
-                  'bg-base-300/65 btn btn-ghost btn-circle ml-auto hidden h-6 min-h-6 w-6 focus:outline-none sm:flex'
+                  'ml-auto hidden h-6 min-h-6 w-6 items-center justify-center rounded-[2px] text-ink/70 hover:bg-paperlight hover:text-ink sm:flex'
                 }
               >
                 <svg
@@ -299,7 +297,7 @@ const Dialog: React.FC<DialogProps> = ({
           // padding chassis so the body still occupies remaining height
           // and the children's horizontal rhythm is unchanged.
           <OverlayScrollbarsComponent
-            className={clsx('text-base-content my-2 flex-grow px-6 sm:px-[10%]', contentClassName)}
+            className={clsx('text-ink my-2 flex-grow px-6 sm:px-[10%]', contentClassName)}
             options={{
               scrollbars: { autoHide: 'scroll', clickScroll: true },
               showNativeOverlaidScrollbars: false,
@@ -311,7 +309,7 @@ const Dialog: React.FC<DialogProps> = ({
         ) : (
           <div
             className={clsx(
-              'text-base-content my-2 flex-grow overflow-y-auto px-6 sm:px-[10%]',
+              'text-ink my-2 flex-grow overflow-y-auto px-6 sm:px-[10%]',
               contentClassName,
             )}
           >

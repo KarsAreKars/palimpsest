@@ -301,3 +301,45 @@
   background: var(--ink);
   height: 2px;
 }
+
+/* ---------- modal plate: the one dialog-box recipe ----------
+   Every dialog box sits on the paper as a plated sheet: 1px ink frame,
+   2px corners, the single lift shadow. Sizing (width, height, padding)
+   is the caller's job — this only names the surface. Formerly daisyUI
+   `modal-box`; the settings lane's `.settings-modal-box` was merged here
+   so the recipe has one definition. */
+.plate-modal {
+  position: relative;
+  background: var(--paper);
+  border: 1px solid var(--ink);
+  border-radius: 2px;
+  color: var(--ink);
+  box-shadow: var(--lift-shadow);
+  overflow-y: auto;
+}
+[data-eink='true'] .plate-modal {
+  box-shadow: none !important;
+  border-width: 1px !important;
+  border-color: var(--ink) !important;
+}
+
+/* ---------- display face: Fraunces for panel and sub-page titles ---------- */
+.display-title {
+  font-family: 'Fraunces', Georgia, serif;
+  letter-spacing: 0.04em;
+  color: var(--ink);
+}
+
+/* ---------- the one focus rule ----------
+   DESIGN.md hard rule 4: 2px stamp outline, offset 2px, on every
+   interactive element. Per-site focus rings are retired. */
+button:focus-visible,
+a:focus-visible,
+[role='button']:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+[tabindex]:focus-visible {
+  outline: 2px solid var(--stamp);
+  outline-offset: 2px;
+}

@@ -162,10 +162,11 @@ foliate-fxl {
 
 .dropdown-content {
   position: relative;
-  @apply bg-base-100;
+  background: var(--paper-light);
+  border: 1px solid color-mix(in srgb, var(--ink) 25%, transparent);
+  border-radius: 2px;
+  box-shadow: var(--lift-shadow);
   padding: 10px;
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.15);
-  border-radius: 14px;
 }
 
 /* Menu labels wrap (no nowrap), so the anchor-positioned shrink-to-fit box
@@ -190,7 +191,7 @@ foliate-fxl {
 }
 
 .dropdown-content::before {
-  border-bottom: 12px solid theme('colors.base-100');
+  border-bottom: 12px solid var(--paper-light);
   z-index: 1;
 }
 
@@ -605,7 +606,8 @@ input[type='range'].slider-input {
   background-color: theme('colors.base-100') !important;
 }
 
-[data-eink='true'] .modal-box {
+[data-eink='true'] .modal-box,
+[data-eink='true'] .plate-modal {
   box-shadow: none !important;
   border-width: 1px !important;
   border-color: theme('colors.base-content') !important;

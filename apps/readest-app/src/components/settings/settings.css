@@ -276,7 +276,9 @@
   }
 }
 
-/* ---------- modal (was daisyui `modal` / `modal-box` / `modal-action` / `modal-backdrop`) ---------- */
+/* ---------- modal: `.plate-modal` in apothecary.css is the one dialog-box
+   recipe; the settings-scoped alias was retired so the recipe has a single
+   definition (Palimpsest critique P0-1/P0-2). ---------- */
 .settings-modal {
   position: fixed;
   inset: 0;
@@ -286,29 +288,17 @@
   overflow-y: auto;
   background: transparent;
 }
-.settings-modal-box {
-  position: relative;
-  max-width: 32rem;
-  width: 91.666667%;
-  background: var(--paper);
-  border: 1px solid var(--ink);
-  border-radius: 2px;
-  padding: 1.5rem;
-  box-shadow: var(--lift-shadow);
-  overflow-y: auto;
-  max-height: calc(100vh - 5em);
+[data-eink='true'] .settings-modal {
+  box-shadow: none !important;
+  border-width: 1px !important;
+  border-color: var(--ink) !important;
 }
+/* ---------- modal action row (was daisyui `modal-action`) ---------- */
 .settings-modal-action {
   display: flex;
   justify-content: flex-end;
   gap: 0.5rem;
   margin-top: 1rem;
-}
-[data-eink='true'] .settings-modal,
-[data-eink='true'] .settings-modal-box {
-  box-shadow: none !important;
-  border-width: 1px !important;
-  border-color: var(--ink) !important;
 }
 
 /* ---------- radial progress (was `radial-progress`; uses --value / --size) ---------- */

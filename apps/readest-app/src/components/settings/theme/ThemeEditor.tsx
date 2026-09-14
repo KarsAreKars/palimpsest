@@ -128,7 +128,7 @@ const ThemeEditor: React.FC<ThemeEditorProps> = ({ customTheme, onSave, onDelete
   const rootRef = useRef<HTMLDivElement>(null);
   const [footerContainer, setFooterContainer] = useState<HTMLElement | null>(null);
   useEffect(() => {
-    setFooterContainer(rootRef.current?.closest<HTMLElement>('.modal-box') ?? null);
+    setFooterContainer(rootRef.current?.closest<HTMLElement>('.plate-modal') ?? null);
   }, []);
 
   const footer = (

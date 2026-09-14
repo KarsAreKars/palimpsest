@@ -950,7 +950,7 @@ const CustomDictionaries: React.FC<CustomDictionariesProps> = ({ onBack }) => {
           form. */}
       {webModal && (
         <div className='settings-modal' role='dialog'>
-          <div className='settings-modal-box'>
+          <div className='plate-modal max-w-lg w-[91.666667%] p-6 max-h-[calc(100vh-5em)]'>
             <h3 className='text-base font-semibold'>
               {webModal.editingId ? _('Edit Web Search') : _('Add Web Search')}
             </h3>
@@ -1008,7 +1008,7 @@ const CustomDictionaries: React.FC<CustomDictionariesProps> = ({ onBack }) => {
           on-disk bundle is untouched. */}
       {dictModal && (
         <div className='settings-modal' role='dialog'>
-          <div className='settings-modal-box'>
+          <div className='plate-modal max-w-lg w-[91.666667%] p-6 max-h-[calc(100vh-5em)]'>
             <h3 className='text-base font-semibold'>{_('Edit Dictionary')}</h3>
             <div className='mt-4 space-y-3'>
               <label className='form-control w-full'>

@@ -207,7 +207,7 @@ export default function AppLockDialog() {
   return (
     <ModalPortal>
       <dialog className='settings-modal'>
-        <div className='settings-modal-box bg-paper max-w-md rounded-[2px] p-6 settings-lift'>
+        <div className='plate-modal bg-paper max-w-md rounded-[2px] p-6 settings-lift'>
           <h3 className='mb-1.5 text-lg font-semibold tracking-tight'>{title}</h3>
           <p className='text-ink/70 mb-6 text-sm leading-relaxed'>{description}</p>
           <form onSubmit={handleSubmit} className='flex flex-col gap-5'>
