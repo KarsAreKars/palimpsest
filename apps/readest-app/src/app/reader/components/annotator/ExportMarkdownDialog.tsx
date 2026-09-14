@@ -956,7 +956,7 @@ const ExportMarkdownDialog: React.FC<ExportMarkdownDialogProps> = ({
               dangerouslySetInnerHTML={{
                 __html:
                   htmlPreview ||
-                  `<p class="text-ink/50">${_('No content to preview')}</p>`,
+                  `<p class="text-mutedink">${_('No content to preview')}</p>`,
               }}
             />
           )}

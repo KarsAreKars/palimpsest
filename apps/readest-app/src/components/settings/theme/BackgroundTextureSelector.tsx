@@ -85,7 +85,7 @@ const BackgroundTextureSelector: React.FC<BackgroundTextureSelectorProps> = ({
                   'focus-visible:ring-stamp/40 focus-visible:outline-none focus-visible:ring-2',
                   active
                     ? 'bg-paperlight text-ink eink-inverted shadow-sm'
-                    : 'text-ink/60 hover:text-ink',
+                    : 'text-mutedink hover:text-ink',
                 )}
               >
                 {label}

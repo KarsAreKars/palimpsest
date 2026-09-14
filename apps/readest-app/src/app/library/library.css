@@ -226,16 +226,17 @@
   top: 7px;
   left: 9px;
   z-index: 2;
-  /* legible over any cover, on paper and on dark */
-  color: var(--paper-light);
-  text-shadow:
-    0 0 3px rgba(0, 0, 0, 0.85),
-    0 0 6px rgba(0, 0, 0, 0.5);
+  /* a small paper chip legible over any cover — no glow, no white-on-cover */
+  background: color-mix(in srgb, var(--paper-light) 88%, transparent);
+  color: var(--ink);
+  padding: 1px 4px;
 }
-[data-theme='apothecary-dark'] .catalogue-plate-num {
-  text-shadow:
-    0 0 3px rgba(0, 0, 0, 0.9),
-    0 0 6px rgba(0, 0, 0, 0.6);
+/* the dashed import tile: Tailwind v3 border-style takes no arbitrary value,
+   so the dashed frame is a real rule here */
+.catalogue-import-tile {
+  border-style: dashed;
+  border-width: 1px;
+  border-color: color-mix(in srgb, var(--ink) 40%, transparent);
 }
 /* the specimen label: three lines under the plate, outside the frame */
 .catalogue-label {

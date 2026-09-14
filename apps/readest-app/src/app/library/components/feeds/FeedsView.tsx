@@ -129,7 +129,7 @@ export function FeedsView({ onClose }: FeedsViewProps) {
                 {_('Feeds')}
               </button>
               {sortedItems.length === 0 ? (
-                <p className='text-ink/50 px-4 py-8 text-center text-sm'>
+                <p className='text-mutedink px-4 py-8 text-center text-sm'>
                   {_('No articles in this feed.')}
                 </p>
               ) : (
@@ -138,7 +138,7 @@ export function FeedsView({ onClose }: FeedsViewProps) {
                     <li key={item.id}>
                       <button
                         type='button'
-                        className={`hover:bg-paperlight w-full cursor-pointer px-4 py-3 text-start transition-colors ${item.read ? 'text-ink/50' : ''}`}
+                        className={`hover:bg-paperlight w-full cursor-pointer px-4 py-3 text-start transition-colors ${item.read ? 'text-mutedink' : ''}`}
                         onClick={() => void handleOpenItem(item, liveFeed)}
                       >
                         <div className='flex flex-col gap-1'>
@@ -153,7 +153,7 @@ export function FeedsView({ onClose }: FeedsViewProps) {
                             </span>
                           )}
                           {item.summary && (
-                            <span className='text-ink/60 line-clamp-2 text-xs leading-relaxed'>
+                            <span className='text-mutedink line-clamp-2 text-xs leading-relaxed'>
                               {item.summary}
                             </span>
                           )}
@@ -168,7 +168,7 @@ export function FeedsView({ onClose }: FeedsViewProps) {
             /* Feed list */
             <div className='flex flex-col'>
               <div className='flex items-center justify-between px-4 py-2'>
-                <span className='text-ink/60 text-sm'>
+                <span className='text-mutedink text-sm'>
                   {feeds.length === 0 ? _('No feeds yet.') : ''}
                 </span>
                 <button
@@ -206,7 +206,7 @@ export function FeedsView({ onClose }: FeedsViewProps) {
                               )}
                             </div>
                             {feed.description && (
-                              <span className='text-ink/50 truncate text-xs'>
+                              <span className='text-mutedink truncate text-xs'>
                                 {feed.description}
                               </span>
                             )}

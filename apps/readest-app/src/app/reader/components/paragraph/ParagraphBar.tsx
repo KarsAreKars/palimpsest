@@ -254,7 +254,7 @@ const ParagraphBar: React.FC<ParagraphBarProps> = ({
             'text-ink flex items-center gap-1 whitespace-nowrap px-4 py-2 text-sm',
           )}
         >
-          <span className='text-ink/60 me-1 font-medium'>{_('Font Size')}</span>
+          <span className='text-mutedink me-1 font-medium'>{_('Font Size')}</span>
           <button
             type='button'
             onClick={() => onFontScaleIndexChange(fontScaleIndex - 1)}
@@ -307,15 +307,15 @@ const ParagraphBar: React.FC<ParagraphBarProps> = ({
         <div className='flex min-w-[6rem] items-center justify-center px-1'>
           {isLoading ? (
             <div className='flex items-center gap-2'>
-              <span className='loading loading-dots loading-sm text-ink/60' />
-              <span className='text-ink/60 text-sm'>{_('Loading')}</span>
+              <span className='loading loading-dots loading-sm text-mutedink' />
+              <span className='text-mutedink text-sm'>{_('Loading')}</span>
             </div>
           ) : (
             <span className='flex items-baseline gap-1 text-sm tabular-nums'>
               <span>
                 {currentIndex + 1} / {totalParagraphs}
               </span>
-              <span className='text-ink/60'>· {progress}%</span>
+              <span className='text-mutedink'>· {progress}%</span>
             </span>
           )}
         </div>

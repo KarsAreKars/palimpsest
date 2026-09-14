@@ -265,7 +265,7 @@ const RecentShelf: React.FC<RecentShelfProps> = ({
           >
             <MdChevronLeft
               size={20}
-              className='text-ink/60 hover:text-ink/80 rtl:rotate-180'
+              className='text-mutedink hover:text-ink/80 rtl:rotate-180'
             />
           </button>
         )}
@@ -279,7 +279,7 @@ const RecentShelf: React.FC<RecentShelfProps> = ({
           >
             <MdChevronRight
               size={20}
-              className='text-ink/60 hover:text-ink/80 rtl:rotate-180'
+              className='text-mutedink hover:text-ink/80 rtl:rotate-180'
             />
           </button>
         )}

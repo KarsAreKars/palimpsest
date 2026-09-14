@@ -202,7 +202,7 @@ const CustomFonts: React.FC<CustomFontsProps> = ({ bookKey, onBack }) => {
               // eink-inverted keeps the "+" legible on its dark badge (#4454).
               'eink-inverted',
               'flex h-5 w-5 items-center justify-center rounded-full',
-              'bg-paperlight text-ink/60',
+              'bg-paperlight text-mutedink',
               'transition-colors duration-150',
               'group-hover:bg-ink group-hover:text-paper',
             )}
@@ -223,7 +223,7 @@ const CustomFonts: React.FC<CustomFontsProps> = ({ bookKey, onBack }) => {
                   {importingFont.family}
                 </div>
               ) : (
-                <div className='flex items-center gap-2 text-sm text-ink/60'>
+                <div className='flex items-center gap-2 text-sm text-mutedink'>
                   <svg className='h-4 w-4 animate-spin' viewBox='0 0 24 24' fill='none'>
                     <circle
                       className='opacity-25'

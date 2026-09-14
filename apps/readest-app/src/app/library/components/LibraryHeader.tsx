@@ -119,7 +119,7 @@ const LibraryHeader: React.FC<LibraryHeaderProps> = ({
                 aria-label={searchTarget === 'text' ? _('Full Text Search') : _('Search Books')}
                 title={searchTarget === 'text' ? _('Full Text Search') : _('Search Books')}
                 className={clsx(
-                  'text-ink/55 hover:text-ink',
+                  'text-mutedink hover:text-ink',
                   'not-eink:transition-colors ms-1.5 flex h-7 min-h-7 items-center justify-center',
                   'touch-target w-8 rounded-full bg-transparent duration-150',
                 )}
@@ -167,7 +167,7 @@ const LibraryHeader: React.FC<LibraryHeaderProps> = ({
                     '!bg-transparent hover:!bg-transparent',
                   )}
                   toggleButton={
-                    <FaChevronDown role='none' className='text-ink/50 h-3 w-3' />
+                    <FaChevronDown role='none' className='text-mutedink h-3 w-3' />
                   }
                 >
                   <LibrarySearchOptionsMenu
@@ -180,7 +180,7 @@ const LibraryHeader: React.FC<LibraryHeaderProps> = ({
           </div>
           <div
             className={clsx(
-              'text-ink/50 absolute flex items-center space-x-2 sm:space-x-4',
+              'text-mutedink absolute flex items-center space-x-2 sm:space-x-4',
               searchTarget === 'text' ? 'end-14' : 'right-4',
             )}
           >
@@ -188,7 +188,7 @@ const LibraryHeader: React.FC<LibraryHeaderProps> = ({
               <button
                 type='button'
                 onClick={() => onSearchQueryChange('')}
-                className='text-ink/40 hover:text-ink/60 pe-1'
+                className='text-ink/40 hover:text-mutedink pe-1'
                 aria-label={_('Clear Search')}
               >
                 <IoMdCloseCircle className='h-4 w-4' />
@@ -226,9 +226,9 @@ const LibraryHeader: React.FC<LibraryHeaderProps> = ({
                     className='h-6'
                   >
                     {isSelectMode ? (
-                      <PiSelectionAllFill role='button' className='text-ink/60 h-6 w-6' />
+                      <PiSelectionAllFill role='button' className='text-mutedink h-6 w-6' />
                     ) : (
-                      <PiSelectionAll role='button' className='text-ink/60 h-6 w-6' />
+                      <PiSelectionAll role='button' className='text-mutedink h-6 w-6' />
                     )}
                   </button>
                 )}

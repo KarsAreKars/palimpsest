@@ -87,7 +87,7 @@ const AnnotationsFilterPanel: React.FC<AnnotationsFilterPanelProps> = ({
       </div>
       {showStyles && (
         <div className='mt-3'>
-          <div className='text-ink/60 mb-1.5 text-xs'>{_('Styles')}</div>
+          <div className='text-mutedink mb-1.5 text-xs'>{_('Styles')}</div>
           <div className='flex items-center gap-1.5'>
             {styles.map((style) => {
               const included = !excludedStyles.includes(style);
@@ -128,7 +128,7 @@ const AnnotationsFilterPanel: React.FC<AnnotationsFilterPanelProps> = ({
       )}
       {showColors && (
         <div className='mt-3'>
-          <div className='text-ink/60 mb-1.5 text-xs'>{_('Colors')}</div>
+          <div className='text-mutedink mb-1.5 text-xs'>{_('Colors')}</div>
           <div className='flex flex-wrap items-center gap-1.5'>
             {colors.map((color) => {
               const included = !excludedColors.includes(color);
@@ -245,7 +245,7 @@ const AnnotationsToolbar: React.FC<AnnotationsToolbarProps> = ({
         <div
           data-testid='annotations-summary'
           aria-live='polite'
-          className='text-ink/60 flex h-8 min-w-0 flex-1 items-center truncate text-xs tabular-nums'
+          className='text-mutedink flex h-8 min-w-0 flex-1 items-center truncate text-xs tabular-nums'
         >
           {summary ?? kindLabels.join(' · ')}
         </div>
@@ -253,7 +253,7 @@ const AnnotationsToolbar: React.FC<AnnotationsToolbarProps> = ({
       {isSearchVisible && (
         <div className='eink-bordered bg-paper flex h-8 min-w-0 flex-1 items-center rounded-[2px]'>
           <div className='ps-3'>
-            <FaSearch size={iconSize14} className='text-ink/50' />
+            <FaSearch size={iconSize14} className='text-mutedink' />
           </div>
           <input
             ref={searchInputRef}
@@ -273,7 +273,7 @@ const AnnotationsToolbar: React.FC<AnnotationsToolbarProps> = ({
             aria-label={_('Clear')}
             className='chrome-ghost h-8 min-h-8 w-8 rounded-e-[2px] rounded-s-none p-0'
           >
-            <FaTimes size={iconSize12} className='text-ink/50' />
+            <FaTimes size={iconSize12} className='text-mutedink' />
           </button>
         </div>
       )}

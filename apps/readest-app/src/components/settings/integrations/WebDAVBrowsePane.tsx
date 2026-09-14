@@ -556,7 +556,7 @@ const WebDAVBrowsePane: React.FC<WebDAVBrowsePaneProps> = ({ settings, onUpdateS
       {!cleanupMode && !loadError && entries.length > 0 && (
         <div className='flex items-center gap-2 px-1'>
           <div className='eink-bordered bg-paper flex h-8 min-w-0 flex-1 items-center rounded-[2px]'>
-            <MdSearch className='text-ink/50 ms-2 h-4 w-4 flex-shrink-0' />
+            <MdSearch className='text-mutedink ms-2 h-4 w-4 flex-shrink-0' />
             <input
               type='text'
               value={query}
@@ -577,7 +577,7 @@ const WebDAVBrowsePane: React.FC<WebDAVBrowsePaneProps> = ({ settings, onUpdateS
                 title={_('Clear')}
                 aria-label={_('Clear')}
               >
-                <MdClose className='text-ink/50 h-3.5 w-3.5' />
+                <MdClose className='text-mutedink h-3.5 w-3.5' />
               </button>
             )}
           </div>
@@ -617,7 +617,7 @@ const WebDAVBrowsePane: React.FC<WebDAVBrowsePaneProps> = ({ settings, onUpdateS
         ) : loadError ? (
           <div className='text-stamp px-4 py-6 text-center text-sm'>{loadError}</div>
         ) : displayedEntries.length === 0 ? (
-          <div className='text-ink/60 px-4 py-6 text-center text-sm'>
+          <div className='text-mutedink px-4 py-6 text-center text-sm'>
             {cleanupMode ? _('All clear · no books') : _('Empty directory')}
           </div>
         ) : (
@@ -726,7 +726,7 @@ const WebDAVBrowsePane: React.FC<WebDAVBrowsePaneProps> = ({ settings, onUpdateS
                           // Dimmed title is the platform-independent
                           // sibling of the MdFolderOff icon (touch
                           // platforms can't see the hover tooltip).
-                          isLocallyDeleted && 'text-ink/60',
+                          isLocallyDeleted && 'text-mutedink',
                         )}
                         // Hover-show the full hash for matched books,
                         // but yield the slot to the row-level
@@ -743,7 +743,7 @@ const WebDAVBrowsePane: React.FC<WebDAVBrowsePaneProps> = ({ settings, onUpdateS
                       {(matchedBook ||
                         (!entry.isDirectory && typeof entry.size === 'number') ||
                         activeDateRaw) && (
-                        <span className='text-ink/60 flex flex-wrap gap-x-2 text-[0.75em]'>
+                        <span className='text-mutedink flex flex-wrap gap-x-2 text-[0.75em]'>
                           {matchedBook && (
                             <span title={entry.name} className='font-mono'>
                               {formatShortHash(entry.name)}
@@ -832,7 +832,7 @@ const WebDAVBrowsePane: React.FC<WebDAVBrowsePaneProps> = ({ settings, onUpdateS
                   ? _('Deselect all')
                   : _('Select all')}
               </button>
-              <span className='text-ink/60 truncate text-xs'>
+              <span className='text-mutedink truncate text-xs'>
                 {_('{{n}} selected', { n: selected.size })}
               </span>
             </div>

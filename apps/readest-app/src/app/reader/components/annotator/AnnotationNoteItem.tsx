@@ -124,7 +124,7 @@ const AnnotationNoteItem: React.FC<AnnotationNoteItemProps> = ({
               dangerouslySetInnerHTML={{ __html: noteHtml }}
             />
             <div className='flex items-center justify-between gap-2'>
-              <span className='text-ink/50 text-sm sm:text-xs'>
+              <span className='text-mutedink text-sm sm:text-xs'>
                 {dayjs(note.createdAt).fromNow()}
               </span>
               {/* Always visible, not hover-gated: the popup is used on touch

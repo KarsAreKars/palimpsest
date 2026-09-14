@@ -216,7 +216,7 @@ const HighlightOptions: React.FC<HighlightOptionsProps> = ({
             aria-label={_('Select {{style}} style', { style: _(style) })}
             onClick={() => handleSelectStyle(style)}
             className={clsx(
-              'eink-bordered not-eink:shadow-sm flex items-center justify-center rounded-full p-0',
+              'eink-bordered chrome-lift flex items-center justify-center rounded-full p-0',
               'bg-paperlight theme-dark:bg-paper',
               selectedStyle === style
                 ? 'border-current border-2'
@@ -281,7 +281,7 @@ const HighlightOptions: React.FC<HighlightOptionsProps> = ({
           title={_('Apply to every occurrence in the book')}
           onClick={() => onToggleGlobal?.()}
           className={clsx(
-            'not-eink:border-ink/20 eink-bordered not-eink:shadow-sm flex flex-shrink-0 items-center justify-center rounded-full border p-0 transition-colors',
+            'not-eink:border-ink/20 eink-bordered chrome-lift flex flex-shrink-0 items-center justify-center rounded-full border p-0 transition-colors',
             'bg-paperlight theme-dark:bg-paper',
             globalToggleActive
               ? 'not-eink:text-stamp'

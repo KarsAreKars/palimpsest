@@ -265,7 +265,7 @@ const ShareBookDialog: React.FC<ShareBookDialogProps> = ({ isOpen, book, cfi, on
             <div className='text-ink line-clamp-2 text-lg font-semibold leading-tight'>
               {book.title}
             </div>
-            <div className='text-ink/60 mt-1.5 truncate text-sm'>
+            <div className='text-mutedink mt-1.5 truncate text-sm'>
               {[book.author, book.format, formatBytes(fileSize)].filter(Boolean).join(' · ')}
             </div>
           </div>
@@ -382,7 +382,7 @@ const ShareBookDialog: React.FC<ShareBookDialogProps> = ({ isOpen, book, cfi, on
               {_('Share via…')}
             </button>
 
-            <p className='text-ink/60 text-center text-xs'>
+            <p className='text-mutedink text-center text-xs'>
               {_('Expires {{date}}', { date: expiryLabel ?? '' })}
               <span className='mx-1.5'>·</span>
               <button

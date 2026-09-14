@@ -107,7 +107,7 @@ const PageNavigationButtons: React.FC<PageNavigationButtonsProps> = ({
           <span
             className={clsx(
               'flex h-12 w-12 items-center justify-center rounded-full',
-              'bg-paper/90 shadow-lg backdrop-blur-sm',
+              'bg-paper/90 chrome-lift backdrop-blur-sm',
               'eink:border eink:border-ink not-eink:group-hover:bg-paperlight',
               'transition-transform active:scale-95',
             )}
@@ -128,7 +128,7 @@ const PageNavigationButtons: React.FC<PageNavigationButtonsProps> = ({
           <span
             className={clsx(
               'flex h-12 w-12 items-center justify-center rounded-full',
-              'bg-paper/90 shadow-lg backdrop-blur-sm',
+              'bg-paper/90 chrome-lift backdrop-blur-sm',
               'eink:border eink:border-ink not-eink:group-hover:bg-paperlight',
               'transition-transform active:scale-95',
             )}
@@ -159,7 +159,7 @@ const PageNavigationButtons: React.FC<PageNavigationButtonsProps> = ({
           <span
             className={clsx(
               'flex h-12 w-12 items-center justify-center rounded-full',
-              'bg-paper/90 shadow-lg backdrop-blur-sm',
+              'bg-paper/90 chrome-lift backdrop-blur-sm',
               'eink:border eink:border-ink not-eink:group-hover:bg-paperlight',
               'transition-transform active:scale-95',
             )}
@@ -180,7 +180,7 @@ const PageNavigationButtons: React.FC<PageNavigationButtonsProps> = ({
           <span
             className={clsx(
               'flex h-12 w-12 items-center justify-center rounded-full',
-              'bg-paper/90 shadow-lg backdrop-blur-sm',
+              'bg-paper/90 chrome-lift backdrop-blur-sm',
               'eink:border eink:border-ink not-eink:group-hover:bg-paperlight',
               'transition-transform active:scale-95',
             )}

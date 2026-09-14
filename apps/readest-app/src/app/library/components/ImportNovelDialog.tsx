@@ -140,7 +140,7 @@ const ImportNovelDialog: React.FC<ImportNovelDialogProps> = ({ isOpen, onClose, 
       <div className='flex flex-col gap-4 pb-6 pt-2'>
         {phase === 'url' && (
           <>
-            <p className='text-ink/60 text-sm leading-relaxed'>
+            <p className='text-mutedink text-sm leading-relaxed'>
               {_(
                 'Paste the link to a web novel’s chapter list. Readest downloads the chapters and saves them as a book.',
               )}
@@ -189,14 +189,14 @@ const ImportNovelDialog: React.FC<ImportNovelDialogProps> = ({ isOpen, onClose, 
             <div className='eink-bordered bg-paperlight flex flex-col gap-1 rounded-[2px] p-3'>
               <span className='truncate font-medium'>{toc.title}</span>
               {toc.author && (
-                <span className='text-ink/60 truncate text-sm'>{toc.author}</span>
+                <span className='text-mutedink truncate text-sm'>{toc.author}</span>
               )}
-              <span className='text-ink/60 text-sm'>
+              <span className='text-mutedink text-sm'>
                 {_('{{count}} chapters', { count: chapters.length })}
               </span>
             </div>
             {firstChapter && lastChapter && (
-              <div className='text-ink/60 flex flex-col gap-1 text-sm leading-relaxed'>
+              <div className='text-mutedink flex flex-col gap-1 text-sm leading-relaxed'>
                 <span className='truncate'>{firstChapter.title}</span>
                 {chapters.length > 2 && <span>…</span>}
                 {chapters.length > 1 && <span className='truncate'>{lastChapter.title}</span>}
@@ -228,7 +228,7 @@ const ImportNovelDialog: React.FC<ImportNovelDialogProps> = ({ isOpen, onClose, 
 
         {phase === 'downloading' && (
           <>
-            <p className='text-ink/60 text-sm leading-relaxed'>
+            <p className='text-mutedink text-sm leading-relaxed'>
               {_('Downloading chapters…')}
             </p>
             <progress
@@ -236,7 +236,7 @@ const ImportNovelDialog: React.FC<ImportNovelDialogProps> = ({ isOpen, onClose, 
               value={progress.done}
               max={progress.total || 1}
             />
-            <p className='text-ink/60 text-sm'>
+            <p className='text-mutedink text-sm'>
               {progress.done} / {progress.total}
             </p>
             <div className='flex justify-end gap-2 pt-1'>

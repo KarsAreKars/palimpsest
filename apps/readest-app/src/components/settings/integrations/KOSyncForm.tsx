@@ -283,7 +283,7 @@ const KOSyncForm: React.FC<KOSyncFormProps> = ({ onBack }) => {
               rows={4}
               spellCheck={false}
             />
-            <span className='settings-label-text-alt text-ink/60'>
+            <span className='settings-label-text-alt text-mutedink'>
               {_('Add one header per line using "Header-Name: value".')}
             </span>
             {headerError && (
@@ -383,7 +383,7 @@ const KOSyncForm: React.FC<KOSyncFormProps> = ({ onBack }) => {
                 rows={4}
                 spellCheck={false}
               />
-              <span className='settings-label-text-alt text-ink/60'>
+              <span className='settings-label-text-alt text-mutedink'>
                 {_('Add one header per line using "Header-Name: value".')}
               </span>
               {headerError && (

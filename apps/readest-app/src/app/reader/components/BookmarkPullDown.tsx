@@ -372,7 +372,7 @@ const BookmarkPullDown: React.FC<BookmarkPullDownProps> = ({ bookKey, ribbonHidd
             >
               <polygon
                 ref={polygonRef}
-                fill={filled ? '#F44336' : 'none'}
+                fill={filled ? 'var(--stamp)' : 'none'}
                 stroke={filled ? 'none' : 'rgba(255,255,255,0.9)'}
                 strokeWidth={filled ? 0 : 2}
                 strokeLinejoin='round'

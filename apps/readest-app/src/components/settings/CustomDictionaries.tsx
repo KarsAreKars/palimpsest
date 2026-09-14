@@ -175,13 +175,13 @@ const SortableRow: React.FC<SortableRowProps> = ({
         {...attributes}
         {...listeners}
       >
-        <MdDragIndicator className='text-ink/60 h-4 w-4' />
+        <MdDragIndicator className='text-mutedink h-4 w-4' />
       </button>
 
       <div className='min-w-0 flex-1'>
         <div className='flex items-center gap-2'>
           <span
-            className={clsx('truncate font-medium', row.disabled && 'text-ink/60')}
+            className={clsx('truncate font-medium', row.disabled && 'text-mutedink')}
             title={row.label}
           >
             {row.label}
@@ -773,7 +773,7 @@ const CustomDictionaries: React.FC<CustomDictionariesProps> = ({ onBack }) => {
       <div className='settings-card overflow-hidden'>
         <div className='divide-ink divide-y'>
           {rows.length === 0 && (
-            <div className='text-ink/60 px-4 py-6 text-center text-sm'>
+            <div className='text-mutedink px-4 py-6 text-center text-sm'>
               {_('No dictionaries available.')}
             </div>
           )}
@@ -858,10 +858,10 @@ const CustomDictionaries: React.FC<CustomDictionariesProps> = ({ onBack }) => {
               // without it the badge collapses to a solid black spot in eink.
               'eink-inverted',
               'flex h-5 w-5 items-center justify-center rounded-full',
-              'bg-paperlight text-ink/60',
+              'bg-paperlight text-mutedink',
               'transition-colors duration-150',
               'group-hover:bg-ink group-hover:text-paper',
-              'group-disabled:bg-paperlight group-disabled:text-ink/60',
+              'group-disabled:bg-paperlight group-disabled:text-mutedink',
             )}
           >
             <MdAdd className='h-3.5 w-3.5' />
@@ -900,7 +900,7 @@ const CustomDictionaries: React.FC<CustomDictionariesProps> = ({ onBack }) => {
               // without it the badge collapses to a solid black spot in eink.
               'eink-inverted',
               'flex h-5 w-5 items-center justify-center rounded-full',
-              'bg-paperlight text-ink/60',
+              'bg-paperlight text-mutedink',
               'transition-colors duration-150',
               'group-hover:bg-ink group-hover:text-paper',
             )}
@@ -924,7 +924,7 @@ const CustomDictionaries: React.FC<CustomDictionariesProps> = ({ onBack }) => {
         >
           <div className='min-w-0'>
             <div className='text-ink text-sm font-medium'>{_('System Lookup App')}</div>
-            <div className='text-ink/60 line-clamp-1 text-xs'>{rememberedLookupApp.label}</div>
+            <div className='text-mutedink line-clamp-1 text-xs'>{rememberedLookupApp.label}</div>
           </div>
           <button
             type='button'
@@ -976,7 +976,7 @@ const CustomDictionaries: React.FC<CustomDictionariesProps> = ({ onBack }) => {
                     setWebModal((m) => (m ? { ...m, urlTemplate: e.target.value } : m))
                   }
                 />
-                <span className='settings-label-text-alt text-ink/60 mt-1 text-xs'>
+                <span className='settings-label-text-alt text-mutedink mt-1 text-xs'>
                   {_('Use %WORD% where the looked-up word should appear.')}
                 </span>
               </label>

@@ -22,7 +22,7 @@ const EmptyState: React.FC<EmptyStateProps> = ({ Icon, label, hint, action, clas
       className,
     )}
   >
-    <Icon className='text-ink/55 mb-3' aria-hidden='true' size='8rem' />
+    <Icon className='text-mutedink mb-3' aria-hidden='true' size='8rem' />
     <p className='text-ink text-sm font-semibold'>{label}</p>
     {hint && <p className='text-ink/45 text-sm'>{hint}</p>}
     {action && <div className='mt-2'>{action}</div>}

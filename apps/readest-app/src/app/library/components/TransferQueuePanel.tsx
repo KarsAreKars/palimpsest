@@ -103,7 +103,7 @@ const TransferItemRow: React.FC<{
 
       <div className='min-w-0 flex-1'>
         <div className='truncate font-medium'>{transfer.bookTitle}</div>
-        <div className='text-ink/60 text-xs'>
+        <div className='text-mutedink text-xs'>
           {transfer.status === 'in_progress' && (
             <>
               {Math.round(transfer.progress)}% - {formatSpeed(transfer.transferSpeed)}
@@ -139,7 +139,7 @@ const TransferItemRow: React.FC<{
         {isFailedLikeTransfer(transfer) && (
           <button
             onClick={() => onRetry(transfer.id)}
-            className='chrome-ghost chrome-ghost-sm rounded-full'
+            className='chrome-ghost chrome-ghost-sm rounded-[2px]'
             aria-label={_('Retry')}
           >
             <MdRefresh size={iconSize} />
@@ -148,7 +148,7 @@ const TransferItemRow: React.FC<{
         {['pending', 'in_progress'].includes(transfer.status) && (
           <button
             onClick={() => onCancel(transfer.id)}
-            className='chrome-ghost chrome-ghost-sm rounded-full'
+            className='chrome-ghost chrome-ghost-sm rounded-[2px]'
             aria-label={_('Cancel')}
           >
             <MdClose size={iconSize} />
@@ -285,7 +285,7 @@ const TransferQueuePanel: React.FC = () => {
             )}
             <button
               onClick={isQueuePaused ? resumeQueue : pauseQueue}
-              className='chrome-ghost chrome-ghost-sm rounded-full'
+              className='chrome-ghost chrome-ghost-sm rounded-[2px]'
               title={isQueuePaused ? _('Resume Transfers') : _('Pause Transfers')}
               aria-label={isQueuePaused ? _('Resume Transfers') : _('Pause Transfers')}
             >
@@ -293,7 +293,7 @@ const TransferQueuePanel: React.FC = () => {
             </button>
             <button
               onClick={onClose}
-              className='chrome-ghost chrome-ghost-sm rounded-full'
+              className='chrome-ghost chrome-ghost-sm rounded-[2px]'
               title={_('Close')}
               aria-label={_('Close')}
             >
@@ -337,7 +337,7 @@ const TransferQueuePanel: React.FC = () => {
         {/* Transfer list */}
         <div className='flex-1 overflow-y-auto p-2'>
           {filteredTransfers.length === 0 ? (
-            <div className='text-ink/60 py-8 text-center'>{_('No transfers')}</div>
+            <div className='text-mutedink py-8 text-center'>{_('No transfers')}</div>
           ) : (
             filteredTransfers.map((transfer) => (
               <TransferItemRow

@@ -129,7 +129,7 @@ const ThemeModeSelector: React.FC<ThemeModeSelectorProps> = ({
                 // border. The track keeps its `eink-bordered` outline.
                 active
                   ? 'bg-paperlight text-ink eink-inverted shadow-sm'
-                  : 'text-ink/60 hover:text-ink',
+                  : 'text-mutedink hover:text-ink',
               )}
             >
               {icon}

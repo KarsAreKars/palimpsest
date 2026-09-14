@@ -131,7 +131,7 @@ const Zone: React.FC<{
               // The toolbar surface is theme-aware (base-300, base-100 on dark
               // themes and in e-ink), so the hint tracks base-content rather
               // than a fixed white; e-ink takes it at full opacity (#4839).
-              isToolbar ? 'not-eink:text-ink/50 eink:text-ink' : 'text-ink/50',
+              isToolbar ? 'not-eink:text-mutedink eink:text-ink' : 'text-mutedink',
             )}
           >
             {emptyHint}

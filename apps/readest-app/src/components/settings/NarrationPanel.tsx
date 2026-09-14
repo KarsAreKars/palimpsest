@@ -40,7 +40,7 @@ const NarrationPanel: React.FC<SettingsPanelPanelProp> = ({ onRegisterReset }) =
     <div className='flex flex-col gap-6 px-4 py-4'>
       <div>
         <h3 className='mb-2 text-sm font-semibold'>Narrator</h3>
-        <p className='mb-3 text-xs text-ink/60'>
+        <p className='mb-3 text-xs text-mutedink'>
           The voice that reads your books aloud. Changes apply on the fly — your place is kept.
         </p>
         <div className='flex flex-col gap-2'>
@@ -67,7 +67,7 @@ const NarrationPanel: React.FC<SettingsPanelPanelProp> = ({ onRegisterReset }) =
             <span className='text-sm'>ElevenLabs — premium voices, uses your API key</span>
           </label>
           {settings.provider === 'elevenlabs' && (
-            <p className='mt-1 text-xs text-ink/60'>
+            <p className='mt-1 text-xs text-mutedink'>
               The key and voice live under Settings → Integrations → ElevenLabs voice.
             </p>
           )}
@@ -111,7 +111,7 @@ const NarrationPanel: React.FC<SettingsPanelPanelProp> = ({ onRegisterReset }) =
         <div>
           <h3 className='mb-2 text-sm font-semibold'>Local neural voice</h3>
           <QwenVoicePicker />
-          <p className='mt-1 text-xs text-ink/50'>
+          <p className='mt-1 text-xs text-mutedink'>
             Kokoro voices (Heart, Adam…) are the long-form pick; Qwen3 voices follow style
             instructions. Runs on your Mac via the local server (port 8737). If narration silently
             uses a built-in voice instead, the server isn't running.
@@ -133,7 +133,7 @@ const NarrationPanel: React.FC<SettingsPanelPanelProp> = ({ onRegisterReset }) =
           onChange={(e) => settings.setRate(Number(e.target.value))}
           aria-label='Narration speed'
         />
-        <p className='mt-1 text-xs text-ink/50'>
+        <p className='mt-1 text-xs text-mutedink'>
           Applies from the next sentence; remembered across sessions.
         </p>
       </div>

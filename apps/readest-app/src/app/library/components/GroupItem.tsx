@@ -168,7 +168,7 @@ const GroupItem: React.FC<GroupItemProps> = ({ mode, group, isSelectMode, groupS
                 <div className='bg-paper border-ink/10 hover:border-ink/30 rounded-full border p-1 shadow-sm transition-colors duration-200'>
                   <MdChevronLeft
                     size={16}
-                    className='text-ink/50 hover:text-ink/70'
+                    className='text-mutedink hover:text-ink/70'
                   />
                 </div>
               </button>
@@ -190,7 +190,7 @@ const GroupItem: React.FC<GroupItemProps> = ({ mode, group, isSelectMode, groupS
                 <div className='bg-paper border-ink/10 hover:border-ink/30 rounded-full border p-1 shadow-sm transition-colors duration-200'>
                   <MdChevronRight
                     size={16}
-                    className='text-ink/50 hover:text-ink/70'
+                    className='text-mutedink hover:text-ink/70'
                   />
                 </div>
               </button>

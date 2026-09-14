@@ -1997,7 +1997,7 @@ const LibraryPageContent = ({ searchParams }: { searchParams: ReadonlyURLSearchP
               }}
               title={_('Clear search history')}
               aria-label={_('Clear search history')}
-              className='text-ink/50 hover:text-ink/80 flex h-6 w-8 shrink-0 items-center justify-center'
+              className='text-mutedink hover:text-ink/80 flex h-6 w-8 shrink-0 items-center justify-center'
             >
               <MdClose className='h-4 w-4' />
             </button>
@@ -2079,7 +2079,7 @@ const LibraryPageContent = ({ searchParams }: { searchParams: ReadonlyURLSearchP
             </div>
           </div>
         ) : (
-          <div className='hero drop-zone h-screen items-center justify-center'>
+          <div className='drop-zone flex h-screen items-center justify-center'>
             <DropIndicator />
             <LibraryEmptyState onImport={setImportMenuAnchor} />
           </div>

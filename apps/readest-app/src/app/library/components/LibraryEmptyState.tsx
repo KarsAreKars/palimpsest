@@ -19,7 +19,7 @@ const LibraryEmptyState: React.FC<LibraryEmptyStateProps> = ({ onImport }) => {
   const isMobile = appService?.isMobile ?? false;
 
   return (
-    <div className='hero-content text-paperlight text-center'>
+    <div className='text-center'>
       <div className='flex max-w-md flex-col items-center'>
         <span className='ornament mb-6' aria-hidden='true'>
           ✳

@@ -379,7 +379,7 @@ const ImportFromFolderDialog: React.FC<ImportFromFolderDialogProps> = ({
             aria-label={_('Choose a folder')}
           >
             <MdFolderOpen className='text-ink/70 h-5 w-5 flex-shrink-0' />
-            <span className={clsx('min-w-0 flex-1 truncate', !directory && 'text-ink/50')}>
+            <span className={clsx('min-w-0 flex-1 truncate', !directory && 'text-mutedink')}>
               {directory || _('Choose a folder')}
             </span>
           </button>
@@ -473,7 +473,7 @@ const ImportFromFolderDialog: React.FC<ImportFromFolderDialogProps> = ({
             />
             <span className='select-none'>
               <span className='block'>{_('Read books in place')}</span>
-              <span className='text-ink/60 block text-xs'>
+              <span className='text-mutedink block text-xs'>
                 {isRegisteredRoot
                   ? _(
                       'This folder is an external library. Uncheck to stop reading its books in place; future imports will copy books into the library.',
@@ -497,7 +497,7 @@ const ImportFromFolderDialog: React.FC<ImportFromFolderDialogProps> = ({
               />
               <span className='select-none'>
                 <span className='block'>{_('Auto-import new books from this folder')}</span>
-                <span className='text-ink/60 block text-xs'>
+                <span className='text-mutedink block text-xs'>
                   {_(
                     'When new books are added to this folder, import them automatically the next time Readest opens or returns to the foreground.',
                   )}
@@ -527,7 +527,7 @@ const ImportFromFolderDialog: React.FC<ImportFromFolderDialogProps> = ({
             />
             <span className='select-none'>
               <span className='block'>{_('Create groups from subfolders')}</span>
-              <span className='text-ink/60 block text-xs'>
+              <span className='text-mutedink block text-xs'>
                 {_('Each first-level subfolder becomes a library group.')}
               </span>
             </span>
@@ -547,7 +547,7 @@ const ImportFromFolderDialog: React.FC<ImportFromFolderDialogProps> = ({
             />
             <span className='select-none'>
               <span className='block'>{_('Import all into library')}</span>
-              <span className='text-ink/60 block text-xs'>
+              <span className='text-mutedink block text-xs'>
                 {_('Recursively add every matching file directly to the library.')}
               </span>
             </span>

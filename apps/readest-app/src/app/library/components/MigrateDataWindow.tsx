@@ -303,15 +303,15 @@ export const MigrateDataWindow = () => {
             </button>
             {currentDirFileCount ? (
               <div className='flex space-x-4'>
-                <p className='text-ink/60 text-xs'>
+                <p className='text-mutedink text-xs'>
                   {_('File count: {{size}}', { size: currentDirFileCount })}
                 </p>
-                <p className='text-ink/60 text-xs'>
+                <p className='text-mutedink text-xs'>
                   {_('Total size: {{size}}', { size: formatBytes(currentDirFileSize) })}
                 </p>
               </div>
             ) : (
-              <p className='text-ink/60 text-xs'>{_('Calculating file info...')}</p>
+              <p className='text-mutedink text-xs'>{_('Calculating file info...')}</p>
             )}
           </div>
 
@@ -392,7 +392,7 @@ export const MigrateDataWindow = () => {
 
               {migrationProgress.currentFile && (
                 <p
-                  className='text-ink/60 overflow-hidden font-mono text-xs'
+                  className='text-mutedink overflow-hidden font-mono text-xs'
                   style={{
                     direction: 'rtl',
                     textAlign: 'left',
@@ -404,7 +404,7 @@ export const MigrateDataWindow = () => {
                 </p>
               )}
 
-              <p className='text-ink/60 text-xs'>
+              <p className='text-mutedink text-xs'>
                 {_('{{current}} of {{total}} files', {
                   current: migrationProgress.current.toLocaleString(),
                   total: migrationProgress.total.toLocaleString(),
@@ -420,8 +420,8 @@ export const MigrateDataWindow = () => {
                 <RiCheckboxCircleFill className='h-5 w-5' />
                 <span className='font-medium'>{_('Migration completed successfully!')}</span>
               </div>
-              <div className='bg-[#4d6136]/10 border-[#4d6136]/20 rounded-[2px] border p-3'>
-                <p className='text-[#4d6136]/80 text-sm'>
+              <div className='rounded-[2px] border border-[color-mix(in_srgb,var(--cloth-moss)_20%,transparent)] bg-[color-mix(in_srgb,var(--cloth-moss)_10%,transparent)] p-3'>
+                <p className='text-sm text-[color-mix(in_srgb,var(--cloth-moss)_80%,transparent)]'>
                   {_(
                     'Your data has been moved to the new location. Please restart the application to complete the process.',
                   )}

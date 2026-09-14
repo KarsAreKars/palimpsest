@@ -230,7 +230,7 @@ const ProfEndpointForm: React.FC<{ onBack: () => void }> = ({ onBack }) => {
             placeholder='openai/gpt-4o-mini'
             disabled={!enabled}
           />
-          <span className='text-ink/60 text-xs'>
+          <span className='text-mutedink text-xs'>
             {_('The exact model id the endpoint expects, e.g. openai/gpt-4o-mini or kimi-k3.')}
           </span>
         </div>
@@ -352,7 +352,7 @@ const ElevenLabsForm: React.FC<{ onBack: () => void }> = ({ onBack }) => {
               {_('Could not connect. Check the key and your connection.')}
             </span>
           )}
-          <span className='text-ink/60 text-xs'>
+          <span className='text-mutedink text-xs'>
             {_('Stored locally on this device. Audio is cached, so re-listening never re-bills.')}
           </span>
         </div>
@@ -401,7 +401,7 @@ const ElevenLabsForm: React.FC<{ onBack: () => void }> = ({ onBack }) => {
       </BoxedList>
 
       {quota && (
-        <p className='text-ink/60 px-4 text-xs'>
+        <p className='text-mutedink px-4 text-xs'>
           {_('Character usage: {{used}} / {{limit}} this cycle.', {
             used: quota.used.toLocaleString(),
             limit: quota.limit.toLocaleString(),

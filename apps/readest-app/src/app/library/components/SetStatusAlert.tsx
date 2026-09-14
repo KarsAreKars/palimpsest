@@ -32,7 +32,7 @@ const SetStatusAlert: React.FC<SetStatusAlertProps> = ({
       label: _('Mark as Finished'),
       status: 'finished' as ReadingStatus,
       className:
-        'not-eink:bg-[#4d6136]/15 chrome-success not-eink:border-[#4d6136]/20 eink-bordered',
+        'chrome-success not-eink:border-[color-mix(in_srgb,var(--cloth-moss)_20%,transparent)] not-eink:bg-[color-mix(in_srgb,var(--cloth-moss)_15%,transparent)] eink-bordered',
     },
     {
       label: _('Mark as On hold'),
@@ -71,7 +71,7 @@ const SetStatusAlert: React.FC<SetStatusAlertProps> = ({
           <button
             className={clsx(
               'absolute right-0 flex items-center justify-center',
-              'rounded-full p-1.5 transition-colors text-ink/70 hover:text-ink',
+              'rounded-[2px] p-1.5 transition-colors text-ink/70 hover:text-ink',
               'sm:hidden',
             )}
             onClick={onCancel}
@@ -85,7 +85,7 @@ const SetStatusAlert: React.FC<SetStatusAlertProps> = ({
             <button
               key={label}
               className={clsx(
-                'flex items-center gap-2 rounded-full border px-4 py-2',
+                'flex items-center gap-2 rounded-[2px] border px-4 py-2',
                 'shadow-sm transition-all duration-200 ease-out active:scale-[0.97]',
                 className,
               )}
@@ -96,7 +96,7 @@ const SetStatusAlert: React.FC<SetStatusAlertProps> = ({
           ))}
           <button
             className={clsx(
-              'hidden items-center gap-2 rounded-full border px-4 py-2',
+              'hidden items-center gap-2 rounded-[2px] border px-4 py-2',
               'not-eink:bg-paperlight not-eink:text-ink not-eink:border-ink/10 not-eink:shadow-sm',
               'eink-bordered',
               'transition-all duration-200 ease-out active:scale-[0.97]',

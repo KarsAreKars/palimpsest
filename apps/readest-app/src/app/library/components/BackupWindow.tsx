@@ -239,7 +239,7 @@ export const BackupWindow: React.FC<BackupWindowProps> = ({ onPullLibrary }) => 
 
               {progress.currentFile && (
                 <p
-                  className='text-ink/60 overflow-hidden font-mono text-xs'
+                  className='text-mutedink overflow-hidden font-mono text-xs'
                   style={{
                     direction: 'rtl',
                     textAlign: 'left',
@@ -251,7 +251,7 @@ export const BackupWindow: React.FC<BackupWindowProps> = ({ onPullLibrary }) => 
                 </p>
               )}
 
-              <p className='text-ink/60 text-xs'>
+              <p className='text-mutedink text-xs'>
                 {_('{{current}} of {{total}} items', {
                   current: progress.current.toLocaleString(),
                   total: progress.total.toLocaleString(),
@@ -271,8 +271,8 @@ export const BackupWindow: React.FC<BackupWindowProps> = ({ onPullLibrary }) => 
                     : _('Restore completed successfully!')}
                 </span>
               </div>
-              <div className='bg-[#4d6136]/10 border-[#4d6136]/20 rounded-[2px] border p-3'>
-                <p className='text-[#4d6136]/80 text-sm'>
+              <div className='rounded-[2px] border border-[color-mix(in_srgb,var(--cloth-moss)_20%,transparent)] bg-[color-mix(in_srgb,var(--cloth-moss)_10%,transparent)] p-3'>
+                <p className='text-sm text-[color-mix(in_srgb,var(--cloth-moss)_80%,transparent)]'>
                   {result.type === 'backup'
                     ? _('Your library and settings have been saved to the selected location.')
                     : _('{{added}} books added, {{updated}} books updated.', {

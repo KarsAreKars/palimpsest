@@ -403,7 +403,7 @@ const TTSPlayerSheet = ({
               className='not-eink:bg-paperlight eink-bordered flex h-14 min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-[2px]'
             >
               <span className='text-sm font-semibold tabular-nums'>{formatRate(rate)}</span>
-              <span className='text-ink/60 max-w-full truncate px-1 text-xs'>
+              <span className='text-mutedink max-w-full truncate px-1 text-xs'>
                 {_('Speed')}
               </span>
             </button>
@@ -414,7 +414,7 @@ const TTSPlayerSheet = ({
               className='not-eink:bg-paperlight eink-bordered flex h-14 min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-[2px]'
             >
               <RiVoiceAiFill size={iconSize18} />
-              <span className='text-ink/60 max-w-full truncate px-1 text-xs'>
+              <span className='text-mutedink max-w-full truncate px-1 text-xs'>
                 {currentVoiceName ? _(currentVoiceName) : _('Voice')}
               </span>
             </button>
@@ -425,7 +425,7 @@ const TTSPlayerSheet = ({
               className='not-eink:bg-paperlight eink-bordered flex h-14 min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-[2px]'
             >
               <MdAlarm size={iconSize18} />
-              <span className='text-ink/60 max-w-full truncate px-1 text-xs tabular-nums'>
+              <span className='text-mutedink max-w-full truncate px-1 text-xs tabular-nums'>
                 {timerCaption}
               </span>
             </button>
@@ -440,7 +440,7 @@ const TTSPlayerSheet = ({
               <MdOutlineFileDownload size={iconSize24} className='shrink-0' />
               <div className='flex min-w-0 flex-1 flex-col items-start'>
                 <span className='text-sm font-semibold'>{_('Offline Audio')}</span>
-                <span className='text-ink/60 line-clamp-1 text-start text-xs'>
+                <span className='text-mutedink line-clamp-1 text-start text-xs'>
                   {premiumBadge
                     ? _('Download chapters for offline playback')
                     : _('{{done}} of {{total}} downloaded', {
@@ -474,7 +474,7 @@ const TTSPlayerSheet = ({
         <div className='flex w-full flex-col pb-4'>
           {voiceGroups.map((voiceGroup) => (
             <div key={voiceGroup.id}>
-              <div className='text-ink/60 px-2 py-1 text-sm sm:text-xs'>
+              <div className='text-mutedink px-2 py-1 text-sm sm:text-xs'>
                 {/* A single-voice group (a book's own narrator) would otherwise
                     read "Narration: 1 voices". */}
                 {voiceGroup.voices.length === 1

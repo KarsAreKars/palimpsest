@@ -25,7 +25,7 @@ const Ribbon: React.FC = () => {
         shapeRendering='geometricPrecision'
         imageRendering='optimizeQuality'
       >
-        <polygon fill='#F44336' points='100 100, 50 78, 0 100, 0 0, 100 0' />
+        <polygon fill='var(--stamp)' points='100 100, 50 78, 0 100, 0 0, 100 0' />
       </svg>
     </div>
   );

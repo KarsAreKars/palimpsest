@@ -85,7 +85,7 @@ const TickRuler = ({
             <span
               key={mark}
               className={clsx(
-                'text-ink/50 absolute top-0 -translate-x-1/2 text-xs tabular-nums',
+                'text-mutedink absolute top-0 -translate-x-1/2 text-xs tabular-nums',
                 Math.round(Math.abs(mark - current) / step) < hideSteps && 'invisible',
               )}
               style={{ left: `${toPct(mark)}%` }}

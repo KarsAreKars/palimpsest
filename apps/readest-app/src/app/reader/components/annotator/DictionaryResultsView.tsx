@@ -414,7 +414,7 @@ export const DictionaryResultsHeader: React.FC<DictionaryResultsHeaderProps> = (
               'chrome-ghost chrome-ghost-xs shrink-0',
               speaking
                 ? 'text-ink not-eink:animate-pulse'
-                : 'text-ink/60 hover:text-ink not-eink:hover:bg-paperlight/60',
+                : 'text-mutedink hover:text-ink not-eink:hover:bg-paperlight/60',
             )}
           >
             <MdVolumeUp size={18} />
@@ -431,7 +431,7 @@ export const DictionaryResultsHeader: React.FC<DictionaryResultsHeaderProps> = (
             aria-label={_('Manage Dictionaries')}
             title={_('Manage Dictionaries')}
             onClick={onManage}
-            className='chrome-ghost chrome-ghost-xs text-ink/60 hover:text-ink not-eink:hover:bg-paperlight/60'
+            className='chrome-ghost chrome-ghost-xs text-mutedink hover:text-ink not-eink:hover:bg-paperlight/60'
           >
             <MdSettings size={16} />
           </button>

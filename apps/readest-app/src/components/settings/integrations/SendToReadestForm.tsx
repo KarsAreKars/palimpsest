@@ -197,7 +197,7 @@ const SendToReadestForm: React.FC<SendToReadestFormProps> = ({ onBack }) => {
 
       {!user ? (
         <div className='flex flex-col items-center gap-4 px-6 py-16 text-center'>
-          <span className='bg-paperlight text-ink/60 flex h-16 w-16 items-center justify-center rounded-full'>
+          <span className='bg-paperlight text-mutedink flex h-16 w-16 items-center justify-center rounded-full'>
             <RiSendPlaneLine className='h-7 w-7' />
           </span>
           <p className='text-ink/70 max-w-xs text-sm leading-relaxed'>
@@ -245,7 +245,7 @@ const SendToReadestForm: React.FC<SendToReadestFormProps> = ({ onBack }) => {
             >
               {_('View plans')}
             </button>
-            <p className='text-ink/55 mt-2 max-w-sm text-xs leading-relaxed'>
+            <p className='text-mutedink mt-2 max-w-sm text-xs leading-relaxed'>
               {_(
                 'You can still clip articles for free with the in-app Send button, the mobile Share menu, or the browser extension.',
               )}
@@ -291,7 +291,7 @@ const SendToReadestForm: React.FC<SendToReadestFormProps> = ({ onBack }) => {
                     aria-label={_('Customize your address name')}
                     placeholder={_('your-name')}
                   />
-                  <span className='text-ink/55 shrink-0 text-xs'>{suffixOf(address)}</span>
+                  <span className='text-mutedink shrink-0 text-xs'>{suffixOf(address)}</span>
                   <button
                     type='button'
                     className='ink-btn settings-btn-sm'
@@ -314,7 +314,7 @@ const SendToReadestForm: React.FC<SendToReadestFormProps> = ({ onBack }) => {
             <div className='settings-card eink-bordered overflow-hidden'>
               <div className='divide-ink divide-y'>
                 {senders.length === 0 && (
-                  <div className='text-ink/60 px-4 py-3 text-sm'>
+                  <div className='text-mutedink px-4 py-3 text-sm'>
                     {_('No approved senders yet. Add an email to let it send to your library.')}
                   </div>
                 )}
@@ -380,7 +380,7 @@ const SendToReadestForm: React.FC<SendToReadestFormProps> = ({ onBack }) => {
             <div className='settings-card eink-bordered overflow-hidden'>
               <div className='divide-ink divide-y'>
                 {activity.length === 0 && (
-                  <div className='text-ink/60 px-4 py-3 text-sm'>
+                  <div className='text-mutedink px-4 py-3 text-sm'>
                     {_('Nothing sent yet. Email a book to your address above.')}
                   </div>
                 )}
@@ -390,7 +390,7 @@ const SendToReadestForm: React.FC<SendToReadestFormProps> = ({ onBack }) => {
                       <SettingLabel className='!line-clamp-1'>
                         {item.filename || item.url || _('Untitled')}
                       </SettingLabel>
-                      <span className='text-ink/60 text-[0.8em]'>
+                      <span className='text-mutedink text-[0.8em]'>
                         {item.status === 'done' && _('Added to your library')}
                         {item.status === 'pending' && _('Waiting to be processed')}
                         {item.status === 'claimed' && _('Processing…')}

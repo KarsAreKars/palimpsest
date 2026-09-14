@@ -22,6 +22,8 @@ interface ProfBlobProps {
 }
 
 const STAMP = '#8C3B22';
+// --paper-light, kept in sync with apothecary.css (canvas can't read CSS vars)
+const PAPER_LIGHT = '#F8F4E9';
 const INK = '#26221B';
 
 const ProfBlob: React.FC<ProfBlobProps> = ({ state, stream, size = 64, onClick, label }) => {
@@ -136,7 +138,7 @@ const ProfBlob: React.FC<ProfBlobProps> = ({ state, stream, size = 64, onClick, 
         else ctx.lineTo(x, y);
       }
       ctx.closePath();
-      ctx.fillStyle = st === 'speaking' ? STAMP : '#F8F4E9';
+      ctx.fillStyle = st === 'speaking' ? STAMP : PAPER_LIGHT;
       ctx.fill();
       ctx.lineWidth = 1.25;
       ctx.strokeStyle = st === 'idle' ? INK : STAMP;

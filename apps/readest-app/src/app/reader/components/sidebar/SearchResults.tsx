@@ -243,7 +243,7 @@ const ChapterSection: React.FC<ChapterSectionProps> = ({
             </svg>
             <span className='truncate'>{label}</span>
           </span>
-          <span className='text-ink/60 ms-2 shrink-0 whitespace-nowrap text-xs'>
+          <span className='text-mutedink ms-2 shrink-0 whitespace-nowrap text-xs'>
             {matchCount}
           </span>
         </button>
@@ -340,7 +340,7 @@ const SearchResults: React.FC<SearchResultsProps> = ({ bookKey, results, onSelec
   if (results.length === 0) {
     if (searchError || searchProgress < 1) return null;
     return (
-      <div className='search-results text-ink/60 p-4 text-center text-sm'>
+      <div className='search-results text-mutedink p-4 text-center text-sm'>
         {_('No results found')}
       </div>
     );
@@ -381,7 +381,7 @@ const SearchResults: React.FC<SearchResultsProps> = ({ bookKey, results, onSelec
         })}
       </ul>
       {searchProgress >= 1 && (
-        <div className='text-ink/60 px-2 py-2 text-center text-xs'>
+        <div className='text-mutedink px-2 py-2 text-center text-xs'>
           {_('{{count}} results', { count: totalMatches })}
         </div>
       )}

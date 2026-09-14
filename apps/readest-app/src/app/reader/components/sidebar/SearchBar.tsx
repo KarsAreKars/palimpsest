@@ -340,7 +340,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ isVisible, bookKey, onHideSearchB
     <div className='relative flex flex-col gap-3 p-2'>
       <div className='bg-paper flex h-8 items-center rounded-[2px]'>
         <div className='absolute ps-3'>
-          <FaSearch size={iconSize16} className='text-ink/50' />
+          <FaSearch size={iconSize16} className='text-mutedink' />
         </div>
 
         <input
@@ -386,7 +386,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ isVisible, bookKey, onHideSearchB
               'chrome-ghost h-8 min-h-8 w-8 p-0 rounded-none rounded-r-[2px]',
               viewSettings?.isEink ? '!bg-transparent hover:!bg-transparent' : '',
             )}
-            toggleButton={<FaChevronDown size={iconSize12} className='text-ink/50' />}
+            toggleButton={<FaChevronDown size={iconSize12} className='text-mutedink' />}
           >
             <SearchOptions
               isEink={!!viewSettings?.isEink}
@@ -432,7 +432,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ isVisible, bookKey, onHideSearchB
           <button
             onClick={handleClearHistory}
             className={clsx(
-              'text-ink/50 hover:text-ink/80 flex-shrink-0 items-center',
+              'text-mutedink hover:text-ink/80 flex-shrink-0 items-center',
               'flex h-6 min-h-6 w-8 min-w-8 items-center justify-center p-0',
             )}
             title={_('Clear search history')}

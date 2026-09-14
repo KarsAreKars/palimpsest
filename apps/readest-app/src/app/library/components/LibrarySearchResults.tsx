@@ -88,7 +88,7 @@ const ResultCover = ({ book }: { book: Book }) => (
     aria-hidden='true'
     className='bg-paperlight eink-bordered relative flex h-10 w-7 shrink-0 items-center justify-center overflow-hidden rounded-[2px]'
   >
-    <span className='text-ink/50 text-[10px] font-semibold'>
+    <span className='text-mutedink text-[10px] font-semibold'>
       {(book.title ?? '').trim().charAt(0)}
     </span>
     {book.coverImageUrl && (
@@ -366,7 +366,7 @@ const LibrarySearchResults = ({
     <div className='search-results flex h-full min-h-0 flex-col font-sans'>
       <div className='px-4 pb-3 pt-1 sm:px-6'>
         <div
-          className='text-ink/60 flex h-6 items-center gap-2 text-xs'
+          className='text-mutedink flex h-6 items-center gap-2 text-xs'
           role='status'
           aria-live='polite'
         >
@@ -443,11 +443,11 @@ const LibrarySearchResults = ({
                         <span className='text-ink block truncate text-sm font-medium leading-5'>
                           {group.book.title}
                         </span>
-                        <span className='text-ink/55 mt-0.5 block truncate text-xs leading-4'>
+                        <span className='text-mutedink mt-0.5 block truncate text-xs leading-4'>
                           {group.book.author}
                         </span>
                       </span>
-                      <span className='bg-paperlight text-ink/60 eink-bordered shrink-0 rounded-full px-2 py-0.5 text-xs tabular-nums'>
+                      <span className='bg-paperlight text-mutedink eink-bordered shrink-0 rounded-full px-2 py-0.5 text-xs tabular-nums'>
                         {group.matchCount}
                         {group.truncated && '+'}
                       </span>
@@ -485,12 +485,12 @@ const LibrarySearchResults = ({
           })}
         </div>
         {displayedSkipped > 0 && (
-          <p className='text-ink/50 mt-4 text-center text-xs' role='status'>
+          <p className='text-mutedink mt-4 text-center text-xs' role='status'>
             {_('{{count}} books unavailable', { count: displayedSkipped })}
           </p>
         )}
         {displayedIssues.length > 0 && (
-          <div className='text-ink/50 mt-3 space-y-1 px-1 text-xs'>
+          <div className='text-mutedink mt-3 space-y-1 px-1 text-xs'>
             {displayedIssues.map(({ book, message }) => (
               <p key={`${book.hash}-${message}`} className='truncate'>
                 <span className='font-medium'>{book.title}</span>
@@ -506,7 +506,7 @@ const LibrarySearchResults = ({
           !displayedQueryIssue && (
             <div className='flex flex-col items-center gap-1 py-16 text-center' role='status'>
               <p className='text-ink/70 text-sm font-medium'>{_('No results found')}</p>
-              <p className='text-ink/50 text-xs'>
+              <p className='text-mutedink text-xs'>
                 {_('Try a different term or search mode')}
               </p>
             </div>

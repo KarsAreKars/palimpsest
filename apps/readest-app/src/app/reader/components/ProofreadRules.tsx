@@ -187,9 +187,9 @@ const RuleItem: React.FC<{
           </span>
           <span className='text-ink/90 text-xs'>{"'" + rule.replacement + "'"}</span>
         </div>
-        <div className='text-ink/60 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs'>
+        <div className='text-mutedink flex flex-wrap items-center gap-x-2 gap-y-1 text-xs'>
           <span className='inline-flex items-center gap-1'>
-            <span className='text-ink/50'>{_('Scope:')}</span>
+            <span className='text-mutedink'>{_('Scope:')}</span>
             <span
               role='none'
               className={clsx(
@@ -203,14 +203,14 @@ const RuleItem: React.FC<{
           </span>
           <span className='text-ink/30'>•</span>
           <span className='inline-flex items-center gap-1'>
-            <span className='text-ink/50'>{_('Case sensitive:')}</span>
+            <span className='text-mutedink'>{_('Case sensitive:')}</span>
             <span className='text-ink/70 font-medium'>
               {rule.caseSensitive !== false ? _('Yes') : _('No')}
             </span>
           </span>
           <span className='text-ink/30'>•</span>
           <span className='inline-flex items-center gap-1'>
-            <span className='text-ink/50'>{_('Only for TTS:')}</span>
+            <span className='text-mutedink'>{_('Only for TTS:')}</span>
             <span className='text-ink/70 font-medium'>
               {rule.onlyForTTS === true ? _('Yes') : _('No')}
             </span>
@@ -517,7 +517,7 @@ export const ProofreadRulesManager: React.FC = () => {
       <SectionTitle>{title}</SectionTitle>
       {rules.length === 0 ? (
         <div className='border-ink/20 bg-paperlight/30 rounded-[2px] border border-dashed p-6 text-center'>
-          <p className='text-ink/50 text-sm'>{emptyMessage}</p>
+          <p className='text-mutedink text-sm'>{emptyMessage}</p>
         </div>
       ) : (
         <DndContext

@@ -126,9 +126,13 @@
   }
 }
 
-/* ---------- lift shadow for floating layers (menus, popups) ---------- */
+/* ---------- lift shadow for floating layers (menus, popups) ----------
+   The one shadow recipe; eink flattens it like every other lift. */
 .chrome-lift {
   box-shadow: var(--lift-shadow);
+}
+[data-eink='true'] .chrome-lift {
+  box-shadow: none !important;
 }
 
 /* ---------- header icon buttons: the stamp is the only accent ----------

@@ -224,7 +224,7 @@ const S3Form: React.FC = () => {
             className={clsx(
               'absolute end-2 top-1/2 -translate-y-1/2',
               'flex h-8 w-8 items-center justify-center rounded',
-              'text-ink/60 hover:text-ink',
+              'text-mutedink hover:text-ink',
               'hover:bg-paperlight/60 transition-colors duration-150',
               'focus-visible:ring-stamp/40 focus-visible:outline-none focus-visible:ring-2',
             )}

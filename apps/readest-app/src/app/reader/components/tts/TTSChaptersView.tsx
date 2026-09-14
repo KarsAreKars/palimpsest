@@ -56,7 +56,7 @@ const TTSChaptersView: React.FC<TTSChaptersViewProps> = ({
   return (
     <div className='flex w-full flex-col pb-4'>
       <div className='flex items-center justify-between gap-2 px-2 py-1'>
-        <span className='text-ink/60 text-sm sm:text-xs'>
+        <span className='text-mutedink text-sm sm:text-xs'>
           {_('{{done}} of {{total}} chapters offline', {
             done: completeCount,
             total: chapters.length,
@@ -145,7 +145,7 @@ const TTSChaptersView: React.FC<TTSChaptersViewProps> = ({
                   </span>
                 </div>
                 {subtitle && (
-                  <span className='text-ink/60 line-clamp-1 text-xs tabular-nums'>
+                  <span className='text-mutedink line-clamp-1 text-xs tabular-nums'>
                     {subtitle}
                   </span>
                 )}

@@ -398,7 +398,7 @@ const TTSMiniPlayer = ({
                 </span>
               )}
               {timerLabel && (
-                <span className='text-ink/60 flex shrink-0 items-center gap-0.5 text-xs tabular-nums'>
+                <span className='text-mutedink flex shrink-0 items-center gap-0.5 text-xs tabular-nums'>
                   <MdAlarm size={iconSize14} aria-hidden='true' />
                   {timerLabel}
                 </span>

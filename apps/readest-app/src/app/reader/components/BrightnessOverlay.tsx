@@ -42,7 +42,7 @@ const BrightnessOverlay: React.FC<BrightnessOverlayProps> = ({ visible, level })
       <div
         className={clsx(
           'eink-bordered flex flex-col items-center gap-2 rounded-full px-2 py-3',
-          'bg-paper/90 not-eink:shadow-md',
+          'bg-paper/90 chrome-lift',
         )}
       >
         <span className='text-ink text-xs tabular-nums'>{valuePercent}</span>

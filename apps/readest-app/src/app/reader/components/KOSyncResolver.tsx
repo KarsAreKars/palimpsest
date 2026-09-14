@@ -49,7 +49,7 @@ const KOSyncConflictResolver: React.FC<KOSyncConflictResolverProps> = ({
                 `as='span'` because this lives inside a button, not as a
                 document heading; opacity override expresses the
                 "secondary on this surface" relationship. */}
-            <SectionTitle as='span' className='!text-ink/55 !ps-0'>
+            <SectionTitle as='span' className='!text-mutedink !ps-0'>
               {_('This device')}
             </SectionTitle>
             <span className='line-clamp-2 text-sm font-medium leading-snug'>

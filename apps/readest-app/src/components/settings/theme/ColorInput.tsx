@@ -81,7 +81,7 @@ const ColorInput: React.FC<ColorInputProps> = ({
         <button
           type='button'
           onClick={() => setIsOpen(!isOpen)}
-          className='text-ink/60 hover:bg-paperlight hover:text-ink focus-visible:ring-stamp/40 inline-flex h-7 w-7 items-center justify-center rounded-[2px] transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2'
+          className='text-mutedink hover:bg-paperlight hover:text-ink focus-visible:ring-stamp/40 inline-flex h-7 w-7 items-center justify-center rounded-[2px] transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2'
           aria-label={label || 'Choose color'}
           title={label || 'Choose color'}
         >

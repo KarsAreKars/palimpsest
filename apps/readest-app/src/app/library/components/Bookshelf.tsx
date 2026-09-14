@@ -819,8 +819,7 @@ const Bookshelf: React.FC<BookshelfProps> = ({
               aria-label={_('Import Books')}
               aria-haspopup='menu'
               className={clsx(
-                'plate plate-notch plate-interactive flex aspect-[2/3] w-full items-center justify-center',
-                'border-dashed-[color-mix(in_srgb,var(--ink)_35%,transparent)]',
+                'plate plate-notch plate-interactive catalogue-import-tile flex aspect-[2/3] w-full items-center justify-center',
               )}
               onClick={(event) => handleImportBooks(event.currentTarget)}
             >

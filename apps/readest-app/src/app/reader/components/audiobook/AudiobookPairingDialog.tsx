@@ -475,7 +475,7 @@ const AudiobookPairingDialog = ({ bookKey, bookDoc, onClose }: AudiobookPairingD
             </select>
             <MdArrowDropDown
               aria-hidden='true'
-              className='text-ink/55 pointer-events-none h-5 w-5 flex-shrink-0'
+              className='text-mutedink pointer-events-none h-5 w-5 flex-shrink-0'
             />
           </div>
         </div>
@@ -499,7 +499,7 @@ const AudiobookPairingDialog = ({ bookKey, bookDoc, onClose }: AudiobookPairingD
               </select>
               <MdArrowDropDown
                 aria-hidden='true'
-                className='text-ink/55 pointer-events-none h-5 w-5 flex-shrink-0'
+                className='text-mutedink pointer-events-none h-5 w-5 flex-shrink-0'
               />
             </div>
             {audioChapterById.get(selectedAudioChapterId) && (

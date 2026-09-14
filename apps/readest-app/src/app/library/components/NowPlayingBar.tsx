@@ -156,7 +156,7 @@ const NowPlayingBar = ({ isSelectMode }: NowPlayingBarProps) => {
         }}
         aria-label={`${_('Open Book')}: ${title}`}
         className={clsx(
-          'not-eink:bg-paperlight eink-bordered flex items-center gap-2 rounded-full shadow-lg',
+          'not-eink:bg-paperlight eink-bordered chrome-lift flex items-center gap-2 rounded-[2px]',
           'h-14 max-w-[calc(100vw-2rem)] min-w-[60vw] sm:min-w-0 cursor-pointer px-2',
           'focus-visible:ring-stamp focus-visible:ring-2 focus-visible:outline-none',
         )}

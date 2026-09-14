@@ -94,7 +94,7 @@ const NumberInput: React.FC<NumberInputProps> = ({
           tabIndex={disabled ? -1 : 0}
           aria-label={_('Decrease')}
           onClick={decrement}
-          className={`settings-btn rounded-full settings-btn-sm ${currentNumericValue <= min || disabled ? 'settings-btn-disabled !bg-opacity-5' : ''}`}
+          className={`settings-btn rounded-[2px] settings-btn-sm ${currentNumericValue <= min || disabled ? 'settings-btn-disabled !bg-opacity-5' : ''}`}
         >
           <FiMinus className='h-4 w-4' />
         </button>
@@ -102,7 +102,7 @@ const NumberInput: React.FC<NumberInputProps> = ({
           tabIndex={disabled ? -1 : 0}
           aria-label={_('Increase')}
           onClick={increment}
-          className={`settings-btn rounded-full settings-btn-sm ${currentNumericValue >= max || disabled ? 'settings-btn-disabled !bg-opacity-5' : ''}`}
+          className={`settings-btn rounded-[2px] settings-btn-sm ${currentNumericValue >= max || disabled ? 'settings-btn-disabled !bg-opacity-5' : ''}`}
         >
           <FiPlus className='h-4 w-4' />
         </button>

@@ -37,7 +37,7 @@ const Option: React.FC<OptionProps> = ({ label, isActive, onClick, disabled, cap
       </span>
       <span className='ml-2 whitespace-nowrap'>{label}</span>
     </div>
-    {caption && <span className='text-ink/50 ml-2 text-xs'>{caption}</span>}
+    {caption && <span className='text-mutedink ml-2 text-xs'>{caption}</span>}
   </button>
 );
 

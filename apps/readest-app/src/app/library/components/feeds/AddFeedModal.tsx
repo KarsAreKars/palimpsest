@@ -62,7 +62,7 @@ const AddFeedModal: React.FC<AddFeedModalProps> = ({ isOpen, onClose, onSubmit }
       boxClassName='sm:!w-[480px] sm:!max-w-[480px] sm:!h-auto sm:!max-h-[80vh]'
     >
       <div className='flex flex-col gap-4 pb-6 pt-2'>
-        <p className='text-ink/60 text-sm leading-relaxed'>
+        <p className='text-mutedink text-sm leading-relaxed'>
           {_('Paste an RSS, Atom, or JSON Feed URL to subscribe.')}
         </p>
         <input

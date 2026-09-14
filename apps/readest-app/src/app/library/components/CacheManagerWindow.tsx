@@ -186,7 +186,7 @@ export const CacheManagerWindow = () => {
               <span className='text-ink text-3xl font-bold tracking-tight tabular-nums'>
                 {status === 'scanning' ? '—' : formatBytes(size)}
               </span>
-              <span className='text-ink/60 line-clamp-2 text-sm'>{heroCaption}</span>
+              <span className='text-mutedink line-clamp-2 text-sm'>{heroCaption}</span>
             </div>
           </div>
 
@@ -199,7 +199,7 @@ export const CacheManagerWindow = () => {
                   style={{ width: `${progressPercentage}%` }}
                 />
               </div>
-              <div className='text-ink/55 flex items-center justify-between gap-3 text-xs'>
+              <div className='text-mutedink flex items-center justify-between gap-3 text-xs'>
                 <span
                   className='overflow-hidden font-mono'
                   style={{
@@ -220,7 +220,7 @@ export const CacheManagerWindow = () => {
 
           {/* Confirm notice */}
           {status === 'confirming' && (
-            <p className='text-ink/60 flex items-center justify-center gap-1.5 text-center text-[13px] leading-relaxed'>
+            <p className='text-mutedink flex items-center justify-center gap-1.5 text-center text-[13px] leading-relaxed'>
               <RiErrorWarningFill className='text-stamp h-4 w-4 shrink-0' aria-hidden='true' />
               {_('This will delete all cached files. This cannot be undone.')}
             </p>

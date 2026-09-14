@@ -57,7 +57,7 @@ const NavigationRow: React.FC<NavigationRowProps> = ({
         <SettingLabel>{title}</SettingLabel>
         {status && <span className='text-ink/65 truncate text-[0.85em]'>{status}</span>}
       </div>
-      <MdChevronRight className='text-ink/50 h-5 w-5 flex-shrink-0' />
+      <MdChevronRight className='text-mutedink h-5 w-5 flex-shrink-0' />
     </button>
   );
 };

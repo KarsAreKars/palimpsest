@@ -199,7 +199,7 @@ const TranslatorPopup: React.FC<TranslatorPopupProps> = ({
         {/* No top border or tinted fill: the footer reads as part of the popup
             surface, so its provider select can sit flush on the same color. */}
         <div className='flex shrink-0 items-center justify-between gap-2 rounded-b-[2px] px-4 py-2'>
-          <div className='line-clamp-1 text-xs text-ink/60'>
+          <div className='line-clamp-1 text-xs text-mutedink'>
             {provider &&
               !loading &&
               !error &&

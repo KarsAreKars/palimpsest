@@ -468,7 +468,7 @@ const LayoutPanel: React.FC<SettingsPanelPanelProp> = ({ bookKey, onRegisterRese
           <div className='flex gap-4'>
             <button
               title={_('Default')}
-              className={`settings-btn rounded-full settings-btn-sm ${writingMode === 'auto' ? 'settings-btn-active bg-paperlight' : ''}`}
+              className={`settings-btn rounded-[2px] settings-btn-sm ${writingMode === 'auto' ? 'settings-btn-active bg-paperlight' : ''}`}
               onClick={() => setWritingMode('auto')}
             >
               <MdOutlineAutoMode />
@@ -476,7 +476,7 @@ const LayoutPanel: React.FC<SettingsPanelPanelProp> = ({ bookKey, onRegisterRese
 
             <button
               title={_('Horizontal Direction')}
-              className={`settings-btn rounded-full settings-btn-sm ${writingMode === 'horizontal-tb' ? 'settings-btn-active bg-paperlight' : ''}`}
+              className={`settings-btn rounded-[2px] settings-btn-sm ${writingMode === 'horizontal-tb' ? 'settings-btn-active bg-paperlight' : ''}`}
               onClick={() => setWritingMode('horizontal-tb')}
             >
               <MdOutlineTextRotationNone />
@@ -484,7 +484,7 @@ const LayoutPanel: React.FC<SettingsPanelPanelProp> = ({ bookKey, onRegisterRese
 
             <button
               title={_('Vertical Direction')}
-              className={`settings-btn rounded-full settings-btn-sm ${writingMode === 'vertical-rl' ? 'settings-btn-active bg-paperlight' : ''}`}
+              className={`settings-btn rounded-[2px] settings-btn-sm ${writingMode === 'vertical-rl' ? 'settings-btn-active bg-paperlight' : ''}`}
               onClick={() => setWritingMode('vertical-rl')}
             >
               <MdTextRotateVertical />
@@ -492,7 +492,7 @@ const LayoutPanel: React.FC<SettingsPanelPanelProp> = ({ bookKey, onRegisterRese
 
             <button
               title={_('RTL Direction')}
-              className={`settings-btn rounded-full settings-btn-sm ${writingMode === 'horizontal-rl' ? 'settings-btn-active bg-paperlight' : ''}`}
+              className={`settings-btn rounded-[2px] settings-btn-sm ${writingMode === 'horizontal-rl' ? 'settings-btn-active bg-paperlight' : ''}`}
               onClick={() => setWritingMode('horizontal-rl')}
             >
               <TbTextDirectionRtl />
@@ -511,11 +511,11 @@ const LayoutPanel: React.FC<SettingsPanelPanelProp> = ({ bookKey, onRegisterRese
           <SettingsRow label={_('Border Color')}>
             <div className='flex gap-4'>
               <button
-                className={`settings-btn rounded-full settings-btn-sm bg-red-300 hover:bg-red-500 ${borderColor === 'red' ? 'settings-btn-active !bg-red-500' : ''}`}
+                className={`settings-btn rounded-[2px] settings-btn-sm bg-red-300 hover:bg-red-500 ${borderColor === 'red' ? 'settings-btn-active !bg-red-500' : ''}`}
                 onClick={() => setBorderColor('red')}
               ></button>
               <button
-                className={`settings-btn rounded-full settings-btn-sm bg-black/50 hover:bg-black ${borderColor === 'black' ? 'settings-btn-active !bg-black' : ''}`}
+                className={`settings-btn rounded-[2px] settings-btn-sm bg-black/50 hover:bg-black ${borderColor === 'black' ? 'settings-btn-active !bg-black' : ''}`}
                 onClick={() => setBorderColor('black')}
               ></button>
             </div>
@@ -789,7 +789,7 @@ const LayoutPanel: React.FC<SettingsPanelPanelProp> = ({ bookKey, onRegisterRese
             <div className='flex gap-4'>
               <div className='lg:settings-tooltip lg:settings-tooltip-bottom' data-tip={_('Auto')}>
                 <button
-                  className={`settings-btn rounded-full settings-btn-sm ${screenOrientation === 'auto' ? 'settings-btn-active bg-paperlight' : ''}`}
+                  className={`settings-btn rounded-[2px] settings-btn-sm ${screenOrientation === 'auto' ? 'settings-btn-active bg-paperlight' : ''}`}
                   onClick={() => setScreenOrientation('auto')}
                 >
                   <MdOutlineScreenRotation />
@@ -800,7 +800,7 @@ const LayoutPanel: React.FC<SettingsPanelPanelProp> = ({ bookKey, onRegisterRese
                 data-tip={_('Portrait')}
               >
                 <button
-                  className={`settings-btn rounded-full settings-btn-sm ${screenOrientation === 'portrait' ? 'settings-btn-active bg-paperlight' : ''}`}
+                  className={`settings-btn rounded-[2px] settings-btn-sm ${screenOrientation === 'portrait' ? 'settings-btn-active bg-paperlight' : ''}`}
                   onClick={() => setScreenOrientation('portrait')}
                 >
                   <IoPhonePortraitOutline />
@@ -811,7 +811,7 @@ const LayoutPanel: React.FC<SettingsPanelPanelProp> = ({ bookKey, onRegisterRese
                 data-tip={_('Landscape')}
               >
                 <button
-                  className={`settings-btn rounded-full settings-btn-sm ${screenOrientation === 'landscape' ? 'settings-btn-active bg-paperlight' : ''}`}
+                  className={`settings-btn rounded-[2px] settings-btn-sm ${screenOrientation === 'landscape' ? 'settings-btn-active bg-paperlight' : ''}`}
                   onClick={() => setScreenOrientation('landscape')}
                 >
                   <IoPhoneLandscapeOutline />
