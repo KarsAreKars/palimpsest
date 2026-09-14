@@ -26,7 +26,7 @@ const NavButton: React.FC<{
   <button
     type='button'
     className={clsx(
-      'chrome-btn h-8 min-h-8 w-8 p-0',
+      'chrome-btn chrome-btn-icon h-8 min-h-8 w-8',
       disabled && 'chrome-ghost-disabled opacity-50',
       className,
     )}

@@ -142,7 +142,7 @@ const AnnotationsFilterPanel: React.FC<AnnotationsFilterPanelProps> = ({
                   aria-label={label}
                   title={label}
                   onClick={() => onToggleColor(color)}
-                  className='eink-bordered chrome-ghost h-6 min-h-6 w-6 rounded-full p-0'
+                  className='eink-bordered chrome-ghost chrome-btn-icon h-6 min-h-6 w-6 rounded-full'
                 >
                   <span
                     className='h-3.5 w-3.5 rounded-full border-2'
@@ -271,7 +271,7 @@ const AnnotationsToolbar: React.FC<AnnotationsToolbarProps> = ({
           <button
             onClick={onCloseSearch}
             aria-label={_('Clear')}
-            className='chrome-ghost h-8 min-h-8 w-8 rounded-e-[2px] rounded-s-none p-0'
+            className='chrome-ghost chrome-btn-icon h-8 min-h-8 w-8 rounded-e-[2px] rounded-s-none'
           >
             <FaTimes size={iconSize12} className='text-mutedink' />
           </button>
@@ -283,7 +283,7 @@ const AnnotationsToolbar: React.FC<AnnotationsToolbarProps> = ({
         className='dropdown-bottom dropdown-end'
         menuClassName='no-triangle mt-1'
         buttonClassName={clsx(
-          'chrome-ghost rounded-full h-6 min-h-6 w-6 p-0',
+          'chrome-ghost chrome-btn-icon rounded-full h-6 min-h-6 w-6',
           hasActiveFilters && 'bg-paperlight',
         )}
         containerClassName='h-8 pt-1'

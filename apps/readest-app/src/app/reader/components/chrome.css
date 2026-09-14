@@ -37,6 +37,14 @@
 .chrome-btn:hover {
   background: color-mix(in srgb, var(--ink) 8%, transparent);
 }
+/* icon-only transports (footer nav, header icon buttons): the text-button
+   padding above is unlayered and beats Tailwind's p-0, crushing a 16px icon
+   into a 4px content box inside the 32px button. Pin the variant to zero
+   padding here, next to the rule that causes it. */
+.chrome-btn.chrome-btn-icon,
+.chrome-ghost.chrome-btn-icon {
+  padding: 0;
+}
 /* icon-only buttons: react-icons size to 1em, and the chrome typeface runs
    at 10px — without this the reader chrome icons shrink to specks. */
 .chrome-btn > svg,

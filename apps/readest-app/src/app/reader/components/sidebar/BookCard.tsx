@@ -51,10 +51,12 @@ const BookCard = ({ book }: { book: Book }) => {
         <h4 className='font-display line-clamp-2 w-[90%] text-[15px] font-semibold leading-snug'>
           {formatTitle(title).replace(/\u00A0/g, ' ')}
         </h4>
-        <p className='typed text-mutedink truncate text-[9px]'>{formatAuthors(author).toUpperCase()}</p>
+        <p className='typed text-mutedink truncate text-[9px]'>
+          {formatAuthors(author).toUpperCase()}
+        </p>
       </div>
       <button
-        className='chrome-ghost hover:bg-paperlight h-6 min-h-6 w-6 rounded-full p-0 transition-colors'
+        className='chrome-ghost chrome-btn-icon hover:bg-paperlight h-6 min-h-6 w-6 rounded-full transition-colors'
         aria-label={_('More Info')}
         onClick={showBookDetails}
       >

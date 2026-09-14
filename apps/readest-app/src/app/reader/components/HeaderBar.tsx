@@ -245,7 +245,7 @@ const HeaderBar: React.FC<HeaderBarProps> = ({
             )}
             <button
               aria-label={_('Go to Library')}
-              className='chrome-ghost hidden h-8 min-h-8 w-8 items-center justify-center p-0 sm:flex'
+              className='chrome-ghost chrome-btn-icon hidden h-8 min-h-8 w-8 items-center justify-center sm:flex'
               onClick={onGoToLibrary}
             >
               <VscLibrary size={iconSize18} className='fill-ink' />
@@ -263,7 +263,7 @@ const HeaderBar: React.FC<HeaderBarProps> = ({
               className='exclude-title-bar-mousedown dropdown-bottom dropdown-center'
               menuClassName='!relative'
               buttonClassName={clsx(
-                'chrome-ghost h-8 min-h-8 w-8 p-0',
+                'chrome-ghost chrome-btn-icon h-8 min-h-8 w-8',
                 viewSettings?.annotationQuickAction && 'bg-paperlight/50',
               )}
               toggleButton={
@@ -317,7 +317,7 @@ const HeaderBar: React.FC<HeaderBarProps> = ({
             label={_('View Options')}
             containerClassName='h-8'
             className='exclude-title-bar-mousedown dropdown-bottom dropdown-end'
-            buttonClassName='chrome-ghost h-8 min-h-8 w-8 p-0 mt-0'
+            buttonClassName='chrome-ghost chrome-btn-icon h-8 min-h-8 w-8 mt-0'
             toggleButton={<MdOutlineMenu />}
             onToggle={handleToggleDropdown}
           >

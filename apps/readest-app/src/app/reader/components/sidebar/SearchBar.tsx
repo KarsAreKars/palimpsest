@@ -383,7 +383,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ isVisible, bookKey, onHideSearchB
             )}
             menuClassName={clsx('no-triangle mt-1', window.innerWidth < 640 ? '' : '!relative')}
             buttonClassName={clsx(
-              'chrome-ghost h-8 min-h-8 w-8 p-0 rounded-none rounded-r-[2px]',
+              'chrome-ghost chrome-btn-icon h-8 min-h-8 w-8 rounded-none rounded-r-[2px]',
               viewSettings?.isEink ? '!bg-transparent hover:!bg-transparent' : '',
             )}
             toggleButton={<FaChevronDown size={iconSize12} className='text-mutedink' />}
