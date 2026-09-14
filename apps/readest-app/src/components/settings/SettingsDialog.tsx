@@ -353,7 +353,9 @@ const SettingsDialog: React.FC<{ bookKey: string }> = ({ bookKey }) => {
       className='!z-[110]'
       bgClassName={bookKey ? 'sm:!bg-black/20' : 'sm:!bg-black/50'}
       boxClassName={clsx(
-        'sm:min-w-[520px] overflow-hidden not-eink:bg-paperlight',
+        // `!` beats the unlayered .plate-modal chrome (background, overflow),
+        // same convention as the sm:! sizing utilities below.
+        'sm:min-w-[520px] !overflow-hidden not-eink:!bg-paperlight',
         appService?.isMobile && 'sm:max-w-[90%] sm:w-3/4',
       )}
       snapHeight={appService?.isMobile ? 0.7 : undefined}
