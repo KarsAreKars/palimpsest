@@ -1,6 +1,6 @@
 import './settings.css';
 import React, { useEffect, useState } from 'react';
-import { RiGraduationCapLine, RiMicLine } from 'react-icons/ri';
+import { RiGraduationCapLine, RiMicLine, RiUserVoiceLine } from 'react-icons/ri';
 import { PiCheckCircle, PiWarningCircle, PiSpinner } from 'react-icons/pi';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useEnv } from '@/context/EnvContext';
@@ -13,9 +13,10 @@ import { ElevenLabsProvider, type ElevenLabsQuota } from '@/services/tts/provide
 import { getAIFetch } from '@/services/ai/utils/httpFetch';
 import type { TTSVoice } from '@/services/tts/types';
 import SubPageHeader from './SubPageHeader';
+import QwenVoicePicker from './QwenVoicePicker';
 import { BoxedList, NavigationRow, SectionTitle, SettingLabel, SettingsRow } from './primitives';
 
-type SubPage = 'prof' | 'elevenlabs' | null;
+type SubPage = 'prof' | 'elevenlabs' | 'voice' | null;
 
 /**
  * Integrations panel — AI providers only (PRODUCT.md: Integrations = AI
@@ -67,6 +68,12 @@ const IntegrationsPanel: React.FC = () => {
         <ElevenLabsForm onBack={() => setSubPage(null)} />
       </div>
     );
+  if (subPage === 'voice')
+    return (
+      <div className='my-4 w-full'>
+        <LocalVoiceForm onBack={() => setSubPage(null)} />
+      </div>
+    );
 
   const aiSettings: AISettings = settings.aiSettings ?? DEFAULT_AI_SETTINGS;
   const profStatus = aiSettings.enabled
@@ -104,6 +111,12 @@ const IntegrationsPanel: React.FC = () => {
               title={_('ElevenLabs voice')}
               status={elevenlabsStatus}
               onClick={() => setSubPage('elevenlabs')}
+            />
+            <NavigationRow
+              icon={RiUserVoiceLine}
+              title={_('Narrator voice')}
+              status={narration.qwenVoiceId ?? _('Heart (default)')}
+              onClick={() => setSubPage('voice')}
             />
           </div>
         </div>
@@ -463,6 +476,38 @@ const ElevenLabsForm: React.FC<{ onBack: () => void }> = ({ onBack }) => {
           })}
         </p>
       )}
+    </div>
+  );
+};
+
+/**
+ * The local narrator's voice — Qwen3-TTS + Kokoro, served by the bundled
+ * voice server. Same narration-settings key as the Narration tab picker
+ * (qwenVoiceId); this copy exists because Integrations is where readers
+ * look for the voice dropdown.
+ */
+const LocalVoiceForm: React.FC<{ onBack: () => void }> = ({ onBack }) => {
+  const _ = useTranslation();
+  return (
+    <div className='w-full space-y-6'>
+      <SubPageHeader
+        parentLabel={_('Integrations')}
+        currentLabel={_('Narrator voice')}
+        description={_('The voice that reads your books aloud, served locally.')}
+        onBack={onBack}
+      />
+
+      <BoxedList title={_('Voice')}>
+        <div className='flex flex-col gap-2 py-3 pe-4'>
+          <QwenVoicePicker />
+        </div>
+      </BoxedList>
+
+      <p className='text-mutedink px-4 text-xs'>
+        {_(
+          'Kokoro voices (Heart, Adam…) suit long-form listening; Qwen3 voices follow style cues. Changes apply on the fly — your place is kept. A speaker chip in the reader footer cycles voices too.',
+        )}
+      </p>
     </div>
   );
 };

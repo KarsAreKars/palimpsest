@@ -8,16 +8,16 @@ import './settings.css';
  * Distinct from the upstream TTS tab, which configures the legacy
  * parse-the-PDF reader speech path.
  */
-import React, { useEffect, useState } from 'react';
+import React, { useEffect } from 'react';
 import {
   useNarrationSettings,
   MIN_NARRATION_RATE,
   MAX_NARRATION_RATE,
 } from '@/services/narration/settings';
 import { EdgeSpeechTTS } from '@/libs/edgeTTS';
-import { NarrationQwenProvider } from '@/services/narration/narrationQwenProvider';
 import type { TTSVoice } from '@/services/tts/types';
 import type { SettingsPanelPanelProp } from './SettingsDialog';
+import QwenVoicePicker from './QwenVoicePicker';
 
 const NarrationPanel: React.FC<SettingsPanelPanelProp> = ({ onRegisterReset }) => {
   const settings = useNarrationSettings();
@@ -142,38 +142,3 @@ const NarrationPanel: React.FC<SettingsPanelPanelProp> = ({ onRegisterReset }) =
 };
 
 export default NarrationPanel;
-
-/** Voice list straight from the local Qwen server (falls back to the
- *  curated static list when it's down). Kept tiny on purpose — the panel
- *  is a picker, not a dashboard. */
-function QwenVoicePicker() {
-  const settings = useNarrationSettings();
-  const [voices, setVoices] = useState<TTSVoice[] | null>(null);
-  useEffect(() => {
-    let alive = true;
-    new NarrationQwenProvider()
-      .getAllVoices()
-      .then((v) => alive && setVoices(v))
-      .catch(() => alive && setVoices(null));
-    return () => {
-      alive = false;
-    };
-  }, []);
-  return (
-    <select
-      className='settings-select w-full max-w-xs'
-      value={settings.qwenVoiceId ?? ''}
-      onChange={(e) => settings.setQwenVoiceId(e.target.value || null)}
-      aria-label='Qwen3-TTS narrator voice'
-    >
-      <option value=''>Vivian (default)</option>
-      {(voices ?? [])
-        .filter((v) => v.id !== 'Vivian')
-        .map((v) => (
-          <option key={v.id} value={v.id}>
-            {v.name}
-          </option>
-        ))}
-    </select>
-  );
-}

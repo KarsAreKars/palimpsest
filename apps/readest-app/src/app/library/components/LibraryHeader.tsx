@@ -16,19 +16,12 @@ import useShortcuts from '@/hooks/useShortcuts';
 import WindowButtons from '@/components/WindowButtons';
 import Dropdown from '@/components/Dropdown';
 import SettingsMenu from './SettingsMenu';
-import ImportMenu from './ImportMenu';
 import LibrarySearchOptionsMenu from './LibrarySearchOptionsMenu';
 
 interface LibraryHeaderProps {
   isSelectMode: boolean;
   isSelectAll: boolean;
   onPullLibrary: () => void;
-  onImportBooksFromFiles: () => void;
-  onImportBooksFromDirectory?: () => void;
-  onImportBookFromUrl?: () => void;
-  onImportBookFromNovelUrl?: () => void;
-  onOpenCatalogManager: () => void;
-  onOpenFeeds: () => void;
   onToggleSelectMode: () => void;
   onSelectAll: () => void;
   onDeselectAll: () => void;
@@ -44,12 +37,6 @@ const LibraryHeader: React.FC<LibraryHeaderProps> = ({
   isSelectMode,
   isSelectAll,
   onPullLibrary,
-  onImportBooksFromFiles,
-  onImportBooksFromDirectory,
-  onImportBookFromUrl,
-  onImportBookFromNovelUrl,
-  onOpenCatalogManager,
-  onOpenFeeds,
   onToggleSelectMode,
   onSelectAll,
   onDeselectAll,
@@ -173,9 +160,7 @@ const LibraryHeader: React.FC<LibraryHeaderProps> = ({
                     'chrome-ghost h-full min-h-0 w-9 rounded-none rounded-e-full p-0',
                     '!bg-transparent hover:!bg-transparent',
                   )}
-                  toggleButton={
-                    <FaChevronDown role='none' className='text-mutedink h-3 w-3' />
-                  }
+                  toggleButton={<FaChevronDown role='none' className='text-mutedink h-3 w-3' />}
                 >
                   <LibrarySearchOptionsMenu
                     config={searchConfig}
@@ -189,27 +174,6 @@ const LibraryHeader: React.FC<LibraryHeaderProps> = ({
         <div className='flex shrink-0 items-center gap-x-2 pe-4 sm:gap-x-4'>
           {searchTarget !== 'text' && (
             <>
-              <Dropdown
-                label={_('Import Books')}
-                className={clsx(
-                  'exclude-title-bar-mousedown dropdown-bottom dropdown-end cursor-pointer',
-                )}
-                buttonClassName='p-0 min-h-0 flex touch-target items-center justify-center !bg-transparent'
-                toggleButton={
-                  <span className='stamp-btn flex items-center gap-1' role='none'>
-                    {_('+ Add Book')}
-                  </span>
-                }
-              >
-                <ImportMenu
-                  onImportBooksFromFiles={onImportBooksFromFiles}
-                  onImportBooksFromDirectory={onImportBooksFromDirectory}
-                  onImportBookFromUrl={onImportBookFromUrl}
-                  onImportBookFromNovelUrl={onImportBookFromNovelUrl}
-                  onOpenCatalogManager={onOpenCatalogManager}
-                  onOpenFeeds={onOpenFeeds}
-                />
-              </Dropdown>
               {isMobile ? null : (
                 <button
                   onClick={onToggleSelectMode}

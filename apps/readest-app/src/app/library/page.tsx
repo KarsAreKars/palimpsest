@@ -104,11 +104,7 @@ import { useDragDropImport } from './hooks/useDragDropImport';
 import { useTransferQueue } from '@/hooks/useTransferQueue';
 import { useAppRouter } from '@/hooks/useAppRouter';
 import { Toast } from '@/components/Toast';
-import {
-  createBookGroups,
-  ensureLibraryGroupByType,
-  getBreadcrumbs,
-} from './utils/libraryUtils';
+import { createBookGroups, ensureLibraryGroupByType, getBreadcrumbs } from './utils/libraryUtils';
 import Spinner from '@/components/Spinner';
 import LibraryHeader from './components/LibraryHeader';
 import Bookshelf from './components/Bookshelf';
@@ -215,7 +211,6 @@ const LibraryPageContent = ({ searchParams }: { searchParams: ReadonlyURLSearchP
     library: libraryBooks,
     libraryLoaded: libraryLoadedFromDisk,
     isSyncing,
-    syncProgress,
     updateBook,
     updateBooks,
     setLibrary,
@@ -269,7 +264,7 @@ const LibraryPageContent = ({ searchParams }: { searchParams: ReadonlyURLSearchP
   const [isSelectNone, setIsSelectNone] = useState(false);
   const [librarySearchQuery, setLibrarySearchQuery] = useState(searchParams?.get('q') ?? '');
   const pendingLibrarySearchQueryRef = useRef<string | null>(null);
-  const [librarySearchProgress, setLibrarySearchProgress] = useState<number | null>(null);
+  const [, setLibrarySearchProgress] = useState<number | null>(null);
   const [librarySearchHistory, setLibrarySearchHistory] = useState<string[]>([]);
   const [librarySearchTarget, setLibrarySearchTarget] = useState<LibrarySearchTarget>(() =>
     ['contents', 'text'].includes(searchParams?.get('search') ?? '') ? 'text' : 'books',
@@ -1926,16 +1921,6 @@ const LibraryPageContent = ({ searchParams }: { searchParams: ReadonlyURLSearchP
           isSelectMode={isSelectMode}
           isSelectAll={isSelectAll}
           onPullLibrary={pullLibrary}
-          onImportBooksFromFiles={handleImportBooksFromFiles}
-          onImportBooksFromDirectory={
-            appService?.canReadExternalDir ? handleImportBooksFromDirectory : undefined
-          }
-          onImportBookFromUrl={isTauriAppPlatform() ? () => setShowImportFromUrl(true) : undefined}
-          onImportBookFromNovelUrl={
-            isTauriAppPlatform() ? () => setShowImportNovel(true) : undefined
-          }
-          onOpenCatalogManager={handleShowOPDSDialog}
-          onOpenFeeds={handleShowFeeds}
           onToggleSelectMode={() => handleSetSelectMode(!isSelectMode)}
           onSelectAll={handleSelectAll}
           onDeselectAll={handleDeselectAll}
@@ -1945,26 +1930,6 @@ const LibraryPageContent = ({ searchParams }: { searchParams: ReadonlyURLSearchP
           onSearchConfigChange={handleSearchConfigChange}
           onSearchQueryChange={handleSearchQueryChange}
           onSearchTargetChange={handleSearchTargetChange}
-        />
-        <progress
-          aria-label={_('Library Search Progress')}
-          aria-hidden={librarySearchProgress != null ? 'false' : 'true'}
-          className={clsx(
-            'chrome-progress absolute bottom-0 left-0 right-0 h-1 translate-y-[2px] transition-opacity duration-200 sm:translate-y-[4px]',
-            librarySearchProgress != null ? 'opacity-100' : 'opacity-0',
-          )}
-          value={librarySearchProgress ?? 0}
-          max={100}
-        />
-        <progress
-          aria-label={_('Library Sync Progress')}
-          aria-hidden={isSyncing ? 'false' : 'true'}
-          className={clsx(
-            'chrome-progress absolute bottom-0 left-0 right-0 h-1 translate-y-[2px] transition-opacity duration-200 sm:translate-y-[4px]',
-            isSyncing ? 'opacity-100' : 'opacity-0',
-          )}
-          value={syncProgress * 100}
-          max='100'
         />
       </div>
       {(loading || isSyncing) && (

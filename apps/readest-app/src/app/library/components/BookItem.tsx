@@ -132,7 +132,7 @@ const BookItem: React.FC<BookItemProps> = ({
       role='none'
       className={clsx(
         'book-item flex',
-        mode === 'grid' && 'h-full flex-col justify-end',
+        mode === 'grid' && 'h-full flex-col justify-start',
         mode === 'list' && 'min-h-28 flex-row gap-4 overflow-hidden',
 
         appService?.hasContextMenu ? 'cursor-pointer' : '',
