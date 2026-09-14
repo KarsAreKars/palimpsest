@@ -25,12 +25,24 @@ const VOICE_LABELS: Record<string, string> = {
 
 const PrevIcon = () => (
   <svg width='11' height='11' viewBox='0 0 12 12' fill='none' aria-hidden='true'>
-    <path d='M9 2L4 6l5 4' stroke='currentColor' strokeWidth='1.4' strokeLinecap='round' strokeLinejoin='round' />
+    <path
+      d='M9 2L4 6l5 4'
+      stroke='currentColor'
+      strokeWidth='1.4'
+      strokeLinecap='round'
+      strokeLinejoin='round'
+    />
   </svg>
 );
 const NextIcon = () => (
   <svg width='11' height='11' viewBox='0 0 12 12' fill='none' aria-hidden='true'>
-    <path d='M3 2l5 4-5 4' stroke='currentColor' strokeWidth='1.4' strokeLinecap='round' strokeLinejoin='round' />
+    <path
+      d='M3 2l5 4-5 4'
+      stroke='currentColor'
+      strokeWidth='1.4'
+      strokeLinecap='round'
+      strokeLinejoin='round'
+    />
   </svg>
 );
 const PlayIcon = () => (
@@ -41,6 +53,12 @@ const PlayIcon = () => (
 const PauseIcon = () => (
   <svg width='11' height='11' viewBox='0 0 12 12' fill='none' aria-hidden='true'>
     <path d='M4 2v8M8 2v8' stroke='currentColor' strokeWidth='1.8' strokeLinecap='round' />
+  </svg>
+);
+
+const StopIcon = () => (
+  <svg width='11' height='11' viewBox='0 0 12 12' fill='none' aria-hidden='true'>
+    <path d='M3 3l6 6M9 3l-6 6' stroke='currentColor' strokeWidth='1.6' strokeLinecap='round' />
   </svg>
 );
 
@@ -154,7 +172,7 @@ const NarrationControls: React.FC<NarrationControlsProps> = ({ bookKey }) => {
         title={_('Stop narrating')}
         onClick={() => void controller.stop()}
       >
-        ✕
+        <StopIcon />
       </button>
     </span>
   );

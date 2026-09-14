@@ -360,7 +360,7 @@ class Handler(BaseHTTPRequestHandler):
                     self._json(500, {"error": f"kokoro failed: {e}"})
                     return
             print(
-                f"[kokoro] {len(text)} chars -> {len(data)} bytes in {time.time() - t0:.1f}s",
+                f"[kokoro] voice={voice} {len(text)} chars -> {len(data)} bytes in {time.time() - t0:.1f}s",
                 flush=True,
             )
             self.send_response(200)
@@ -422,7 +422,7 @@ class Handler(BaseHTTPRequestHandler):
                 return
             data = wavs[0].read_bytes()
         print(
-            f"[qwen-tts] {len(text)} chars -> {len(data)} bytes in {time.time() - t0:.1f}s",
+            f"[qwen-tts] voice={voice} {len(text)} chars -> {len(data)} bytes in {time.time() - t0:.1f}s",
             file=sys.stderr,
             flush=True,
         )

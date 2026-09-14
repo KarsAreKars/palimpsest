@@ -36,11 +36,11 @@ const TTSHighlightStyleEditor: React.FC<TTSHighlightStyleEditorProps> = ({
   const _ = useTranslation();
 
   const defaultQuickColors = [
-    { color: '#FFD700', label: 'Gold' },
-    { color: '#00CED1', label: 'Cyan' },
-    { color: '#FF69B4', label: 'Pink' },
-    { color: '#90EE90', label: 'Green' },
-    { color: '#FFA500', label: 'Orange' },
+    { color: '#8C3B22', label: _('Stamp') },
+    { color: '#5B6B4F', label: _('Sage') },
+    { color: '#3E3A32', label: _('Ink') },
+    { color: '#6E6350', label: _('Muted ink') },
+    { color: '#B0714F', label: _('Stamp tint') },
   ];
 
   // Pin the current color to the user's Quick Colors palette. Validates
@@ -110,7 +110,7 @@ const TTSHighlightStyleEditor: React.FC<TTSHighlightStyleEditorProps> = ({
               key={quickColor}
               onClick={() => onColorChange(quickColor)}
               className={`border-ink h-7 w-7 rounded-full border-2 transition-transform hover:scale-110 ${
-                color === quickColor ? 'ring-2 ring-indigo-500 ring-offset-1' : ''
+                color === quickColor ? 'ring-2 ring-[#8C3B22] ring-offset-1' : ''
               }`}
               style={{ backgroundColor: quickColor }}
             />
@@ -121,7 +121,7 @@ const TTSHighlightStyleEditor: React.FC<TTSHighlightStyleEditorProps> = ({
               <button
                 onClick={() => onColorChange(customColor)}
                 className={`border-ink h-7 w-7 rounded-full border-2 transition-transform hover:scale-110 ${
-                  color === customColor ? 'ring-2 ring-indigo-500 ring-offset-1' : ''
+                  color === customColor ? 'ring-2 ring-[#8C3B22] ring-offset-1' : ''
                 }`}
                 style={{ backgroundColor: customColor }}
               />

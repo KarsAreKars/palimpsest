@@ -168,11 +168,10 @@ const BookItem: React.FC<BookItemProps> = ({
           />
         )}
         {isTransferring && (
-          // E-ink cannot render a translucent wash — it dithers over the cover
-          // art — and has no shadows, so the scrim becomes a solid base-100
-          // panel with a 1px base-content border and ink-colored content.
+          // Paper-chip scrim, never a glow: a paper wash over the art with
+          // ink content (e-ink keeps its solid panel + border).
           <div
-            className='absolute inset-0 flex items-center justify-center bg-black/40 eink:border eink:border-ink eink:bg-paper'
+            className='absolute inset-0 flex items-center justify-center bg-paper/85 eink:border eink:border-ink eink:bg-paper'
             role='progressbar'
             aria-label={_('Downloading {{title}}', { title: book.title })}
             aria-valuenow={isIndeterminate ? undefined : Math.round(transferProgress)}
@@ -182,7 +181,7 @@ const BookItem: React.FC<BookItemProps> = ({
             {isIndeterminate ? (
               <span className='library-spinner library-spinner-md' />
             ) : (
-              <span className='eink:text-ink text-sm font-semibold text-white not-eink:drop-shadow-sm'>
+              <span className='text-ink text-sm font-semibold'>
                 {Math.round(transferProgress)}%
               </span>
             )}
@@ -198,9 +197,9 @@ const BookItem: React.FC<BookItemProps> = ({
           <div
             className={clsx(
               'absolute bottom-1 left-1 right-1 flex items-center gap-1 px-1.5 py-1',
-              'text-[0.6rem] leading-tight text-white',
-              extractionBadge.tone === 'running' && 'bg-black/60',
-              extractionBadge.tone === 'failed' && 'bg-stamp/85',
+              'text-[0.6rem] leading-tight',
+              extractionBadge.tone === 'running' && 'bg-paperlight/90 text-ink',
+              extractionBadge.tone === 'failed' && 'bg-stamp/90 text-paperlight',
             )}
             title={extractionBadge.detail}
           >
@@ -215,7 +214,7 @@ const BookItem: React.FC<BookItemProps> = ({
             {bookSelected ? (
               <MdCheckCircle className='fill-[var(--stamp)]' />
             ) : (
-              <MdCheckCircleOutline className='fill-[var(--faint)] drop-shadow-sm' />
+              <MdCheckCircleOutline className='fill-[var(--faint)]' />
             )}
           </div>
         )}
@@ -223,7 +222,10 @@ const BookItem: React.FC<BookItemProps> = ({
       {mode === 'grid' && (
         // The specimen label: three lines under the plate, outside the frame.
         <div className='catalogue-label flex w-full flex-col gap-[3px] pt-2'>
-          <h4 className='plate-title line-clamp-2 text-[13px] leading-tight' title={book.title}>
+          <h4
+            className='plate-title line-clamp-2 break-words text-[13px] leading-tight'
+            title={book.title}
+          >
             {book.title}
           </h4>
           <p className='plate-meta truncate leading-tight'>

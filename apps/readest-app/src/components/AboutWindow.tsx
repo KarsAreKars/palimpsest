@@ -112,7 +112,7 @@ export const AboutWindow = () => {
               <Image src='/icon.png' alt='App Logo' className='h-20 w-20' width={64} height={64} />
             </div>
             <div className='flex select-text flex-col items-center'>
-              <h2 className='mb-2 text-2xl font-bold'>Palimpsest</h2>
+              <h2 className='display-title mb-2 text-2xl font-bold'>{_('Palimpsest')}</h2>
               <button
                 type='button'
                 title={_('Copy')}
@@ -125,7 +125,7 @@ export const AboutWindow = () => {
             <div className='my-1 h-5'>
               {!updateStatus && (
                 <button
-                  className='btn btn-sm btn-primary cursor-pointer p-1 text-xs'
+                  className='stamp-btn cursor-pointer p-1 text-xs'
                   onClick={appService?.hasUpdater ? handleCheckUpdate : handleShowRecentUpdates}
                 >
                   {_('Check Update')}
@@ -138,36 +138,47 @@ export const AboutWindow = () => {
                 <p className='text-mutedink mt-2 text-xs'>{_('Checking for updates...')}</p>
               )}
               {updateStatus === 'error' && (
-                <p className='text-error mt-2 text-xs'>{_('Error checking for updates')}</p>
+                <p className='text-stamp mt-2 text-xs'>{_('Error checking for updates')}</p>
               )}
             </div>
           </div>
 
-          <hr aria-hidden='true' className='border-base-300 my-12 w-full sm:my-4' />
+          <hr
+            aria-hidden='true'
+            className='my-12 w-full sm:my-4'
+            style={{
+              border: 'none',
+              borderTop: '1px solid color-mix(in srgb, var(--ink) 25%, transparent)',
+            }}
+          />
 
           <div
             className='flex flex-1 flex-col items-center justify-start gap-2 px-4 text-center'
             dir='ltr'
           >
             <p className='text-mutedink text-sm'>
-              © {new Date().getFullYear()} Bilingify LLC. All rights reserved.
+              {_('© {{year}} Bilingify LLC. All rights reserved.', {
+                year: new Date().getFullYear(),
+              })}
             </p>
 
             <p className='text-mutedink text-xs'>
-              This software is licensed under the{' '}
+              {_('This software is licensed under the')}{' '}
               <Link
                 href='https://www.gnu.org/licenses/agpl-3.0.html'
-                className='text-blue-500 underline'
+                className='text-stamp underline'
               >
-                GNU Affero General Public License v3.0
+                {_('GNU Affero General Public License v3.0')}
               </Link>
-              . You are free to use, modify, and distribute this software under the terms of the
-              AGPL v3 license. Please see the license for more details.
+              .{' '}
+              {_(
+                'You are free to use, modify, and distribute this software under the terms of the AGPL v3 license. Please see the license for more details.',
+              )}
             </p>
             <p className='text-mutedink text-xs'>
-              Source code is available at{' '}
-              <Link href='https://github.com/readest/readest' className='text-blue-500 underline'>
-                GitHub
+              {_('Source code is available at')}{' '}
+              <Link href='https://github.com/readest/readest' className='text-stamp underline'>
+                {_('GitHub')}
               </Link>
               .
             </p>
