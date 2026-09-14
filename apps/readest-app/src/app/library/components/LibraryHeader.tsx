@@ -122,7 +122,6 @@ const LibraryHeader: React.FC<LibraryHeaderProps> = ({
                   'text-ink/55 hover:text-ink',
                   'not-eink:transition-colors ms-1.5 flex h-7 min-h-7 items-center justify-center',
                   'touch-target w-8 rounded-full bg-transparent duration-150',
-                  'focus-visible:ring-stamp/15 focus-visible:outline-none focus-visible:ring-2',
                 )}
                 onClick={() => onSearchTargetChange(searchTarget === 'text' ? 'books' : 'text')}
               >

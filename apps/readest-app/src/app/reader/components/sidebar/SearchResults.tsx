@@ -221,7 +221,7 @@ const ChapterSection: React.FC<ChapterSectionProps> = ({
       >
         <button
           type='button'
-          className='not-eink:hover:bg-paperlight focus-visible:ring-stamp/15 flex w-full select-none items-center justify-between rounded-[2px] px-1 py-1 text-start focus-visible:outline-none focus-visible:ring-2'
+          className='not-eink:hover:bg-paperlight flex w-full select-none items-center justify-between rounded-[2px] px-1 py-1 text-start'
           onClick={handleToggle}
           aria-expanded={isExpanded}
         >

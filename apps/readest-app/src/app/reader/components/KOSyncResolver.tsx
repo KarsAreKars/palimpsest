@@ -42,7 +42,6 @@ const KOSyncConflictResolver: React.FC<KOSyncConflictResolverProps> = ({
             'transition-colors duration-150',
             'hover:border-ink/20 hover:bg-paperlight/60',
             'active:bg-paperlight/80',
-            'focus-visible:ring-stamp/15 focus-visible:outline-none focus-visible:ring-2',
           )}
         >
           <div className='flex min-w-0 flex-1 flex-col gap-1'>

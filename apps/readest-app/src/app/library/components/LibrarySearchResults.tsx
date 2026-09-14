@@ -130,7 +130,6 @@ const ResultGroupMatches = memo(
               type='button'
               className={clsx(
                 'not-eink:transition-colors mx-1.5 block w-[calc(100%-0.75rem)] rounded-[2px] px-2.5 py-2 text-start duration-150',
-                'hover:bg-paperlight/60 focus-visible:ring-stamp/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset',
                 'eink:border-ink/25 eink:border-t eink:first:border-t-0 eink:rounded-none',
               )}
               onClick={() => onSelectResult(book, match)}
@@ -435,7 +434,6 @@ const LibrarySearchResults = ({
                       })}
                       className={clsx(
                         'not-eink:transition-colors flex min-h-14 w-full items-center gap-3 rounded-t-[2px] px-3 py-2 text-start duration-150',
-                        'hover:bg-paperlight/60 focus-visible:ring-stamp/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset',
                         !isExpanded && 'rounded-b-[2px]',
                       )}
                       onClick={() => toggleBook(group.book.hash)}

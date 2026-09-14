@@ -141,7 +141,6 @@ export const CacheManagerWindow = () => {
   const ghostBtn = clsx(
     'eink-bordered flex h-11 items-center justify-center rounded-[2px] border border-transparent',
     'text-ink hover:bg-paperlight text-sm font-medium transition-colors',
-    'focus-visible:ring-stamp/15 focus-visible:outline-none focus-visible:ring-2',
     'disabled:opacity-40',
   );
 

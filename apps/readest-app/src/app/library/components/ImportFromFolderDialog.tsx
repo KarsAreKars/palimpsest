@@ -373,7 +373,6 @@ const ImportFromFolderDialog: React.FC<ImportFromFolderDialogProps> = ({
               'eink-bordered flex w-full items-center gap-2 rounded-[2px] px-3 py-2.5',
               'text-start text-sm transition-colors duration-150',
               'border-ink/20 bg-paperlight/40 hover:bg-paperlight/70',
-              'focus-visible:ring-stamp/40 focus-visible:outline-none focus-visible:ring-2',
               picking && 'opacity-60',
             )}
             title={directory || _('Choose a folder')}

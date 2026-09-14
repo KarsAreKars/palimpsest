@@ -44,7 +44,6 @@ const NavigationRow: React.FC<NavigationRowProps> = ({
       className={clsx(
         'group flex w-full items-center gap-3 py-4 pe-4 text-left',
         'transition-colors duration-150',
-        'focus-visible:ring-stamp/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset',
         disabled && 'cursor-not-allowed opacity-50',
         className,
       )}

@@ -170,7 +170,6 @@ const MiscPanel: React.FC<SettingsPanelPanelProp> = ({ bookKey, onRegisterReset 
           <button
             className={clsx(
               'hover:bg-faint/60 bg-paperlight absolute bottom-2 end-4 inline-flex h-8 items-center rounded-[2px] px-3 text-xs font-medium transition-colors duration-150',
-              'focus-visible:ring-stamp/40 focus-visible:outline-none focus-visible:ring-2',
               saved ? 'hidden' : '',
               error ? 'pointer-events-none opacity-50' : '',
             )}

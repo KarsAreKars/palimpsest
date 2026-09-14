@@ -369,7 +369,7 @@ const SettingsDialog: React.FC<{ bookKey: string }> = ({ bookKey }) => {
               aria-label={_('Close')}
               onClick={handleClose}
               className={
-                'settings-btn rounded-full absolute left-3 flex h-8 min-h-8 w-8 hover:bg-transparent focus:outline-none'
+                'settings-btn rounded-full absolute left-3 flex h-8 min-h-8 w-8 hover:bg-transparent'
               }
             >
               {isRtl ? <MdArrowForwardIos /> : <MdArrowBackIosNew />}
