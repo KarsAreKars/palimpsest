@@ -38,7 +38,7 @@ const BEAT_LABELS: Array<{ beat: OnboardingBeat; label: string }> = [
   { beat: 'ai', label: "The Prof's Brain" },
 ];
 
-const PITCH_CARDS = [
+const PITCHES = [
   {
     label: 'Narration',
     body: 'Every book narrates itself. Free neural voices, generated on-device. Nothing to buy, nothing to subscribe to.',
@@ -54,10 +54,10 @@ const PITCH_CARDS = [
 ];
 
 /**
- * First-run onboarding (apothecary design: ink dim, paper card, hairlines,
- * typed labels, stamp red only as the accent). Shows when settings lack the
- * `onboarded` flag; sets it on completion or explicit skip. Never narrates
- * from here — Beat 2 only verifies the voice engine answers /health.
+ * First-run onboarding, presented as a numbered plate in the antiquarian
+ * catalogue. Shows when settings lack the `onboarded` flag; sets it on
+ * completion or explicit skip. Never narrates from here — Beat 2 only
+ * verifies the voice engine answers /health.
  */
 const OnboardingOverlay: React.FC = () => {
   const { envConfig, appService } = useEnv();
@@ -148,6 +148,7 @@ const OnboardingOverlay: React.FC = () => {
   if (!open) return null;
 
   const isFinal = beat === 'open';
+  const beatIndex = BEAT_LABELS.findIndex((x) => x.beat === beat);
 
   return (
     <div
@@ -156,35 +157,32 @@ const OnboardingOverlay: React.FC = () => {
       aria-label='Palimpsest setup'
       className='onboarding-scrim fixed inset-0 z-[100] flex items-center justify-center p-4'
     >
-      <div className='onboarding-card paper-bg relative flex max-h-[90vh] w-[min(94vw,580px)] flex-col border border-ink px-6 py-6 sm:px-9 sm:py-8'>
+      <div className='onboarding-sheet plate plate-notch relative flex max-h-[90vh] w-[min(94vw,580px)] flex-col px-6 py-6 sm:px-9 sm:py-8'>
         <button
           onClick={() => void finish()}
-          className='typed text-mutedink hover:text-stamp absolute top-4 right-5 text-[9px] tracking-[0.08em]'
+          className='plate-meta hover:text-stamp absolute top-4 right-5 transition-colors'
         >
           Skip setup
         </button>
 
-        {/* beat indicator: typed labels, stamp underline on the active beat */}
-        <div className='mb-6 flex items-end gap-4 sm:gap-6'>
-          {BEAT_LABELS.map(({ beat: b, label }) => {
-            const active = b === beat;
-            const past =
-              BEAT_LABELS.findIndex((x) => x.beat === b) <
-              BEAT_LABELS.findIndex((x) => x.beat === beat);
+        {/* plate numbers for the three beats, joined by a hairline rule */}
+        <div className='mb-6 flex items-center gap-3 pe-12'>
+          {BEAT_LABELS.map(({ beat: b, label }, i) => {
+            const active = i === beatIndex;
+            const past = i < beatIndex;
             return (
-              <span
-                key={b}
-                className={clsx(
-                  'typed pb-1 text-[9px] tracking-[0.08em]',
-                  active
-                    ? 'text-stamp border-stamp border-b-2'
-                    : past
-                      ? 'text-ink border-ink/40 border-b border-dashed'
-                      : 'text-mutedink border-b border-transparent',
-                )}
-              >
-                {label}
-              </span>
+              <React.Fragment key={b}>
+                {i > 0 && <hr className='catalog-rule min-w-4 flex-1' aria-hidden='true' />}
+                <span
+                  className={clsx(
+                    'plate-num whitespace-nowrap',
+                    active && 'text-stamp',
+                    past && 'text-ink',
+                  )}
+                >
+                  № {i + 1} — {label}
+                </span>
+              </React.Fragment>
             );
           })}
         </div>
@@ -192,22 +190,20 @@ const OnboardingOverlay: React.FC = () => {
         <div className='min-h-0 flex-1 overflow-y-auto pe-1'>
           {beat === 'welcome' && (
             <div>
-              <h1 className='typed text-ink text-[clamp(20px,3.4vw,30px)] leading-tight'>
-                THE BOOK THAT READS ALOUD
+              <h1 className='onboarding-beat-title text-[clamp(20px,3.4vw,30px)] leading-tight'>
+                The book that reads aloud
               </h1>
-              <p className='text-mutedink mt-2 font-[Newsreader,Georgia,serif] text-[15px] italic'>
+              <p className='text-mutedink mt-2 text-[15px] italic'>
                 Palimpsest turns your library into a conversation. Three things to know:
               </p>
               <div className='mt-5 grid gap-3 sm:grid-cols-3'>
-                {PITCH_CARDS.map((card) => (
-                  <div key={card.label} className='border-ink/70 flex flex-col border p-3'>
-                    <span className='typed text-stamp text-[10px] tracking-[0.08em]'>
-                      {card.label}
+                {PITCHES.map((pitch) => (
+                  <div key={pitch.label} className='plate flex flex-col p-3 pt-4'>
+                    <span className='plate-title text-[13px] leading-snug'>{pitch.label}</span>
+                    <span className='ornament my-2' aria-hidden='true'>
+                      ✳
                     </span>
-                    <span className='bg-ink/70 my-2 h-px w-full' />
-                    <p className='text-ink font-[Newsreader,Georgia,serif] text-[13px] leading-snug'>
-                      {card.body}
-                    </p>
+                    <p className='text-ink text-[13px] leading-snug'>{pitch.body}</p>
                   </div>
                 ))}
               </div>
@@ -216,16 +212,16 @@ const OnboardingOverlay: React.FC = () => {
 
           {beat === 'voice' && (
             <div>
-              <h2 className='typed text-ink text-xl'>VOICE ENGINE</h2>
-              <p className='text-mutedink mt-2 font-[Newsreader,Georgia,serif] text-[15px] italic'>
+              <h2 className='onboarding-beat-title text-2xl'>Voice Engine</h2>
+              <p className='text-mutedink mt-2 text-[15px] italic'>
                 Free neural narration, on-device. No account, no subscription.
               </p>
-              <div className='border-ink/70 mt-4 border p-3'>
+              <div className='plate mt-4 p-3 pt-4'>
                 {voiceStatus === 'checking' && (
                   <p className='typed text-mutedink text-[11px]'>CHECKING THE VOICE ENGINE…</p>
                 )}
                 {voiceStatus === 'online' && (
-                  <p className='typed text-stamp text-[11px]'>✓ VOICES READY</p>
+                  <p className='typed text-stamp text-[11px]'>VOICES READY</p>
                 )}
                 {voiceStatus === 'offline' && bootstrap !== 'running' && (
                   <div className='flex items-center justify-between gap-3'>
@@ -236,17 +232,25 @@ const OnboardingOverlay: React.FC = () => {
                   </div>
                 )}
                 {(bootstrap === 'running' || bootLines.length > 0) && (
-                  <div
-                    ref={bootLogRef}
-                    className='mt-2 max-h-32 overflow-y-auto border-t border-dashed border-ink/40 pt-2'
-                  >
-                    {bootLines.map((line, i) => (
-                      <p key={i} className='typed text-mutedink text-[9.5px] leading-relaxed'>
-                        {line}
-                      </p>
-                    ))}
+                  <div>
+                    <div
+                      ref={bootLogRef}
+                      className='mt-2 max-h-32 overflow-y-auto border-t border-dashed border-ink/40 pt-2'
+                    >
+                      {bootLines.map((line, i) => (
+                        <p key={i} className='typed text-mutedink text-[11px] leading-relaxed'>
+                          {line}
+                        </p>
+                      ))}
+                    </div>
                     {bootstrap === 'running' && (
-                      <p className='typed text-mutedink animate-pulse text-[9.5px]'>…</p>
+                      <div
+                        className='progress-track mt-2 overflow-hidden'
+                        role='progressbar'
+                        aria-label='Voice setup in progress'
+                      >
+                        <div className='onboarding-progress-indeterminate progress-fill w-1/3' />
+                      </div>
                     )}
                   </div>
                 )}
@@ -261,8 +265,8 @@ const OnboardingOverlay: React.FC = () => {
 
           {beat === 'ai' && (
             <div>
-              <h2 className='typed text-ink text-xl'>THE PROF'S BRAIN</h2>
-              <p className='text-mutedink mt-2 font-[Newsreader,Georgia,serif] text-[15px] italic'>
+              <h2 className='onboarding-beat-title text-2xl'>The Prof's Brain</h2>
+              <p className='text-mutedink mt-2 text-[15px] italic'>
                 The Prof answers questions about the page, aloud. Any OpenAI-compatible key works —
                 or add one later in Settings.
               </p>
@@ -299,6 +303,9 @@ const OnboardingOverlay: React.FC = () => {
                   }}
                   className='w-full text-sm'
                 />
+                <p className='plate-meta ps-4'>
+                  Any OpenAI-compatible key works. Leave the model blank to use the default.
+                </p>
               </div>
               <div className='mt-3 flex items-center gap-3'>
                 <StampButton
@@ -312,12 +319,12 @@ const OnboardingOverlay: React.FC = () => {
                 )}
                 {testState === 'pass' && (
                   <span className='typed text-stamp border-stamp border px-2 py-0.5 text-[10px]'>
-                    ✓ PASS
+                    TEST PASS
                   </span>
                 )}
                 {testState === 'fail' && (
                   <span className='typed border border-dashed border-ink/60 px-2 py-0.5 text-[10px] text-ink'>
-                    ✗ FAIL — CHECK KEY AND URL
+                    TEST FAIL — CHECK KEY AND URL
                   </span>
                 )}
               </div>
@@ -326,8 +333,11 @@ const OnboardingOverlay: React.FC = () => {
 
           {isFinal && (
             <div className='flex flex-col items-center py-4 text-center'>
-              <p className='typed text-mutedink text-[10px]'>ALL SET</p>
-              <p className='text-ink mt-3 max-w-sm font-[Newsreader,Georgia,serif] text-[16px] leading-snug'>
+              <span className='ornament' aria-hidden='true'>
+                ✦
+              </span>
+              <p className='plate-title mt-3 text-xl'>All set</p>
+              <p className='text-ink mt-3 max-w-sm text-[16px] leading-snug'>
                 Your first book is already on the shelf. Open it, press play — it reads to you. Ask
                 the Prof anything.
               </p>
@@ -339,41 +349,43 @@ const OnboardingOverlay: React.FC = () => {
         </div>
 
         {!isFinal && (
-          <div className='border-ink/40 mt-6 flex items-center justify-between border-t pt-4'>
-            <div>
-              {beat !== 'welcome' && (
-                <button
-                  onClick={() => setBeat((b) => prevBeat(b))}
-                  className='typed text-mutedink hover:text-ink text-[10px]'
-                >
-                  ← Back
-                </button>
-              )}
-            </div>
-            <div className='flex items-center gap-4'>
-              {beat === 'ai' && (
-                <button
-                  onClick={() => setBeat('open')}
-                  className='typed text-mutedink hover:text-stamp text-[9px]'
-                >
-                  Add later in Settings
-                </button>
-              )}
-              {beat === 'ai' ? (
-                <StampButton
-                  variant={saved ? 'stamp' : 'ink'}
-                  onClick={() => void handleSaveAi()}
-                  disabled={!isAiConfigComplete(aiConfig)}
-                >
-                  {saved ? 'Saved ✓' : 'Save'}
-                </StampButton>
-              ) : null}
-              {beat !== 'ai' && (
-                <StampButton onClick={() => setBeat((b) => nextBeat(b))}>
-                  {beat === 'welcome' ? 'Set up voices' : 'Continue'}
-                </StampButton>
-              )}
-              {beat === 'ai' && <StampButton onClick={() => setBeat('open')}>Continue</StampButton>}
+          <div className='mt-6 pt-4'>
+            <hr className='catalog-rule mb-4' aria-hidden='true' />
+            <div className='flex items-center justify-between'>
+              <div>
+                {beat !== 'welcome' && (
+                  <StampButton variant='ink' onClick={() => setBeat((b) => prevBeat(b))}>
+                    ← Back
+                  </StampButton>
+                )}
+              </div>
+              <div className='flex items-center gap-4'>
+                {beat === 'ai' && (
+                  <button
+                    onClick={() => setBeat('open')}
+                    className='plate-meta hover:text-stamp transition-colors'
+                  >
+                    Add later in Settings
+                  </button>
+                )}
+                {beat === 'ai' ? (
+                  <StampButton
+                    variant={saved ? 'stamp' : 'ink'}
+                    onClick={() => void handleSaveAi()}
+                    disabled={!isAiConfigComplete(aiConfig)}
+                  >
+                    {saved ? 'Saved' : 'Save'}
+                  </StampButton>
+                ) : null}
+                {beat !== 'ai' && (
+                  <StampButton onClick={() => setBeat((b) => nextBeat(b))}>
+                    {beat === 'welcome' ? 'Set up voices' : 'Continue'}
+                  </StampButton>
+                )}
+                {beat === 'ai' && (
+                  <StampButton onClick={() => setBeat('open')}>Continue</StampButton>
+                )}
+              </div>
             </div>
           </div>
         )}

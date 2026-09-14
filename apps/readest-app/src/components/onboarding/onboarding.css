@@ -1,13 +1,37 @@
-/* Onboarding overlay surfaces. The palette and the lift shadow come from
- * apothecary.css tokens — this file only names the two overlay-specific
- * surfaces so the component doesn't carry raw values inline. */
+/* Onboarding overlay surfaces. The palette, plate frame, buttons, fields
+ * and the lift shadow come from apothecary.css — this file only names the
+ * overlay-specific pieces so the component doesn't carry raw values inline.
+ * All colors are tokens; dark and eink themes inherit them unchanged. */
 
-/* fullscreen ink dim behind the paper card */
+/* fullscreen ink dim behind the catalogue plate */
 .onboarding-scrim {
-  background: rgba(38, 34, 27, 0.72);
+  background: color-mix(in srgb, var(--ink) 72%, transparent);
 }
 
-/* the one allowed lift: paper card stacked above the scrim */
-.onboarding-card {
+/* the one allowed lift: paper plate stacked above the scrim */
+.onboarding-sheet {
   box-shadow: var(--lift-shadow);
+}
+
+/* beat titles: Fraunces display, letterspaced small-caps */
+.onboarding-beat-title {
+  font-family: 'Fraunces', Georgia, serif;
+  font-variant-caps: small-caps;
+  letter-spacing: 0.08em;
+  color: var(--ink);
+}
+
+/* voice setup in progress: a thin ink hairline crossing the track,
+   no spinner, no animated dots */
+.onboarding-progress-indeterminate {
+  animation: onboarding-progress-cross 1.1s cubic-bezier(0.45, 0, 0.55, 1) infinite;
+}
+
+@keyframes onboarding-progress-cross {
+  0% {
+    transform: translateX(-110%);
+  }
+  100% {
+    transform: translateX(320%);
+  }
 }
