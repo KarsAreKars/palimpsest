@@ -134,7 +134,7 @@ const BookItem: React.FC<BookItemProps> = ({
         'book-item flex',
         mode === 'grid' && 'h-full flex-col justify-end',
         mode === 'list' && 'min-h-28 flex-row gap-4 overflow-hidden',
-        
+
         appService?.hasContextMenu ? 'cursor-pointer' : '',
       )}
       onClick={(e) => e.stopPropagation()}
@@ -223,19 +223,18 @@ const BookItem: React.FC<BookItemProps> = ({
       {mode === 'grid' && (
         // The specimen label: three lines under the plate, outside the frame.
         <div className='catalogue-label flex w-full flex-col gap-[3px] pt-2'>
-          <h4 className='plate-title text-[13px] leading-tight' title={book.title}>
+          <h4 className='plate-title line-clamp-2 text-[13px] leading-tight' title={book.title}>
             {book.title}
           </h4>
           <p className='plate-meta truncate leading-tight'>
-            {[formatAuthors(book.author, book.primaryLanguage), progressPercentage !== null
-              ? `${progressPercentage}%`
-              : null]
+            {[
+              formatAuthors(book.author, book.primaryLanguage),
+              progressPercentage !== null ? `${progressPercentage}%` : null,
+            ]
               .filter(Boolean)
               .join(' · ')}
           </p>
-          <p className='plate-num'>
-            {[plateLabel, book.format].filter(Boolean).join(' · ')}
-          </p>
+          <p className='plate-num'>{[plateLabel, book.format].filter(Boolean).join(' · ')}</p>
         </div>
       )}
       {mode === 'list' && (
@@ -263,10 +262,7 @@ const BookItem: React.FC<BookItemProps> = ({
             }}
           >
             {isAbsBook ? (
-              <div
-                className='text-mutedink flex min-w-0 justify-between text-xs'
-                role='status'
-              >
+              <div className='text-mutedink flex min-w-0 justify-between text-xs' role='status'>
                 <span className='truncate tabular-nums'>
                   {isPodcastShow ? episodeCountLabel : absTimeLabel}
                 </span>
