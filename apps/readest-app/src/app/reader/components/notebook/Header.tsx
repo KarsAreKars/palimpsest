@@ -36,8 +36,9 @@ const NotebookHeader: React.FC<{
           title={isPinned ? _('Unpin Notebook') : _('Pin Notebook')}
           onClick={handleTogglePin}
           className={clsx(
-            'btn btn-ghost btn-circle hidden h-6 min-h-6 w-6 sm:flex',
-            isPinned ? 'bg-base-300' : 'bg-base-300/65',
+            'hidden h-6 min-h-6 w-6 items-center justify-center rounded-full sm:flex',
+            'focus-visible:outline-offset-2 focus-visible:outline-stamp focus-visible:outline-2',
+            isPinned ? 'bg-[rgba(38,34,27,0.12)]' : 'bg-[rgba(38,34,27,0.06)]',
           )}
         >
           {isPinned ? <MdPushPin size={iconSize15} /> : <MdOutlinePushPin size={iconSize15} />}
@@ -45,7 +46,7 @@ const NotebookHeader: React.FC<{
         <button
           title={_('Close')}
           onClick={handleClose}
-          className={'btn btn-ghost btn-circle flex h-6 min-h-6 w-6 hover:bg-transparent sm:hidden'}
+          className={'flex h-6 min-h-6 w-6 items-center justify-center rounded-full sm:hidden'}
         >
           <MdArrowBackIosNew />
         </button>
@@ -56,8 +57,9 @@ const NotebookHeader: React.FC<{
             title={isSearchBarVisible ? _('Hide Search Bar') : _('Show Search Bar')}
             onClick={handleToggleSearchBar}
             className={clsx(
-              'btn btn-ghost h-8 min-h-8 w-8 p-0',
-              isSearchBarVisible && 'bg-base-300',
+              'flex h-8 min-h-8 w-8 items-center justify-center p-0',
+              'focus-visible:outline-offset-2 focus-visible:outline-stamp focus-visible:outline-2',
+              isSearchBarVisible && 'bg-[rgba(38,34,27,0.12)]',
             )}
           >
             <FiSearch size={iconSize18} />

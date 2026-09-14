@@ -70,7 +70,7 @@ const BloomPips: React.FC<{ level: number }> = ({ level }) => (
       <span
         key={i}
         className={`inline-block h-1.5 w-1.5 rounded-full ${
-          i < level ? 'bg-amber-500' : 'bg-base-content/20'
+          i < level ? 'bg-ink' : 'bg-ink/20'
         }`}
       />
     ))}
@@ -370,7 +370,9 @@ const StudyTab: React.FC<{ bookKey: string }> = ({ bookKey }) => {
             {_('QUIZ ME')}
           </button>
           <button
-            className='btn btn-ghost btn-xs'
+            className={
+              'flex h-6 w-6 items-center justify-center rounded-full text-mutedink transition-colors hover:bg-[rgba(38,34,27,0.08)] hover:text-ink focus-visible:outline-offset-2 focus-visible:outline-stamp focus-visible:outline-2'
+            }
             onClick={() => void reload()}
             aria-label={_('Refresh')}
             title={_('Refresh')}
@@ -475,7 +477,7 @@ const StudyTab: React.FC<{ bookKey: string }> = ({ bookKey }) => {
                   return (
                     <li
                       key={n.id}
-                      className='border-base-300 bg-base-100 my-2 rounded-lg border p-2.5'
+                      className='border-ink bg-paperlight my-2 rounded-sm border p-2.5'
                     >
                       <p className='line-clamp-3 text-[13px] italic'>{excerpt}</p>
                       <div className='mt-1.5 flex items-center justify-between'>
@@ -485,13 +487,13 @@ const StudyTab: React.FC<{ bookKey: string }> = ({ bookKey }) => {
                         >
                           {typeof n.page === 'number' ? `P. ${n.page + 1}` : _('GO')}
                         </button>
-                        <button
-                          className='btn btn-outline btn-xs gap-1'
+                        <StampButton
+                          className='flex items-center gap-1'
                           onClick={() => quizMe(excerpt, typeof n.page === 'number' ? n.page + 1 : undefined)}
                         >
                           <PiSparkle size={12} />
                           {_('Quiz me')}
-                        </button>
+                        </StampButton>
                       </div>
                     </li>
                   );
@@ -506,25 +508,25 @@ const StudyTab: React.FC<{ bookKey: string }> = ({ bookKey }) => {
                 {queue.map(([name, s]) => (
                   <li
                     key={name}
-                    className='border-base-300 bg-base-100 my-2 rounded-lg border p-2.5'
+                    className='border-ink bg-paperlight my-2 rounded-sm border p-2.5'
                   >
                     <div className='flex items-center justify-between gap-2'>
                       <span className='text-sm font-medium'>{name.replace(/_/g, ' ')}</span>
                       <BloomPips level={s.bloom} />
                     </div>
                     <div className='mt-1.5 flex items-center justify-between'>
-                      <span className='font-size-xs text-base-content/60'>
+                      <span className='font-size-xs text-mutedink'>
                         {s.asked >= STUCK_THRESHOLD
                           ? _('asked {{count}}x — stuck, switch it up', { count: s.asked })
                           : _('asked {{count}}x', { count: s.asked })}
                       </span>
-                      <button
-                        className='btn btn-outline btn-xs gap-1'
+                      <StampButton
+                        className='flex items-center gap-1'
                         onClick={() => startReview(name)}
                       >
                         <PiSparkle size={12} />
                         {_('Feynman review')}
-                      </button>
+                      </StampButton>
                     </div>
                   </li>
                 ))}

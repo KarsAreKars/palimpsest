@@ -346,7 +346,7 @@ const Notebook: React.FC = ({}) => {
           'border-s border-[rgba(38,34,27,0.14)]',
           appService?.hasRoundedWindow && 'rounded-window-top-right rounded-window-bottom-right',
           isNotebookPinned ? 'z-20' : 'z-[45] shadow-2xl',
-          !isNotebookPinned && viewSettings?.isEink && 'border-base-content border-s',
+          !isNotebookPinned && viewSettings?.isEink && 'eink:border-ink',
         )}
         role='group'
         aria-label={_('Notebook')}
@@ -401,7 +401,7 @@ const Notebook: React.FC = ({}) => {
               onMouseDown={handleVerticalDragStart}
               onTouchStart={handleVerticalDragStart}
             >
-              <div className='bg-base-content/50 h-1 w-10 rounded-full'></div>
+              <div className='bg-ink/40 h-1 w-10 rounded-full'></div>
             </div>
           )}
           <NotebookHeader
@@ -444,7 +444,7 @@ const Notebook: React.FC = ({}) => {
         ) : (
           <div className='flex-grow overflow-y-auto px-3'>
             {isSearchBarVisible && searchResults && !hasSearchResults && hasAnyNotes && (
-              <div className='flex h-32 items-center justify-center text-gray-500'>
+              <div className='flex h-32 items-center justify-center text-mutedink'>
                 <p className='font-size-sm text-center'>{_('No notes match your search')}</p>
               </div>
             )}
@@ -453,7 +453,7 @@ const Notebook: React.FC = ({}) => {
                 <p className='content font-size-base'>
                   {_('Excerpts')}
                   {isSearchBarVisible && searchResults && (
-                    <span className='font-size-xs ml-2 text-gray-500'>
+                    <span className='font-size-xs ml-2 text-mutedink'>
                       ({filteredExcerptNotes.length})
                     </span>
                   )}
@@ -471,7 +471,7 @@ const Notebook: React.FC = ({}) => {
                         handleEditNote(item, true);
                       }
                     }}
-                    className='booknote-item collapse-arrow border-base-300 bg-base-100 collapse border'
+                    className='booknote-item collapse-arrow border-ink bg-paperlight collapse rounded-sm border'
                   >
                     <div
                       className={clsx(

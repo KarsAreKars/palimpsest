@@ -101,7 +101,7 @@ const NoteEditor: React.FC<NoteEditorProps> = ({ onSave, onEdit }) => {
   const canSave = Boolean(note.trim());
 
   return (
-    <div className='content booknote-item note-editor-container bg-base-100 mt-2 rounded-md p-2'>
+    <div className='content booknote-item note-editor-container border-ink bg-paperlight mt-2 rounded-sm border p-2'>
       <div className='flex w-full'>
         <TextEditor
           ref={editorRef}
@@ -117,13 +117,13 @@ const NoteEditor: React.FC<NoteEditorProps> = ({ onSave, onEdit }) => {
 
       <div className='flex items-center pt-2'>
         <div
-          className='me-2 mt-0.5 min-h-full self-stretch rounded-xl bg-gray-300'
+          className='me-2 mt-0.5 min-h-full self-stretch rounded-sm bg-[rgba(38,34,27,0.28)]'
           style={{
             minWidth: `${separatorWidth}px`,
           }}
         ></div>
         <div className='content font-size-sm line-clamp-3'>
-          <span className='content font-size-xs text-gray-500'>{getAnnotationText()}</span>
+          <span className='content font-size-xs text-mutedink'>{getAnnotationText()}</span>
         </div>
       </div>
 

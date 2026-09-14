@@ -153,8 +153,10 @@ const BooknoteItem: React.FC<BooknoteItemProps> = ({
     return (
       <div
         className={clsx(
-          'border-base-300 content group relative my-2 cursor-pointer rounded-lg p-2',
-          isCurrent ? 'bg-base-300/85 hover:bg-base-300' : 'hover:bg-base-300/55 bg-base-100',
+          'booknote-item content group relative my-2 cursor-pointer rounded-sm border p-2',
+          isCurrent
+            ? 'bg-faint/70 hover:bg-faint focus:bg-faint'
+            : 'bg-paperlight hover:bg-faint/50 focus:bg-faint/50',
           'transition-all duration-300 ease-in-out',
         )}
       >
@@ -189,10 +191,10 @@ const BooknoteItem: React.FC<BooknoteItemProps> = ({
       role='button'
       aria-current={isCurrent ? 'page' : undefined}
       className={clsx(
-        'booknote-item border-base-300 content group relative my-2 cursor-pointer rounded-lg p-2',
+        'booknote-item content group relative my-2 cursor-pointer rounded-sm border p-2',
         isCurrent
-          ? 'bg-base-300/85 hover:bg-base-300 focus:bg-base-300'
-          : 'hover:bg-base-300/55 focus:bg-base-300/55 bg-base-100',
+          ? 'bg-faint/70 hover:bg-faint focus:bg-faint'
+          : 'bg-paperlight hover:bg-faint/50 focus:bg-faint/50',
         'transition-all duration-300 ease-in-out',
       )}
       tabIndex={0}
@@ -234,7 +236,7 @@ const BooknoteItem: React.FC<BooknoteItemProps> = ({
             <span
               className={clsx(
                 'booknote-text inline leading-normal',
-                item.note && 'content font-size-xs text-base-content',
+                item.note && 'content font-size-xs text-ink',
                 (item.style === 'underline' || item.style === 'squiggly') &&
                   'underline decoration-2',
                 item.style === 'highlight' && 'rounded-[4px] px-[2px] py-[1px]',
@@ -298,7 +300,7 @@ const BooknoteItem: React.FC<BooknoteItemProps> = ({
           >
             <button
               onClick={handleCopyLink}
-              className='btn btn-ghost btn-xs text-base-content p-0 opacity-0 transition duration-300 ease-in-out hover:bg-transparent group-focus-within:opacity-100 group-hover:opacity-100'
+              className='flex h-6 w-6 items-center justify-center p-0 text-mutedink opacity-0 transition duration-300 ease-in-out hover:text-ink focus-visible:outline-offset-2 focus-visible:outline-stamp focus-visible:outline-2 group-focus-within:opacity-100 group-hover:opacity-100'
               aria-label={_('Copy')}
             >
               <MdContentCopy size={size18} />
@@ -306,7 +308,7 @@ const BooknoteItem: React.FC<BooknoteItemProps> = ({
 
             <button
               onClick={deleteNote.bind(null, item)}
-              className='btn btn-ghost btn-xs p-0 text-red-500 opacity-0 transition duration-300 ease-in-out hover:bg-transparent group-focus-within:opacity-100 group-hover:opacity-100'
+              className='flex h-6 w-6 items-center justify-center p-0 text-red-500 opacity-0 transition duration-300 ease-in-out focus-visible:outline-offset-2 focus-visible:outline-stamp focus-visible:outline-2 group-focus-within:opacity-100 group-hover:opacity-100'
               aria-label={_('Delete')}
             >
               <MdDelete size={size18} />
@@ -321,7 +323,7 @@ const BooknoteItem: React.FC<BooknoteItemProps> = ({
                       ? editNoteInline
                       : editNote.bind(null, item)
                 }
-                className='btn btn-ghost btn-xs p-0 text-blue-500 opacity-0 transition duration-300 ease-in-out hover:bg-transparent group-focus-within:opacity-100 group-hover:opacity-100'
+                className='flex h-6 w-6 items-center justify-center p-0 text-stamp opacity-0 transition duration-300 ease-in-out focus-visible:outline-offset-2 focus-visible:outline-stamp focus-visible:outline-2 group-focus-within:opacity-100 group-hover:opacity-100'
                 aria-label={item.note || item.type === 'bookmark' ? _('Edit') : _('Add Note')}
               >
                 <MdEdit size={size18} />

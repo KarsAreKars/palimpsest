@@ -63,7 +63,7 @@ const NotebookTabNavigation: React.FC<NotebookTabNavigationProps> = ({
           tabIndex={0}
           role='button'
           className={clsx(
-            'relative m-1.5 flex-1 cursor-pointer rounded-lg p-2 transition-colors duration-200',
+            'relative m-1.5 flex-1 cursor-pointer rounded-sm p-2 transition-colors duration-200',
             activeTab === tab && 'bg-[rgba(38,34,27,0.07)]',
           )}
           onClick={() => onTabChange(tab)}
