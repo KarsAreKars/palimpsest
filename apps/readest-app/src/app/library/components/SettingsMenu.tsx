@@ -189,10 +189,7 @@ const SettingsMenu: React.FC<SettingsMenuProps> = ({ onPullLibrary, setIsDropdow
 
   return (
     <Menu
-      className={clsx(
-        'settings-menu dropdown-content no-triangle',
-        'z-20 mt-2 max-w-[90vw]',
-      )}
+      className={clsx('settings-menu dropdown-content no-triangle', 'z-20 mt-2 max-w-[90vw]')}
       onCancel={() => setIsDropdownOpen?.(false)}
     >
       {isTauriAppPlatform() && (
@@ -282,7 +279,7 @@ const SettingsMenu: React.FC<SettingsMenuProps> = ({ onPullLibrary, setIsDropdow
         </ul>
       </MenuItem>
       <hr aria-hidden='true' className='border-ink/15 my-1' />
-      <MenuItem label={_('About Readest')} onClick={showAboutReadest} />
+      <MenuItem label={_('About Palimpsest')} onClick={showAboutReadest} />
     </Menu>
   );
 };

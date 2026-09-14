@@ -101,7 +101,7 @@ export const AboutWindow = () => {
     <Dialog
       id='about_window'
       isOpen={isOpen}
-      title={_('About Readest')}
+      title={_('About Palimpsest')}
       onClose={handleClose}
       boxClassName='sm:!w-[480px] sm:!max-w-screen-sm sm:h-auto'
     >
@@ -112,11 +112,11 @@ export const AboutWindow = () => {
               <Image src='/icon.png' alt='App Logo' className='h-20 w-20' width={64} height={64} />
             </div>
             <div className='flex select-text flex-col items-center'>
-              <h2 className='mb-2 text-2xl font-bold'>Readest</h2>
+              <h2 className='mb-2 text-2xl font-bold'>Palimpsest</h2>
               <button
                 type='button'
                 title={_('Copy')}
-                className='text-neutral-content text-center text-sm'
+                className='text-mutedink text-center text-sm'
                 onClick={handleCopyVersion}
               >
                 {versionInfo}
@@ -132,12 +132,10 @@ export const AboutWindow = () => {
                 </button>
               )}
               {updateStatus === 'updated' && (
-                <p className='text-neutral-content mt-2 text-xs'>
-                  {_('Already the latest version')}
-                </p>
+                <p className='text-mutedink mt-2 text-xs'>{_('Already the latest version')}</p>
               )}
               {updateStatus === 'checking' && (
-                <p className='text-neutral-content mt-2 text-xs'>{_('Checking for updates...')}</p>
+                <p className='text-mutedink mt-2 text-xs'>{_('Checking for updates...')}</p>
               )}
               {updateStatus === 'error' && (
                 <p className='text-error mt-2 text-xs'>{_('Error checking for updates')}</p>
@@ -151,11 +149,11 @@ export const AboutWindow = () => {
             className='flex flex-1 flex-col items-center justify-start gap-2 px-4 text-center'
             dir='ltr'
           >
-            <p className='text-neutral-content text-sm'>
+            <p className='text-mutedink text-sm'>
               © {new Date().getFullYear()} Bilingify LLC. All rights reserved.
             </p>
 
-            <p className='text-neutral-content text-xs'>
+            <p className='text-mutedink text-xs'>
               This software is licensed under the{' '}
               <Link
                 href='https://www.gnu.org/licenses/agpl-3.0.html'
@@ -166,7 +164,7 @@ export const AboutWindow = () => {
               . You are free to use, modify, and distribute this software under the terms of the
               AGPL v3 license. Please see the license for more details.
             </p>
-            <p className='text-neutral-content text-xs'>
+            <p className='text-mutedink text-xs'>
               Source code is available at{' '}
               <Link href='https://github.com/readest/readest' className='text-blue-500 underline'>
                 GitHub

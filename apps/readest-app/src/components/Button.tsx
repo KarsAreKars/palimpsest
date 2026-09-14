@@ -23,7 +23,6 @@ const Button: React.FC<ButtonProps> = ({ icon, onClick, disabled = false, label,
         disabled && 'cursor-default !bg-transparent opacity-50',
         className,
       )}
-      title={label}
       aria-label={label}
       onClick={disabled ? undefined : onClick}
     >

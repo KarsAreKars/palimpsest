@@ -15,7 +15,7 @@ import {
   generateDarkPalette,
 } from '@/styles/themes';
 import { createFontCSS, CustomFont } from '@/styles/fonts';
-import { readStoredAmbientIsDarkMode } from './ambientLight';
+import { readStoredAmbientIsDarkMode, resolveThemeIsDarkMode } from './ambientLight';
 import { INLINE_FORMATTING_SELECTOR } from './inlineTags';
 import { getOSPlatform } from './misc';
 import { SCROLL_WRAPPER_CLASS, SCROLL_WRAPPER_FIT_CLASS } from './scrollable';
@@ -857,10 +857,15 @@ export const getThemeCode = () => {
     );
     customThemes = JSON.parse(localStorage.getItem('customThemes') || '[]');
   }
-  const isDarkMode =
-    themeMode === 'dark' ||
-    (themeMode === 'auto' && systemIsDarkMode) ||
-    (themeMode === 'ambient' && ambientIsDarkMode);
+  // Route through the single forced-light resolver (see ambientLight.ts):
+  // the previous inline `themeMode === 'dark' || ...` fork ignored the
+  // Palimpsest light-only contract and painted PDF pages with the dark
+  // palette whenever macOS ran in dark appearance (black text on charcoal).
+  const isDarkMode = resolveThemeIsDarkMode(
+    themeMode as Parameters<typeof resolveThemeIsDarkMode>[0],
+    systemIsDarkMode,
+    ambientIsDarkMode,
+  );
   let currentTheme = themes.find((theme) => theme.name === themeColor);
   if (!currentTheme) {
     const customTheme = customThemes.find((theme) => theme.name === themeColor);

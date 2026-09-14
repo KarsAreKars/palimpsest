@@ -244,7 +244,7 @@ const HeaderBar: React.FC<HeaderBarProps> = ({
               </div>
             )}
             <button
-              title={_('Go to Library')}
+              aria-label={_('Go to Library')}
               className='chrome-ghost hidden h-8 min-h-8 w-8 items-center justify-center p-0 sm:flex'
               onClick={onGoToLibrary}
             >

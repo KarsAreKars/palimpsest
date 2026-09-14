@@ -605,8 +605,8 @@ const actionItems = [
   },
   {
     id: 'action.about',
-    labelKey: _('About Readest'),
-    keywords: ['about', 'readest', 'version', 'info'],
+    labelKey: _('About Palimpsest'),
+    keywords: ['about', 'palimpsest', 'version', 'info'],
   },
 ];
 

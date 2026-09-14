@@ -40,7 +40,9 @@
 /* icon-only buttons: react-icons size to 1em, and the chrome typeface runs
    at 10px — without this the reader chrome icons shrink to specks. */
 .chrome-btn > svg,
-.chrome-btn > * > svg {
+.chrome-ghost > svg,
+.chrome-btn > * > svg,
+.chrome-ghost > * > svg {
   width: 16px;
   height: 16px;
   flex: none;
@@ -54,6 +56,15 @@
 .chrome-btn:focus-visible {
   outline: 2px solid var(--stamp);
   outline-offset: 2px;
+}
+/* header chrome: uniform 16px icons — the togglers pass responsive sizes
+   (18px+) while chrome-ghost pins 16px, so the quill sat larger and lower
+   than its neighbours. Presentation attributes lose to CSS, one rule
+   aligns the whole bar. */
+.header-bar svg {
+  width: 16px;
+  height: 16px;
+  flex: none;
 }
 /* the small (2rem) and extra-small (1.5rem) size steps */
 .chrome-ghost-sm {
