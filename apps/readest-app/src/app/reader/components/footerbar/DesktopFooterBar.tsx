@@ -9,8 +9,33 @@ import { useTranslation } from '@/hooks/useTranslation';
 import { getNarration } from '@/services/narration/speakMode';
 import type { FooterBarChildProps } from './types';
 import { getNavigationIcon } from './utils';
-import Button from '@/components/Button';
 import PageJumpInput from './PageJumpInput';
+
+/* Chrome icon button — the shared components/Button still carries the
+   retired daisyUI `btn btn-ghost`, which is outside this fence; the footer
+   uses the apothecary ghost recipe directly: sharp, hairline-free, the
+   stamp hover comes from chrome.css's header/footer scope. */
+const NavButton: React.FC<{
+  icon: React.ReactNode;
+  onClick: () => void;
+  disabled?: boolean;
+  label?: string;
+  className?: string;
+}> = ({ icon, onClick, disabled = false, label, className }) => (
+  <button
+    type='button'
+    className={clsx(
+      'chrome-btn h-8 min-h-8 w-8 p-0',
+      disabled && 'chrome-ghost-disabled opacity-50',
+      className,
+    )}
+    title={label}
+    aria-label={label}
+    onClick={disabled ? undefined : onClick}
+  >
+    {icon}
+  </button>
+);
 
 const DesktopFooterBar: React.FC<FooterBarChildProps> = ({
   bookKey,
@@ -101,7 +126,7 @@ const DesktopFooterBar: React.FC<FooterBarChildProps> = ({
       }}
     >
       {!viewSettings?.showPaginationButtons && (
-        <Button
+        <NavButton
           icon={getNavigationIcon(
             viewSettings?.rtl,
             <RiArrowLeftDoubleLine />,
@@ -112,19 +137,19 @@ const DesktopFooterBar: React.FC<FooterBarChildProps> = ({
         />
       )}
       {!viewSettings?.showPaginationButtons && (
-        <Button
+        <NavButton
           icon={getNavigationIcon(viewSettings?.rtl, <RiArrowLeftSLine />, <RiArrowRightSLine />)}
           onClick={navigationHandlers.onPrevPage}
           label={_('Previous Page')}
         />
       )}
-      <Button
+      <NavButton
         icon={getNavigationIcon(viewSettings?.rtl, <RiArrowGoBackLine />, <RiArrowGoForwardLine />)}
         onClick={navigationHandlers.onGoBack}
         label={_('Go Back')}
         disabled={!view?.history.canGoBack}
       />
-      <Button
+      <NavButton
         icon={getNavigationIcon(viewSettings?.rtl, <RiArrowGoForwardLine />, <RiArrowGoBackLine />)}
         onClick={navigationHandlers.onGoForward}
         label={_('Go Forward')}
@@ -139,27 +164,27 @@ const DesktopFooterBar: React.FC<FooterBarChildProps> = ({
       <input
         ref={rangeInputRef}
         type='range'
-        className='text-ink mx-2 min-w-0 flex-1'
+        className='chrome-range mx-2 min-w-0 flex-1'
         min={0}
         max={100}
         aria-label={_('Jump to Location')}
         value={progressValue}
         onChange={(e) => handleProgressChange(parseInt(e.target.value, 10))}
       />
-      <Button
+      <NavButton
         icon={<FaHeadphones className={viewState?.ttsEnabled ? 'text-stamp' : ''} />}
         onClick={onSpeakText!}
         label={_('Speak')}
       />
       {!viewSettings?.showPaginationButtons && (
-        <Button
+        <NavButton
           icon={getNavigationIcon(viewSettings?.rtl, <RiArrowRightSLine />, <RiArrowLeftSLine />)}
           onClick={navigationHandlers.onNextPage}
           label={_('Next Page')}
         />
       )}
       {!viewSettings?.showPaginationButtons && (
-        <Button
+        <NavButton
           icon={getNavigationIcon(
             viewSettings?.rtl,
             <RiArrowRightDoubleLine />,

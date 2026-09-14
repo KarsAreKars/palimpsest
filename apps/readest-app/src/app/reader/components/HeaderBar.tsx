@@ -205,8 +205,8 @@ const HeaderBar: React.FC<HeaderBarProps> = ({
         role='banner'
         aria-label={_('Header Bar')}
         className={clsx(
-          `header-bar bg-paper absolute top-0 z-10 flex h-11 w-full items-center pr-4`,
-          `shadow-xs transition-[opacity,margin-top] duration-300`,
+          `header-bar bg-paper absolute top-0 z-10 flex h-11 w-full items-center border-b border-ink/25 pr-4`,
+          `transition-[opacity,margin-top] duration-300`,
           trafficLightInHeader ? 'pl-20' : isSideBarVisible ? 'ps-4' : 'ps-4 sm:ps-1.5',
           appService?.hasRoundedWindow && 'rounded-window-top-right',
           !isSideBarVisible && appService?.hasRoundedWindow && 'rounded-window-top-left',
@@ -303,7 +303,7 @@ const HeaderBar: React.FC<HeaderBarProps> = ({
           <div
             aria-hidden='true'
             className={clsx(
-              'text-ink line-clamp-1 text-center font-display text-[15px]',
+              'plate-title text-ink line-clamp-1 text-center text-[15px]',
               !windowButtonVisible && 'max-w-[50%]',
             )}
           >

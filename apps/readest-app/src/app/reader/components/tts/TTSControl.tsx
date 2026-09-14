@@ -100,7 +100,9 @@ const TTSControl: React.FC<TTSControlProps> = ({ bookKey, gridInsets }) => {
           <button
             onClick={tts.handleBackToCurrentTTSLocation}
             className={clsx(
-              'not-eink:bg-paperlight eink-bordered whitespace-nowrap rounded-full px-4 py-2 font-sans text-sm shadow-lg',
+              // a floating catalogue plate, not a pill: hairline frame,
+              // lift shadow, typed label in the stamp of the reader.
+              'plate plate-interactive chrome-lift eink-bordered typed whitespace-nowrap px-4 text-[10px] text-stamp',
               safeAreaInsets?.top ? 'h-11' : 'h-9',
             )}
           >

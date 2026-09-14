@@ -86,39 +86,43 @@ const ProfOverlay: React.FC<ProfOverlayProps> = ({ bookKey }) => {
         {error && <div className='typed text-stamp max-w-lg truncate text-[10px]'>{error}</div>}
 
         <div className='pointer-events-auto flex items-center gap-3'>
-          <PaperField
-            ref={inputRef}
-            type='text'
-            className='w-80 text-sm shadow-[var(--lift-shadow)]'
-            placeholder='ASK — OR DICTATE WITH TYPEWHISPER…'
-            aria-label='Ask the professor'
-            value={draft}
-            onChange={(e) => setDraft(e.target.value)}
-            onKeyDown={(e) => {
-              // No stopPropagation for ⌥Space — but the field swallows it
-              // before the window listener, so handle release right here:
-              if (e.code === 'Space' && e.altKey) {
-                e.preventDefault();
-                if (draft.trim()) submit();
-                else close();
-                return;
-              }
-              e.stopPropagation();
-              if (e.key === 'Enter') submit();
-              else if (e.key === 'Escape') close();
-            }}
-          />
-          <button
-            type='button'
-            className='typed text-mutedink hover:text-ink text-[9px]'
-            aria-label='Dismiss professor'
-            onClick={() => {
-              interrupt();
-              close();
-            }}
-          >
-            ESC ✕
-          </button>
+          {/* the ask card: a cataloguer's plate, lifted — the field and
+              the dismiss key sit inside the hairline frame */}
+          <div className='plate chrome-lift flex items-center gap-3 px-3 py-2'>
+            <PaperField
+              ref={inputRef}
+              type='text'
+              className='w-80 text-sm'
+              placeholder='ASK — OR DICTATE WITH TYPEWHISPER…'
+              aria-label='Ask the professor'
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+              onKeyDown={(e) => {
+                // No stopPropagation for ⌥Space — but the field swallows it
+                // before the window listener, so handle release right here:
+                if (e.code === 'Space' && e.altKey) {
+                  e.preventDefault();
+                  if (draft.trim()) submit();
+                  else close();
+                  return;
+                }
+                e.stopPropagation();
+                if (e.key === 'Enter') submit();
+                else if (e.key === 'Escape') close();
+              }}
+            />
+            <button
+              type='button'
+              className='typed text-mutedink hover:text-ink text-[9px]'
+              aria-label='Dismiss professor'
+              onClick={() => {
+                interrupt();
+                close();
+              }}
+            >
+              ESC ✕
+            </button>
+          </div>
         </div>
       </div>
 
@@ -127,7 +131,7 @@ const ProfOverlay: React.FC<ProfOverlayProps> = ({ bookKey }) => {
       {speaking && answer && (
         <div className='pointer-events-none fixed inset-x-0 bottom-3 z-50 flex justify-center px-6'>
           <p
-            className='text-ink max-w-2xl truncate text-center text-[13px] italic opacity-80'
+            className='plate chrome-lift text-ink max-w-2xl truncate px-4 py-2 text-center text-[13px] italic opacity-90'
             data-testid='prof-caption'
           >
             {lastLine(answer)}

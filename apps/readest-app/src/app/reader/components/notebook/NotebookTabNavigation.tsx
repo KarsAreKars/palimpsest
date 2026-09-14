@@ -77,7 +77,7 @@ const NotebookTabNavigation: React.FC<NotebookTabNavigationProps> = ({
           aria-label={getTabLabel(tab)}
         >
           {activeTab === tab && (
-            <span className='bg-stamp absolute inset-x-4 top-0.5 h-[2px] rounded-full' />
+            <span className='bg-stamp absolute inset-x-4 top-0.5 h-[2px]' />
           )}
           <div className='m-0 flex h-6 items-center p-0'>
             <span className={clsx('mx-auto', activeTab === tab && 'text-stamp')}>

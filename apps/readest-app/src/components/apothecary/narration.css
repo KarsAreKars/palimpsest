@@ -1,0 +1,104 @@
+/**
+ * NarrationBar — the floating plate the book speaks from (UX spec D,
+ * catalogue world). The bar is a .plate (hairline double rule via the
+ * global class) lifted off the paper with --lift-shadow; values mirror
+ * apothecary.css so library and reader mounts read identically. Dark and
+ * eink survive through the vars alone — no hardcoded light hexes.
+ */
+
+.narration-bar {
+  box-shadow: var(--lift-shadow);
+  padding-top: 3px;
+  padding-bottom: 3px;
+}
+
+/* the speaking glyph: one authored pulse, exponential ease-out, 1.6s —
+   a soft ring that blooms and settles, never a blink */
+@keyframes narration-pulse {
+  0% {
+    opacity: 0.9;
+    transform: scale(0.82);
+  }
+  100% {
+    opacity: 0.35;
+    transform: scale(1.18);
+  }
+}
+.narration-glyph {
+  display: inline-block;
+  animation: narration-pulse 1.6s cubic-bezier(0.16, 1, 0.3, 1) infinite;
+  transform-origin: center;
+}
+.narration-glyph--idle {
+  animation: none;
+  opacity: 0.5;
+  transform: none;
+}
+
+/* voice / speed chips: typed labels under a hairline, stamp on hover */
+.narration-chip {
+  font-family: 'Special Elite', 'Courier New', monospace;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 9px;
+  color: var(--muted);
+  background: transparent;
+  border: 1px solid color-mix(in srgb, var(--ink) 25%, transparent);
+  padding: 3px 7px 2px;
+  line-height: 1;
+  transition:
+    color 120ms ease,
+    border-color 120ms ease;
+}
+.narration-chip:hover {
+  color: var(--stamp);
+  border-color: var(--stamp);
+}
+.narration-chip:focus-visible {
+  outline: 2px solid var(--stamp);
+  outline-offset: 2px;
+}
+
+/* transport buttons: the stamp-btn recipe at icon size, sharp corners */
+.narration-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid var(--stamp);
+  border-radius: 0;
+  background: transparent;
+  color: var(--stamp);
+  transition:
+    background-color 120ms ease,
+    color 120ms ease,
+    border-color 120ms ease;
+}
+.narration-btn:hover {
+  background: var(--stamp);
+  color: var(--paper-light);
+}
+.narration-btn:focus-visible {
+  outline: 2px solid var(--stamp);
+  outline-offset: 2px;
+}
+.narration-btn:disabled,
+.narration-btn:disabled:hover {
+  color: color-mix(in srgb, var(--stamp) 40%, transparent);
+  border-color: color-mix(in srgb, var(--stamp) 40%, transparent);
+  background: transparent;
+  cursor: not-allowed;
+}
+/* the primary action: inked, not stamped — the one allowed fill */
+.narration-btn--ink {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--paper-light);
+}
+.narration-btn--ink:hover {
+  background: var(--stamp);
+  border-color: var(--stamp);
+  color: var(--paper-light);
+}

@@ -367,14 +367,14 @@ const drawOne = (
       });
       const div = document.createElement('div');
       div.setAttribute('xmlns', 'http://www.w3.org/1999/xhtml');
-      // Paper chip: warm translucent card, amber ink — margin-note aesthetic
-      // rather than a terminal slab.
+      // Cataloguer's card: paper-light plate, hairline stamp rule, typed
+      // serif — margin-note grammar, vars only so eink/dark stay honest.
       div.style.cssText =
-        'display:inline-block;background:rgba(255, 251, 235, 0.94);color:#26221B;' +
-        'padding:6px 11px;border-radius:8px;font-size:14px;line-height:1.5;' +
-        'border:1px solid rgba(180, 83, 9, 0.45);' +
-        'box-shadow:0 1px 4px rgba(120, 53, 15, 0.18);' +
-        'font-family:ui-serif, Georgia, serif;';
+        'display:inline-block;background:var(--paper-light);color:var(--ink);' +
+        'padding:6px 11px;border-radius:2px;font-size:14px;line-height:1.5;' +
+        'border:1px solid color-mix(in srgb, var(--stamp) 55%, transparent);' +
+        'box-shadow:var(--lift-shadow);' +
+        'font-family:Newsreader, Georgia, serif;';;
       if (mathml) {
         div.innerHTML = mathml;
       } else {

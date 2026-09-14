@@ -1,9 +1,9 @@
 /**
  * NarrationBar — THE MiniPlayer (UX spec D). One component, two mounts:
- * the reader footer and the library bottom. Oak strip surface, cloth thumb,
- * one scrolling sentence, voice chip, speed chip, prev/play/next. The book
- * keeps talking while the user browses — leaving the reader never stops
- * audio (useNarration keeps the session; the library mount surfaces it).
+ * the reader footer and the library bottom. The bar is a floating
+ * catalogue plate: hairline double rule, typed chips, stamp transport.
+ * The book keeps talking while the user browses — leaving the reader never
+ * stops audio (useNarration keeps the session; the library mount surfaces it).
  *
  * Driven by the narration registry (Palimpsest's own engine), not the
  * upstream ttsSessionManager — that system never lit up for local narration,
@@ -11,6 +11,7 @@
  */
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import clsx from 'clsx';
 import {
   getActiveNarration,
   getNarration,
@@ -20,6 +21,7 @@ import type { NarrationController } from '@/services/narration/controller';
 import { useNarrationSettings } from '@/services/narration/settings';
 import { ClothCover } from '@/components/apothecary';
 import { navigateToReader } from '@/utils/nav';
+import './narration.css';
 
 const SPEEDS = [0.8, 1, 1.25, 1.5, 2];
 const VOICE_LABELS: Record<string, string> = {
@@ -48,6 +50,38 @@ const sentenceOf = (c: NarrationController): string => {
     .trim();
 };
 
+const fmtClock = (totalSec: number): string => {
+  const m = Math.floor(totalSec / 60);
+  const s = totalSec % 60;
+  return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+};
+
+/* Transport glyphs — drawn, never emoji. fill=currentColor so the
+   stamp hover inversion flips them with the button. */
+const PrevIcon = () => (
+  <svg width='13' height='13' viewBox='0 0 24 24' fill='currentColor' aria-hidden='true'>
+    <path d='M19 20 9 12l10-8v16z' />
+    <path d='M5 19V5' />
+  </svg>
+);
+const NextIcon = () => (
+  <svg width='13' height='13' viewBox='0 0 24 24' fill='currentColor' aria-hidden='true'>
+    <path d='m5 4 10 8-10 8V4z' />
+    <path d='M19 5v14' />
+  </svg>
+);
+const PlayIcon = () => (
+  <svg width='13' height='13' viewBox='0 0 24 24' fill='currentColor' aria-hidden='true'>
+    <polygon points='6 3 20 12 6 21 6 3' />
+  </svg>
+);
+const PauseIcon = () => (
+  <svg width='13' height='13' viewBox='0 0 24 24' fill='currentColor' aria-hidden='true'>
+    <rect x='6' y='4' width='4' height='16' />
+    <rect x='14' y='4' width='4' height='16' />
+  </svg>
+);
+
 interface NarrationBarProps {
   /** Reader mount passes its bookKey; library mount omits it and follows
       whichever session is live. */
@@ -64,6 +98,10 @@ const NarrationBar: React.FC<NarrationBarProps> = ({ bookKey, bookTitle, bookAut
   const setSettingsRate = useNarrationSettings((s) => s.setRate);
   const [, force] = useState(0);
   const [entry, setEntry] = useState<NarrationEntry | undefined>(undefined);
+  // The cataloguer's clock: seconds this session has actually been
+  // speaking, shown plate-num style beside the glyph. Local to the bar —
+  // the player schedules audio, not wall time.
+  const [elapsed, setElapsed] = useState(0);
 
   // Poll cheaply — but only as fast as the situation merits: 500ms while a
   // session is live (playstate has no event), 2s discovery otherwise
@@ -80,9 +118,22 @@ const NarrationBar: React.FC<NarrationBarProps> = ({ bookKey, bookTitle, bookAut
   }, [bookKey, entry]);
 
   const controller = entry?.controller;
+
+  // A new session starts a new plate: the clock resets with it.
+  useEffect(() => {
+    setElapsed(0);
+  }, [controller]);
+
+  // One tick per spoken second; pauses hold the reading.
+  const playing = controller?.playing ?? false;
+  useEffect(() => {
+    if (!playing) return undefined;
+    const t = setInterval(() => setElapsed((s) => s + 1), 1000);
+    return () => clearInterval(t);
+  }, [playing]);
+
   if (!controller?.active) return null;
 
-  const playing = controller.playing;
   const rate = controller.player.rate ?? settingsRate;
   const voice = qwenVoiceId ?? 'af_heart';
 
@@ -103,8 +154,7 @@ const NarrationBar: React.FC<NarrationBarProps> = ({ bookKey, bookTitle, bookAut
 
   return (
     <div
-      className='oak-shelf pointer-events-auto fixed inset-x-0 bottom-0 z-50 flex h-11 items-center gap-3 px-3'
-      style={{ boxShadow: '0 -5px 14px rgba(42,37,29,0.18)' }}
+      className='plate narration-bar pointer-events-auto fixed inset-x-3 bottom-3 z-50 flex h-12 items-center gap-3 px-4'
       data-testid='narration-bar'
       role='region'
       aria-label='Now narrating'
@@ -122,14 +172,26 @@ const NarrationBar: React.FC<NarrationBarProps> = ({ bookKey, bookTitle, bookAut
         <ClothCover title={bookTitle ?? '…'} author={bookAuthor} size='sm' />
       </button>
 
-      <span className='text-paperlight min-w-0 flex-1 truncate text-[13px] italic opacity-95'>
+      {/* the speaking mark: one authored pulse while the book talks,
+          a still glyph while it waits */}
+      <span
+        aria-hidden='true'
+        className={clsx('ornament narration-glyph shrink-0', !playing && 'narration-glyph--idle')}
+      >
+        ✳
+      </span>
+      <span className='plate-num shrink-0 tabular-nums' aria-label='Time narrating'>
+        {fmtClock(elapsed)}
+      </span>
+
+      <span className='text-ink min-w-0 flex-1 truncate text-[13px] italic opacity-95'>
         {sentenceOf(controller)}
       </span>
 
       <button
         type='button'
         onClick={cycleVoice}
-        className='typed text-paperlight/80 hover:text-paperlight shrink-0 text-[9px]'
+        className='narration-chip shrink-0'
         aria-label='Switch voice'
         title='Voice (point of use — more in Connectors)'
       >
@@ -138,41 +200,42 @@ const NarrationBar: React.FC<NarrationBarProps> = ({ bookKey, bookTitle, bookAut
       <button
         type='button'
         onClick={cycleSpeed}
-        className='typed text-paperlight/80 hover:text-paperlight shrink-0 text-[9px]'
+        className='narration-chip shrink-0'
         aria-label='Change narration speed'
       >
         {rate}×
       </button>
 
-      <div className='flex shrink-0 items-center gap-1'>
+      <div className='flex shrink-0 items-center gap-1.5'>
         <button
           type='button'
-          className='text-paperlight/80 hover:text-paperlight px-1.5 text-base'
+          className='narration-btn'
           aria-label='Previous sentence'
           onClick={() => void controller.prev()}
         >
-          ⏮
+          <PrevIcon />
         </button>
         <button
           type='button'
-          className='text-paperlight px-1.5 text-lg'
+          className='narration-btn narration-btn--ink'
           aria-label={playing ? 'Pause' : 'Play'}
           onClick={() => void controller.togglePlay()}
         >
-          {playing ? '⏸' : '▶'}
+          {playing ? <PauseIcon /> : <PlayIcon />}
         </button>
         <button
           type='button'
-          className='text-paperlight/80 hover:text-paperlight px-1.5 text-base'
+          className='narration-btn'
           aria-label='Next sentence'
           onClick={() => void controller.next()}
         >
-          ⏭
+          <NextIcon />
         </button>
         <button
           type='button'
-          className='typed text-paperlight/60 hover:text-paperlight px-1.5 text-[9px]'
+          className='narration-btn'
           aria-label='Stop narration'
+          title='Stop'
           onClick={() => controller.stop()}
         >
           ✕

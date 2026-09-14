@@ -64,7 +64,7 @@ const TabNavigation: React.FC<{
         >
           {/* the stamp mark: a 2px underline on the active tab */}
           {activeTab === tab && (
-            <span className='bg-stamp absolute inset-x-4 top-0.5 h-[2px] rounded-full' />
+            <span className='bg-stamp absolute inset-x-4 top-0.5 h-[2px]' />
           )}
           <div className={clsx('flex h-6 items-center p-0', isMobile ? 'm-0.5' : 'm-0')}>
             <span className={clsx('mx-auto', activeTab === tab && 'text-stamp')}>
