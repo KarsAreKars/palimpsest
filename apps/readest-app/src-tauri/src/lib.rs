@@ -337,6 +337,7 @@ pub fn run() {
             mobi_parser::parse_mobi_metadata,
             mobi_parser::extract_mobi_cover_full,
             hpub::hpub_extract,
+            voice_server::restart_voice_server,
             onboarding::onboarding_sample_book,
             onboarding::onboarding_run_voice_bootstrap,
             screenshot::capture_window_screenshot,

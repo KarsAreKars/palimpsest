@@ -167,7 +167,7 @@ const DesktopFooterBar: React.FC<FooterBarChildProps> = ({
       {progressValid && <PageJumpInput bookKey={bookKey} className='mx-2 text-sm' />}
       {narrationOwnsKeys && (
         <span className='typed text-mutedink hidden whitespace-nowrap text-[8.5px] md:inline'>
-          ← → SKIP SENTENCES · SHIFT FOR PAGES
+          {_('← → SKIP SENTENCES · SHIFT FOR PAGES')}
         </span>
       )}
       <input

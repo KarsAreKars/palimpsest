@@ -224,3 +224,82 @@ async fn spawn_voice_server(app: AppHandle) {
         HEALTH_LIMIT.as_secs()
     );
 }
+
+/// Restart the local voice server. Called from the narration layer when
+/// synthesis starts failing while `/health` still answers — a half-dead
+/// MLX stack: the stdlib HTTP server survives, but every generation
+/// EPIPEs under it (observed 2026-09-14 after a sleep/wake cycle, ~4 h
+/// into the server's life). The narration controller can't detect that
+/// from a health probe, so the client counts consecutive synthesis
+/// failures and asks for a restart.
+///
+/// Both ownership cases are handled: the child we spawned this session,
+/// AND a zombie answering the port from a previous app instance (today's
+/// bug — the launch probe adopted the zombie, so our own child is None
+/// and killing it alone would restart nothing).
+#[cfg(all(desktop, not(windows)))]
+#[tauri::command]
+pub async fn restart_voice_server(app: AppHandle) -> Result<bool, String> {
+    log::info!("voice server: restart requested");
+
+    // Take the child under a short scope — the std MutexGuard is not Send,
+    // so it must drop before we await the kill.
+    let held = app
+        .try_state::<VoiceServerState>()
+        .and_then(|state| state.child.lock().ok().and_then(|mut guard| guard.take()));
+    if let Some(mut child) = held {
+        let _ = child.start_kill();
+        let _ = child.wait().await;
+        log::info!("voice server: killed held child");
+    }
+
+    // Evict anything else answering :8737 (zombie from a previous app
+    // instance — the launch probe adopts those, so we own no handle).
+    let pids = std::process::Command::new("lsof")
+        .args(["-ti", "tcp:8737"])
+        .output()
+        .map(|out| {
+            String::from_utf8_lossy(&out.stdout)
+                .split_whitespace()
+                .filter_map(|s| s.parse::<u32>().ok())
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_default();
+    for pid in &pids {
+        let _ = std::process::Command::new("kill")
+            .args(["-9", &pid.to_string()])
+            .status();
+    }
+    if !pids.is_empty() {
+        log::info!("voice server: evicted {} foreign pid(s): {:?}", pids.len(), pids);
+    }
+
+    // Wait for the port to actually go quiet before respawning.
+    let mut quiet = Duration::ZERO;
+    while health_up().await && quiet < Duration::from_secs(10) {
+        tokio::time::sleep(Duration::from_millis(250)).await;
+        quiet += Duration::from_millis(250);
+    }
+
+    spawn_voice_server(app).await;
+
+    // Cold start re-downloads nothing (models are disk-cached) but MLX
+    // load takes a few seconds — give the fresh server a grace window.
+    let mut waited = Duration::ZERO;
+    while waited < Duration::from_secs(60) {
+        if health_up().await {
+            log::info!("voice server: healthy again after {}s", waited.as_secs());
+            return Ok(true);
+        }
+        tokio::time::sleep(HEALTH_POLL).await;
+        waited += HEALTH_POLL;
+    }
+    log::warn!("voice server: restart did not become healthy within 60s");
+    Ok(false)
+}
+
+#[cfg(not(all(desktop, not(windows))))]
+#[tauri::command]
+pub async fn restart_voice_server(_app: AppHandle) -> Result<bool, String> {
+    Ok(false)
+}

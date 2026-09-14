@@ -51,9 +51,6 @@ const FooterBar: React.FC<FooterBarProps> = ({
   // chrome and read as a bug (#round-7 hotfix).
   const isVisible = true;
 
-  const docs = view?.renderer.getContents() ?? [];
-  const pointerInDoc = docs.some(({ doc }) => doc?.body?.style.cursor === 'pointer');
-
   const progressInfo = useMemo(
     () => (FIXED_LAYOUT_FORMATS.has(bookFormat) ? section : pageinfo),
     [bookFormat, section, pageinfo],
@@ -103,6 +100,14 @@ const FooterBar: React.FC<FooterBarProps> = ({
     if (!view || !progress || !viewState) return;
 
     const eventType = viewState.ttsEnabled ? 'tts-stop' : 'tts-speak';
+    console.info(
+      '[tts] handleSpeakText —',
+      eventType,
+      'bookKey:',
+      bookKey,
+      'ttsEnabled:',
+      viewState.ttsEnabled,
+    );
     eventDispatcher.dispatch(eventType, { bookKey });
   }, [view, progress, viewState, bookKey]);
 
@@ -240,23 +245,8 @@ const FooterBar: React.FC<FooterBarProps> = ({
         : 'pointer-events-none translate-y-full opacity-0 sm:translate-y-0',
   );
 
-  const isMobile = appService?.isMobile || window.innerWidth < 640;
-
   return (
     <>
-      {/* Hover trigger area */}
-      <div
-        role='none'
-        tabIndex={-1}
-        className={clsx(
-          'absolute bottom-0 left-0 z-10 flex h-[52px] w-full',
-          needHorizontalScroll && 'sm:!bottom-3 sm:!h-7',
-          isMobile || pointerInDoc ? 'pointer-events-none' : '',
-        )}
-        onMouseEnter={() => !isMobile && setHoveredBookKey(bookKey)}
-        onTouchStart={() => !isMobile && setHoveredBookKey(bookKey)}
-      />
-
       {/* Main footer container */}
       <div
         ref={footerBarRef}

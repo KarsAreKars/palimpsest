@@ -178,6 +178,7 @@ export class NarrationPlayer extends EventTarget {
     this.#sink.stop();
     this.dispatchEvent(new CustomEvent('resume')); // unblock any paused wait loop
     let start = this.#nextSpeakable(index, 1);
+    nlog(`narration: playFrom(${index}) -> nextSpeakable ${start}`);
     if (start === null) {
       this.#state = 'stopped';
       return;

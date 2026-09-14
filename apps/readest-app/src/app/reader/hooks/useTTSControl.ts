@@ -839,12 +839,14 @@ export const useTTSControl = ({ bookKey, onRequestHidePanel }: UseTTSControlProp
   // handleTTSSpeak / handleTTSStop (plain functions, registered once at mount via closure)
   const handleTTSSpeak = async (event: CustomEvent) => {
     const { bookKey: ttsBookKey, range, index, oneTime = false } = event.detail;
+    console.info('[tts] handleTTSSpeak — mine:', bookKey, 'event:', ttsBookKey);
     if (bookKey !== ttsBookKey) return;
 
     // Palimpsest: a book carrying its text layer + spoken script narrates
     // from narration.jsonl — the whole point of the dual layer. The upstream
     // TTSController path stays as the fallback for books without artifacts.
     const narration = getNarration(bookKey);
+    console.info('[tts] speak event — narration session:', !!narration);
     if (narration) {
       unblockAudio();
       setShowIndicator(true);

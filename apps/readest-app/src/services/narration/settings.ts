@@ -44,7 +44,10 @@ export const MAX_NARRATION_RATE = 3;
 export const useNarrationSettings = create<NarrationSettingsState>()(
   persist(
     (set) => ({
-      provider: 'edge',
+      // Palimpsest is TTS-first: the bundled local stack (Kokoro +
+      // Qwen3-TTS) is the primary narrator; Edge is only the graceful
+      // fallback when the local server is unreachable.
+      provider: 'qwen-local',
       edgeVoiceId: null,
       elevenlabsApiKey: '',
       elevenlabsVoiceId: null,
@@ -63,6 +66,16 @@ export const useNarrationSettings = create<NarrationSettingsState>()(
     }),
     {
       name: 'palimpsest-narration-settings',
+      version: 1,
+      // v0 stores (dogfood era) defaulted provider to 'edge', which made
+      // every voice pick a no-op — the controller never looked at the
+      // local voice ids. Migrate those readers onto the local stack.
+      migrate: (persisted, version) => {
+        if (version < 1 && persisted && typeof persisted === 'object') {
+          (persisted as { provider?: string }).provider = 'qwen-local';
+        }
+        return persisted as NarrationSettingsState;
+      },
       storage: createJSONStorage(() => localStorage),
     },
   ),
