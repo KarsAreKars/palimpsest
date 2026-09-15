@@ -21,7 +21,11 @@ imports_ok() {
   # The server dies at runtime without all four; verify together. `misaki`
   # is Kokoro's phonemizer — mlx-audio imports without it, then every
   # Kokoro request 500s and the narration cursor races in silence.
-  "$1" -c 'import mlx_audio, mlx_whisper, huggingface_hub, misaki' >/dev/null 2>&1
+  # `import misaki` alone is NOT enough: misaki 0.7.x defers its submodule
+  # imports, so a venv missing spacy/num2words passes this probe and still
+  # 500s every request (2026-09-15 — voices silently dead for a whole
+  # session). `import misaki.en` forces the real dependency chain.
+  "$1" -c 'import mlx_audio, mlx_whisper, huggingface_hub, misaki.en' >/dev/null 2>&1
 }
 
 # 1. Env-provided interpreter (dev machine: a fully working venv).
@@ -51,7 +55,8 @@ echo "NEURAL MODELS DOWNLOAD ON FIRST NARRATION, NOT NOW"
   "mlx-audio>=0.1" \
   "mlx-whisper>=0.1" \
   "huggingface_hub>=0.20" \
-  "misaki[en]>=0.7"
+  "misaki[en]>=0.7" \
+  blis==1.3.3 thinc==8.3.13 spacy==3.8.16
 
 if imports_ok "$VENV/bin/python"; then
   echo "VOICE ENVIRONMENT READY"
