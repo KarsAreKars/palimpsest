@@ -24,17 +24,15 @@ import { streamText } from 'ai';
 import type { AISettings } from '@/services/ai/types';
 import { getAIProvider } from '@/services/ai/providers';
 import environmentConfig from '@/services/environment';
-import { getDir } from '@/utils/book';
 import type { AppService } from '@/types/system';
 import type { Book } from '@/types/book';
-import { getNarration } from '@/services/narration/speakMode';
-import type { HpubManifest } from '@/services/narration';
-import type { TOCItem } from '@/libs/document';
 import { useBookDataStore } from '@/store/bookDataStore';
 import { getBookProgress } from '@/store/readerProgressStore';
 import { PROFESSOR_WORKBENCH_SYSTEM_PROMPT } from './prompt';
 import { buildTieredPack, type ProfessorContextPack } from './contextPack';
 import { loadLearner, type LearnerState } from './learner';
+import { loadBookSource, lookupBookPages, type PageLookupResult } from './pageLookup';
+import { loadProfileCurrent, profileLinesForPrompt, type LearnerProfile } from './learnerProfile';
 
 /** One transcript block in the workbench session. */
 export interface WorkbenchBlock {
@@ -44,6 +42,9 @@ export interface WorkbenchBlock {
   /** ISO timestamp. */
   at: string;
   kind?: 'greeting' | 'question' | 'feedback' | 'derivation' | 'answer' | 'meta';
+  /** [LOOK page:N] — pages the professor asked the desk to consult.
+   *  Numbers only; the text is re-derived from the manifest each turn. */
+  lookedUp?: number[];
 }
 
 export interface WorkbenchTurnCallbacks {
@@ -85,52 +86,13 @@ export interface SendWorkbenchTurnOptions {
   cb: WorkbenchTurnCallbacks;
 }
 
-const toText = (c: string | ArrayBuffer): string =>
-  typeof c === 'string' ? c : new TextDecoder().decode(c);
-
 /** How many transcript blocks fit in the opening/turn prompt. */
 const HISTORY_BLOCK_LIMIT = 12;
 /** Per-block truncation inside the history summary. */
 const HISTORY_BLOCK_CHARS = 1200;
 
-// ---------------------------------------------------------------------------
-// Book plumbing — mirrors StudyTab.readChapterSource / WorkbenchTab.buildPack:
-// narration controller first (already in memory), content.md + manifest.json
-// from the Books file API second. Everything defensive: a missing text layer
-// is an error message, not a crash.
-// ---------------------------------------------------------------------------
-
-async function readBookSource(
-  bookKey: string,
-): Promise<{ md: string; manifest: HpubManifest; toc: TOCItem[] } | null> {
-  try {
-    const controller = getNarration(bookKey)?.controller;
-    if (controller?.md && controller?.manifest) {
-      return { md: controller.md, manifest: controller.manifest, toc: bookToc(bookKey) };
-    }
-    const book = useBookDataStore.getState().getBookData(bookKey)?.book ?? null;
-    if (!book) return null;
-    const appService = await environmentConfig.getAppService();
-    const dir = getDir(book);
-    const [md, rawManifest] = await Promise.all([
-      appService.readFile(`${dir}/content.md`, 'Books', 'text'),
-      appService.readFile(`${dir}/manifest.json`, 'Books', 'text'),
-    ]);
-    return {
-      md: toText(md),
-      manifest: JSON.parse(toText(rawManifest)) as HpubManifest,
-      toc: bookToc(bookKey),
-    };
-  } catch {
-    return null;
-  }
-}
-
-/** TOC for T1 chapter bounds — the bookDoc when loaded, else empty (T1 then
- *  degrades gracefully to the reader's own page). */
-function bookToc(bookKey: string): TOCItem[] {
-  return useBookDataStore.getState().getBookData(bookKey)?.bookDoc?.toc ?? [];
-}
+// Book plumbing lives in pageLookup.ts (loadBookSource — audit §1.2: the
+// move kills the circular import a lookup-from-session would create).
 
 function currentReaderPage(bookKey: string, override?: number): number {
   if (override && override > 0) return override;
@@ -152,9 +114,32 @@ async function loadLearnerSafely(bookKey: string): Promise<LearnerState | null> 
   }
 }
 
+/** The reader's study profile (W2.4) — try/catch → {}, mirroring
+ *  loadLearnerSafely; an empty profile means the default professor. */
+async function loadProfileSafely(): Promise<LearnerProfile> {
+  try {
+    return await loadProfileCurrent();
+  } catch {
+    return {};
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Prompt assembly (pure — testable shapes kept small and local)
 // ---------------------------------------------------------------------------
+
+/** Pages the professor has consulted so far this sitting, ascending,
+ *  deduped — from the persisted lookedUp metadata on professor blocks. */
+export function collectLookedUpPages(history: WorkbenchBlock[]): number[] {
+  const pages = new Set<number>();
+  for (const b of history) {
+    if (b.author !== 'professor' || !b.lookedUp) continue;
+    for (const p of b.lookedUp) {
+      if (Number.isInteger(p) && p >= 1) pages.add(p);
+    }
+  }
+  return [...pages].sort((a, b) => a - b);
+}
 
 function summarizeHistory(blocks: WorkbenchBlock[]): string {
   return blocks
@@ -200,8 +185,16 @@ const isLocalMode = (aiSettings: AISettings): boolean => aiSettings.provider ===
  * fixed order. This block is byte-stable across turns while the reader
  * stays on the same page — the cache-friendly shared prefix. The whitelist
  * line carries the exact phrase the workbench addendum cites.
+ *
+ * `consultedPages` — pages fetched by the [LOOK] lookup tier whose text
+ * rides in this turn's prompt (lookup.pages, never lookup.missing — the
+ * honesty guard: nothing wears the whitelist the prompt does not carry).
  */
-function packTierSections(pack: ProfessorContextPack, page: number): string[] {
+function packTierSections(
+  pack: ProfessorContextPack,
+  page: number,
+  consultedPages: number[] = [],
+): string[] {
   const parts: string[] = [];
   if (pack.wholeBook && pack.whole_book_text) {
     parts.push(
@@ -237,10 +230,33 @@ function packTierSections(pack: ProfessorContextPack, page: number): string[] {
       );
     }
   }
-  if (pack.pages_included && pack.pages_included.length > 0) {
-    parts.push(`Pages in your context: ${pack.pages_included.join(', ')}`);
+  if (pack.pages_included && pack.pages_included.length + consultedPages.length > 0) {
+    parts.push(
+      `Pages in your context: ${[...new Set([...consultedPages, ...(pack.pages_included ?? [])])]
+        .sort((a, b) => a - b)
+        .join(', ')}`,
+    );
   }
   return parts;
+}
+
+/** The [LOOK] lookup tier — ephemeral page text injected after the pack
+ *  tiers and before the transcript summary (s2 §6.3). */
+function lookupTierSections(lookup?: PageLookupResult): string[] {
+  if (!lookup?.results.length) return [];
+  const blocks = lookup.results.map((r) => `[Page ${r.page}]\n${r.text}`);
+  return [
+    'Pages you asked to consult (fetched from the book at your request — ' +
+      'ground your next answer in these and cite them with a page anchor):\n' +
+      blocks.join('\n\n'),
+  ];
+}
+
+/** The reader's study-profile lines (W2.4, audit R6) — pushed immediately
+ *  after the summarizeLearner block; empty profile → nothing. */
+function profileSummary(profile?: LearnerProfile): string {
+  if (!profile) return '';
+  return profileLinesForPrompt(profile).join('\n');
 }
 
 /**
@@ -252,20 +268,30 @@ export function composeWorkbenchOpening(args: {
   page: number;
   resumeBlocks: WorkbenchBlock[];
   learner: LearnerState | null;
+  /** Pages fetched by the [LOOK] lookup tier (the UI passes nothing here —
+   *  the professor cannot LOOK before his first block); the whitelist
+   *  merge and the tier ride for symmetry with the turn composer. */
+  lookup?: PageLookupResult;
+  /** The reader's study profile (W2.4) — additive T3 lines, never edits
+   *  the addendum or the pack. */
+  profile?: LearnerProfile;
 }): string {
-  const { pack, page, resumeBlocks, learner } = args;
+  const { pack, page, resumeBlocks, learner, lookup, profile } = args;
   const parts: string[] = [];
   parts.push(
     `Open a workbench session for this book. The student is reading page ${page}. ` +
       'This begins a transcript: every turn is a workbench block, yours signed Professor.',
   );
-  parts.push(...packTierSections(pack, page));
+  parts.push(...packTierSections(pack, page, lookup?.pages ?? []));
+  parts.push(...lookupTierSections(lookup));
   const history = summarizeHistory(resumeBlocks);
   if (history) {
     parts.push(`The recent professor–student exchange in this workbench:\n${history}`);
   }
   const learnerSummary = summarizeLearner(learner);
   if (learnerSummary) parts.push(learnerSummary);
+  const profileLines = profileSummary(profile);
+  if (profileLines) parts.push(profileLines);
   parts.push(
     'Greet the student in character — one short paragraph, warm and exact. Set the stage from the book: ' +
       'what the student has been asking about (the concept history above, when present). Then teach the first idea ' +
@@ -291,17 +317,34 @@ export function composeWorkbenchTurnMessage(args: {
   userContent: string;
   checkerSummary?: string;
   learner?: LearnerState | null;
+  /** Pages fetched by the [LOOK] lookup tier this turn — the ephemeral
+   *  text rides after the pack tiers; lookup.pages (never lookup.missing)
+   *  merges into the citation whitelist (honesty guard, s2 §6.4). */
+  lookup?: PageLookupResult;
+  /** The reader's study profile (W2.4) — additive T3 lines, never edits
+   *  the addendum or the pack. */
+  profile?: LearnerProfile;
 }): string {
-  const { pack, page, history, userContent, checkerSummary, learner = null } = args;
+  const {
+    pack,
+    page,
+    history,
+    userContent,
+    checkerSummary,
+    learner = null,
+    lookup,
+    profile,
+  } = args;
   const parts: string[] = [];
   if (pack && page !== null) {
-    parts.push(...packTierSections(pack, page));
+    parts.push(...packTierSections(pack, page, lookup?.pages ?? []));
   } else {
     parts.push(
       "(The book's text layer is not available this turn — answer from the transcript alone, " +
         'and say "I will look" when a claim needs the book.)',
     );
   }
+  parts.push(...lookupTierSections(lookup));
   const transcript = summarizeHistory(history);
   if (transcript) {
     parts.push(`The workbench transcript so far (Professor and Student alternate):\n${transcript}`);
@@ -310,6 +353,8 @@ export function composeWorkbenchTurnMessage(args: {
   if (whereWeAre) parts.push(whereWeAre);
   const learnerSummary = summarizeLearner(learner);
   if (learnerSummary) parts.push(learnerSummary);
+  const profileLines = profileSummary(profile);
+  if (profileLines) parts.push(profileLines);
   if (checkerSummary) {
     parts.push(
       `Deterministic checker result for the student's latest work (trust this over your own reading): ${checkerSummary}`,
@@ -399,7 +444,7 @@ export async function startWorkbenchSession(opts: StartWorkbenchSessionOptions):
     notEnabled(cb);
     return;
   }
-  const source = await readBookSource(bookKey);
+  const source = await loadBookSource(bookKey);
   if (!source) {
     cb.onError(
       "The book's text layer is not available yet — try again in a moment (or open the book once so its text layer is prepared).",
@@ -409,6 +454,7 @@ export async function startWorkbenchSession(opts: StartWorkbenchSessionOptions):
   }
   const page = currentReaderPage(bookKey, currentPage);
   const learner = await loadLearnerSafely(bookKey);
+  const profile = await loadProfileSafely();
   const pack = buildTieredPack({
     ...source,
     page,
@@ -418,7 +464,7 @@ export async function startWorkbenchSession(opts: StartWorkbenchSessionOptions):
   });
   await streamWorkbenchTurn(
     aiSettings,
-    composeWorkbenchOpening({ pack, page, resumeBlocks, learner }),
+    composeWorkbenchOpening({ pack, page, resumeBlocks, learner, profile }),
     signal,
     cb,
   );
@@ -437,7 +483,7 @@ export async function sendWorkbenchTurn(opts: SendWorkbenchTurnOptions): Promise
     notEnabled(cb);
     return;
   }
-  const source = await readBookSource(bookKey);
+  const source = await loadBookSource(bookKey);
   let pack: ProfessorContextPack | null = null;
   let page: number | null = null;
   let learner: LearnerState | null = null;
@@ -455,9 +501,25 @@ export async function sendWorkbenchTurn(opts: SendWorkbenchTurnOptions): Promise
       localMode: isLocalMode(aiSettings),
     });
   }
+  // The [LOOK] lookup tier: pages the professor asked the desk to consult
+  // (persisted on the transcript blocks) are re-fetched from the manifest
+  // every turn — a quiet no-op when the text layer is away or nothing was
+  // consulted. lookup.pages (never lookup.missing) merges into the
+  // whitelist inside compose — the honesty guard (s2 §6).
+  const lookup = await lookupBookPages(bookKey, collectLookedUpPages(history));
+  const profile = await loadProfileSafely();
   await streamWorkbenchTurn(
     aiSettings,
-    composeWorkbenchTurnMessage({ pack, page, history, userContent, checkerSummary, learner }),
+    composeWorkbenchTurnMessage({
+      pack,
+      page,
+      history,
+      userContent,
+      checkerSummary,
+      learner,
+      lookup: lookup ?? undefined,
+      profile,
+    }),
     signal,
     cb,
   );
