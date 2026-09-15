@@ -99,6 +99,15 @@ export interface TranscriptBlock extends WorkbenchBlock {
   /** [LOOK page:N] — pages the professor asked the desk to consult.
    *  Numbers only; the text is re-derived from the manifest each turn. */
   lookedUp?: number[];
+  /** [VOICE] — the professor asked that this turn be heard (never
+   *  displayed; s4 §3). voiceId/lastHeardAt are written back after a
+   *  successful playback so a restored sitting remembers which voice
+   *  spoke. Absent on 2.1 transcripts. */
+  voice?: {
+    requested: boolean;
+    voiceId?: string;
+    lastHeardAt?: string; // ISO timestamp
+  };
 }
 
 /** Silent-check state for one block. Chips derive from this. */
@@ -296,6 +305,7 @@ export function commitProfessorBlock(
     if (attempt) block.teachbackOf = attempt.id;
   }
   if (parsed.look !== undefined) block.lookedUp = parsed.look;
+  if (parsed.voice) block.voice = { requested: true };
   if (parsed.diagram?.claim) {
     // The fence never reaches the eye; a missing fence degrades to the
     // claim printed as prose (svg: '' — §3.5 graceful degradation).
@@ -448,6 +458,9 @@ interface WorkbenchChatState {
   checks: Record<string, Record<string, BlockCheck>>;
   setBlocks: (bookKey: string, blocks: TranscriptBlock[]) => void;
   appendBlock: (bookKey: string, block: TranscriptBlock) => void;
+  /** Additive patch of one committed block — the voice player writes
+   *  voiceId/lastHeardAt back through here (s4 §4.4). */
+  updateBlock: (bookKey: string, blockId: string, patch: Partial<TranscriptBlock>) => void;
   setCheck: (bookKey: string, blockId: string, check: BlockCheck | null) => void;
   /** The learner picked a stance from a probe block's chip row. */
   markProbePicked: (bookKey: string, blockId: string, stance: ProbeStance) => void;
@@ -461,6 +474,15 @@ export const useWorkbenchChatStore = create<WorkbenchChatState>((set) => ({
   appendBlock: (bookKey, block) =>
     set((s) => ({
       blocks: { ...s.blocks, [bookKey]: [...(s.blocks[bookKey] ?? []), block] },
+    })),
+  updateBlock: (bookKey, blockId, patch) =>
+    set((s) => ({
+      blocks: {
+        ...s.blocks,
+        [bookKey]: (s.blocks[bookKey] ?? []).map((b) =>
+          b.id === blockId ? { ...b, ...patch } : b,
+        ),
+      },
     })),
   setCheck: (bookKey, blockId, check) =>
     set((s) => {

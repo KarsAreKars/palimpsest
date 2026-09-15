@@ -868,3 +868,52 @@ math-field.workbench-math-field[read-only] {
 math-field.workbench-math-field-compact {
   min-height: 1.4rem;
 }
+
+/* ---------- read-aloud control (s4 §6.5 — voice answers) ---------- */
+/* Unlayered, existing vars only; --stamp (#8C3B22) is the sole accent.
+ * The button inherits .wb-chip geometry (composited class, like the page
+ * chips); only the voice-specific tones live here. */
+.wb-voice {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.wb-voice-btn:focus-visible {
+  border-color: var(--stamp);
+  box-shadow: 0 0 0 1px var(--stamp);
+}
+
+/* [VOICE]-promoted: the professor asked that this be heard. */
+.wb-voice-promoted {
+  color: var(--stamp);
+  border-color: var(--stamp);
+}
+
+.wb-voice-speaking {
+  color: var(--stamp);
+}
+
+.wb-voice-muted {
+  color: var(--muted);
+}
+
+/* The muted librarian notices — kinds only, never raw provider detail. */
+.wb-voice-notice {
+  flex-basis: 100%;
+  margin: 2px 0 0;
+  padding: 6px 10px;
+  border: 1px solid color-mix(in srgb, var(--ink) 25%, transparent);
+  border-radius: 2px;
+  background: var(--paper-light);
+  color: var(--ink);
+  font-family: 'Newsreader', Georgia, serif;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.wb-voice-notice .ink-btn {
+  margin-left: 8px;
+}
