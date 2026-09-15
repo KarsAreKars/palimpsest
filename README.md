@@ -16,6 +16,8 @@ math books there is a workbench — a desk where the two of you derive things
 together while a silent examiner (sympy) marks every line. macOS-first,
 built for Apple Silicon, private by construction. Status: **public beta**.
 
+[![Watch the demo — Palimpsest reads aloud, teaches, and checks math (4 min)](https://img.youtube.com/vi/cFB81OlcPO0/maxresdefault.jpg)](https://youtu.be/cFB81OlcPO0)
+
 The Library — every book is two books bound as one
 --------------------------------------------------
 
