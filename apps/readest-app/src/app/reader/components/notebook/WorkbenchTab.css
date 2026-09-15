@@ -559,14 +559,8 @@ math-field.workbench-math-field[read-only] {
 }
 
 @container (min-width: 560px) {
-  /* Catalogue flush-left: the measure caps at 68ch, never centers. */
-  .wb-content {
-    max-width: 68ch;
-  }
-
-  .wb-streaming {
-    max-width: 68ch;
-  }
+  /* The measure is fluid: widening the panel reflows the text into the
+   * space instead of holding a narrow column — wide desk, fewer lines. */
 
   /* Page chips float to the block's end edge on wide panels. */
   .wb-page-chip {
