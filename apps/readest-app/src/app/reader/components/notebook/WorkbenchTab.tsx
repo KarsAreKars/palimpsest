@@ -831,7 +831,7 @@ const WorkbenchTab: React.FC<{ bookKey: string }> = ({ bookKey }) => {
   const showScrollChip = !pinned && growth;
 
   return (
-    <div className='flex min-h-0 flex-1 flex-col'>
+    <div className='flex h-full min-h-0 flex-col'>
       <div className='min-h-0 flex-1'>
         <div className='wb-stage'>
           <div
