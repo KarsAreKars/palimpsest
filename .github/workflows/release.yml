@@ -55,5 +55,8 @@ jobs:
       - name: Publish DMG to GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          files: apps/readest-app/src-tauri/target/release/bundle/dmg/*.dmg
+          # The workspace-level Cargo target dir wins: with --target aarch64-apple-darwin
+          # the DMG lands at target/aarch64-apple-darwin/release/bundle/dmg/*.dmg (verified
+          # on the v0.1.0 run). The ** covers both that and a package-local target dir.
+          files: target/**/release/bundle/dmg/*.dmg
           generate_release_notes: true
