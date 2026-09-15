@@ -62,11 +62,36 @@ export interface ConceptState {
   bloom: number; // 1..6
   asked: number;
   last_ts: string;
+  /** Misconceptions named for this concept (dedupe-appended; additive). */
+  misconception_ids?: string[];
 }
+
+/** A spaced-retest item for a named misconception (additive). */
+export interface RetestEntry {
+  concept: string;
+  misconception_id: string;
+  due_ts: number;
+  /** Index into RETEST_INTERVALS_MS: 0 → +24h, 1 → +72h, 2 → +168h. */
+  interval_index: number;
+  passes: number; // consecutive passes; >=2 removes the entry
+}
+
+/** Spaced-retest intervals: 24h → 72h → 168h. */
+export const RETEST_INTERVALS_MS = [
+  24 * 60 * 60 * 1000,
+  72 * 60 * 60 * 1000,
+  168 * 60 * 60 * 1000,
+] as const;
 
 export interface LearnerState {
   exchanges: LearnerExchange[];
   concept_states: Record<string, ConceptState>;
+  /** Spaced retests owed to the reader (additive; absent in old logs). */
+  retest_queue?: RetestEntry[];
+  /** Anti-gaming telemetry per problem (additive). */
+  gaming_signals?: Record<string, { hint_velocity: number; flags: number }>;
+  /** Opaque per-problem tutoring sessions, keyed by problem (additive). */
+  problem_sessions?: Record<string, unknown>;
 }
 
 export const emptyLearner = (): LearnerState => ({ exchanges: [], concept_states: {} });
@@ -101,6 +126,62 @@ export function applyExchange(state: LearnerState, ex: LearnerExchange): Learner
     [ex.concept]: { bloom, asked: (prev?.asked ?? 0) + 1, last_ts: ex.ts },
   };
   return { exchanges, concept_states };
+}
+
+// --- Tutoring additions (additive; old learner.json files lack these) ------
+
+/**
+ * Insert or replace a retest item, keyed by (concept, misconception_id).
+ * Pure: the first retest is due +24h (interval_index 0).
+ */
+export function scheduleRetest(queue: RetestEntry[], entry: RetestEntry): RetestEntry[] {
+  const rest = queue.filter(
+    (e) => !(e.concept === entry.concept && e.misconception_id === entry.misconception_id),
+  );
+  return [...rest, entry];
+}
+
+/**
+ * Record a spaced-retest result. Pass advances the interval (24h → 72h →
+ * 168h) and the pass count; a second consecutive pass retires the item.
+ * Fail resets to interval 0 and clears passes. Pure; unknown items no-op.
+ */
+export function recordRetestResult(
+  queue: RetestEntry[],
+  concept: string,
+  misconceptionId: string,
+  passed: boolean,
+  now: number = Date.now(),
+): RetestEntry[] {
+  const entry = queue.find((e) => e.concept === concept && e.misconception_id === misconceptionId);
+  if (!entry) return queue;
+  if (!passed) {
+    return scheduleRetest(queue, {
+      ...entry,
+      interval_index: 0,
+      passes: 0,
+      due_ts: now + RETEST_INTERVALS_MS[0],
+    });
+  }
+  const passes = entry.passes + 1;
+  if (passes >= 2) {
+    // Retired: two spaced passes is enough evidence it landed.
+    return queue.filter((e) => !(e.concept === concept && e.misconception_id === misconceptionId));
+  }
+  const interval_index = Math.min(entry.interval_index + 1, RETEST_INTERVALS_MS.length - 1);
+  const intervalMs = RETEST_INTERVALS_MS[interval_index] ?? RETEST_INTERVALS_MS[0] ?? 0;
+  return scheduleRetest(queue, {
+    ...entry,
+    interval_index,
+    passes,
+    due_ts: now + intervalMs,
+  });
+}
+
+/** Dedupe-append a named misconception to a concept's state. Pure. */
+export function recordMisconceptionHit(state: ConceptState, id: string): ConceptState {
+  if (state.misconception_ids?.includes(id)) return state;
+  return { ...state, misconception_ids: [...(state.misconception_ids ?? []), id] };
 }
 
 /** Plan §6: same concept asked ≥3× → switch strategy, offer a Feynman session. */
@@ -157,6 +238,14 @@ export async function loadLearner(appService: AppService, book: Book): Promise<L
     return {
       exchanges: Array.isArray(parsed.exchanges) ? parsed.exchanges : [],
       concept_states: parsed.concept_states ?? {},
+      // Additive fields: tolerate absence in old logs, preserve when present.
+      ...(Array.isArray(parsed.retest_queue) ? { retest_queue: parsed.retest_queue } : {}),
+      ...(parsed.gaming_signals && typeof parsed.gaming_signals === 'object'
+        ? { gaming_signals: parsed.gaming_signals }
+        : {}),
+      ...(parsed.problem_sessions && typeof parsed.problem_sessions === 'object'
+        ? { problem_sessions: parsed.problem_sessions }
+        : {}),
     };
   } catch {
     return emptyLearner(); // first exchange ever, or a corrupt log — start clean

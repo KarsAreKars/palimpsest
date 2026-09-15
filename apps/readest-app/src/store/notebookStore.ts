@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { BookNote } from '@/types/book';
 import { TextSelection } from '@/utils/sel';
 
-export type NotebookTab = 'spine' | 'notes' | 'study';
+export type NotebookTab = 'spine' | 'notes' | 'study' | 'workbench';
 
 interface NotebookState {
   notebookWidth: string;
@@ -16,11 +16,15 @@ interface NotebookState {
   notebookNewHighlightId: string | null;
   notebookEditAnnotation: BookNote | null;
   notebookAnnotationDrafts: { [key: string]: string };
+  /** Notebook panel width as a fraction of the window (0.15–0.85).
+   *  Drag-resizable via the panel's left-edge handle; dblclick resets. */
+  notebookWidthFrac: number;
   getIsNotebookVisible: () => boolean;
   toggleNotebook: () => void;
   toggleNotebookPin: () => void;
   getNotebookWidth: () => string;
   setNotebookWidth: (width: string) => void;
+  setNotebookWidthFrac: (frac: number) => void;
   setNotebookVisible: (visible: boolean) => void;
   setNotebookPin: (pinned: boolean) => void;
   setNotebookActiveTab: (tab: NotebookTab) => void;
@@ -40,9 +44,12 @@ export const useNotebookStore = create<NotebookState>((set, get) => ({
   notebookNewHighlightId: null,
   notebookEditAnnotation: null,
   notebookAnnotationDrafts: {},
+  notebookWidthFrac: 0.35,
   getIsNotebookVisible: () => get().isNotebookVisible,
   getNotebookWidth: () => get().notebookWidth,
   setNotebookWidth: (width: string) => set({ notebookWidth: width }),
+  setNotebookWidthFrac: (frac: number) =>
+    set({ notebookWidthFrac: Math.min(0.85, Math.max(0.15, frac)) }),
   toggleNotebook: () => set((state) => ({ isNotebookVisible: !state.isNotebookVisible })),
   toggleNotebookPin: () => set((state) => ({ isNotebookPinned: !state.isNotebookPinned })),
   setNotebookVisible: (visible: boolean) => set({ isNotebookVisible: visible }),

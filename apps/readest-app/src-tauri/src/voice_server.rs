@@ -1,47 +1,87 @@
-//! Palimpsest voice server auto-start.
+//! Palimpsest voice server auto-start, with strict app ownership.
 //!
-//! On launch, probe the local narration server (qwen_server.py, port 8737).
-//! When nothing answers, spawn the bundled server with the best available
-//! Python — the model download stays lazy (first narration), so the child
-//! is cheap to start.
+//! On launch, probe the local narration server (qwen_server.py, port 8737)
+//! with an adopt-or-evict strategy:
+//!   * `/health` answers with our ownership token  -> adopt it, no spawn.
+//!   * `/health` answers without a token (or a foreign one) -> a zombie from
+//!     a previous app instance or a manual start: evict its pids, wait for
+//!     the port to go quiet, spawn our own.
+//!   * nothing answers -> spawn our own.
+//!
+//! Ownership token: a 16-byte random hex string persisted NEXT TO the app
+//! data directory (`<app_data_dir>/../palimpsest-voice-token`, i.e.
+//! `~/Library/Application Support/palimpsest-voice-token` on macOS — a
+//! sibling of the per-bundle dir so it survives app re-launches). The
+//! bundled server is spawned with `--token <hex>` and echoes it in
+//! `/health`; a server started without `--token` omits the field. A
+//! respawned app instance reads the same file and can therefore adopt a
+//! server it started before its own restart.
+//!
+//! Crash-restart: a supervisor task owns the server for the whole app run.
+//! If the owned child exits unexpectedly (or an adopted server stops
+//! answering) while the app is still running, the supervisor respawns with
+//! exponential backoff (1s, 2s, 4s, ... capped at 30s, max 5 attempts).
+//! The `shutdown` AtomicBool — set on `ExitRequested` — suppresses the
+//! respawn during app shutdown.
 //!
 //! Lifetime: the spawned [`tokio::process::Child`] is held in managed state
 //! for the whole app session. It must NOT be a local of the spawning task:
-//! `kill_on_drop` would reap it the moment the task returns (seconds after
-//! /health first passes) and every session's narration would die. The child
-//! is killed explicitly on `ExitRequested` (`stop`) and reaped by
+//! `kill_on_drop` would reap it the moment the task returns. The child is
+//! killed explicitly on `ExitRequested` (`stop`) and reaped by
 //! `kill_on_drop` as a fallback when the state drops at process exit.
 //! The child's stdout/stderr ride the same log pipeline as everything else
-//! (tauri_plugin_log -> ~/Library/Logs). If health never passes within
-//! 120 s we give up silently: the narration controller already falls back
-//! to Edge voices and the UI shows its offline state elsewhere.
+//! (tauri_plugin_log -> ~/Library/Logs). If health never passes the
+//! supervisor gives up after 5 attempts: the narration controller already
+//! falls back to Edge voices and the UI shows its offline state elsewhere.
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::Stdio;
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::Mutex;
 use std::time::Duration;
 use tauri::{AppHandle, Manager};
 use tokio::io::AsyncBufReadExt;
 
+/// Port the bundled qwen_server.py binds. Keep in sync with `HEALTH_URL`.
+const VOICE_PORT: u16 = 8737;
 const HEALTH_URL: &str = "http://127.0.0.1:8737/health";
 /// Probe cadence while waiting for the server to come up.
 const HEALTH_POLL: Duration = Duration::from_secs(2);
-/// Give up after this long; the server may still finish starting (model
-/// downloads, cold MLX) — the UI shows its own offline state.
+/// Give up on a single spawn after this long (model downloads, cold MLX).
 const HEALTH_LIMIT: Duration = Duration::from_secs(120);
+/// Steady-state watchdog cadence once a server is considered up.
+const WATCH_POLL: Duration = Duration::from_secs(5);
+/// Consecutive failed health probes before a watched server is declared dead
+/// (one 3s-timeout failure alone can be a sleep/wake hiccup).
+const WATCH_STRIKES: u32 = 2;
+/// Crash-restart backoff: 1s, 2s, 4s, ... capped at 30s.
+const BACKOFF_START: Duration = Duration::from_secs(1);
+const BACKOFF_MAX: Duration = Duration::from_secs(30);
+/// Failed respawn attempts before the supervisor gives up for this app run.
+const MAX_RESTART_ATTEMPTS: u32 = 5;
 
-/// The one spawned voice-server child, held for the app lifetime.
-/// `None` before spawn (or after `stop` reaped it).
+/// App-lifetime voice server state.
 #[derive(Default)]
 pub struct VoiceServerState {
+    /// The one spawned voice-server child. `None` when we adopted an
+    /// already-running (token-matching) server, before spawn, or after
+    /// `stop` reaped it.
     child: Mutex<Option<tokio::process::Child>>,
+    /// Set by `stop` on `ExitRequested`: suppresses crash-respawn during
+    /// shutdown so exiting the app doesn't look like a server crash.
+    shutdown: AtomicBool,
+    /// Bumped by `restart_voice_server` before it kills anything. The
+    /// supervisor snapshots this at each watch/wait phase and bails out
+    /// promptly (re-probing from scratch) when it changes — otherwise a
+    /// user-triggered restart could race a supervisor respawn.
+    generation: AtomicU64,
 }
 
 pub fn start(app: &AppHandle) {
     #[cfg(all(desktop, not(windows)))]
     {
         app.manage(VoiceServerState::default());
-        tauri::async_runtime::spawn(spawn_voice_server(app.clone()));
+        tauri::async_runtime::spawn(supervise(app.clone()));
     }
     #[cfg(not(all(desktop, not(windows))))]
     let _ = app;
@@ -53,6 +93,7 @@ pub fn stop(app: &AppHandle) {
     #[cfg(all(desktop, not(windows)))]
     {
         if let Some(state) = app.try_state::<VoiceServerState>() {
+            state.shutdown.store(true, Ordering::SeqCst);
             if let Ok(mut guard) = state.child.lock() {
                 if let Some(mut child) = guard.take() {
                     log::info!("voice server: stopping on exit");
@@ -63,6 +104,76 @@ pub fn stop(app: &AppHandle) {
     }
     #[cfg(not(all(desktop, not(windows))))]
     let _ = app;
+}
+
+#[cfg(all(desktop, not(windows)))]
+fn shutdown_flag(app: &AppHandle) -> bool {
+    app.try_state::<VoiceServerState>()
+        .map(|s| s.shutdown.load(Ordering::SeqCst))
+        .unwrap_or(true)
+}
+
+#[cfg(all(desktop, not(windows)))]
+fn generation(app: &AppHandle) -> u64 {
+    app.try_state::<VoiceServerState>()
+        .map(|s| s.generation.load(Ordering::SeqCst))
+        .unwrap_or(u64::MAX)
+}
+
+/// Persist the ownership token as a sibling of the app-data dir (NOT inside
+/// the per-bundle dir): `~/Library/Application Support/palimpsest-voice-token`
+/// on macOS. A sibling keeps the file in the same "directory family" the app
+/// already uses for its data while letting a respawned app instance (possibly
+/// a different bundle id during dev) match a server it started earlier.
+#[cfg(all(desktop, not(windows)))]
+fn token_file_path(app: &AppHandle) -> Option<PathBuf> {
+    app.path()
+        .app_data_dir()
+        .ok()
+        .and_then(|dir| dir.parent().map(|parent| parent.join("palimpsest-voice-token")))
+}
+
+/// 16 random bytes from the OS as 32 hex chars. No `rand` crate: this code
+/// path is already gated `not(windows)`, so `/dev/urandom` is always there.
+#[cfg(all(desktop, not(windows)))]
+fn random_hex_16() -> Option<String> {
+    use std::io::Read;
+    let mut buf = [0u8; 16];
+    std::fs::File::open("/dev/urandom")
+        .ok()?
+        .read_exact(&mut buf)
+        .ok()?;
+    Some(buf.iter().map(|b| format!("{b:02x}")).collect())
+}
+
+/// Read the persisted token, creating it if absent or malformed. Falls back
+/// to an ephemeral per-process token when the file can't be used: within
+/// this app run ownership still works (the supervisor keeps the token in
+/// memory), only cross-launch adoption degrades.
+#[cfg(all(desktop, not(windows)))]
+fn load_or_create_token(app: &AppHandle) -> Option<String> {
+    if let Some(path) = token_file_path(app) {
+        if let Ok(existing) = std::fs::read_to_string(&path) {
+            let trimmed = existing.trim();
+            if trimmed.len() == 32 && trimmed.bytes().all(|b| b.is_ascii_hexdigit()) {
+                return Some(trimmed.to_string());
+            }
+            eprintln!(
+                "voice server: token file {} is malformed — regenerating",
+                path.display()
+            );
+        }
+        if let Some(token) = random_hex_16() {
+            if let Err(e) = std::fs::write(&path, &token) {
+                eprintln!(
+                    "voice server: could not persist token to {}: {e}",
+                    path.display()
+                );
+            }
+            return Some(token);
+        }
+    }
+    random_hex_16()
 }
 
 #[cfg(all(desktop, not(windows)))]
@@ -134,6 +245,7 @@ fn resolve_python() -> Option<String> {
         .map(|c| c.to_string_lossy().into_owned())
 }
 
+/// Bare "is anything answering /health" probe (token-agnostic).
 #[cfg(all(desktop, not(windows)))]
 async fn health_up() -> bool {
     match reqwest::Client::builder()
@@ -150,111 +262,51 @@ async fn health_up() -> bool {
     }
 }
 
+/// Outcome of the ownership probe against `/health`.
 #[cfg(all(desktop, not(windows)))]
-async fn pump_to_log<S: tokio::io::AsyncRead + Unpin + Send + 'static>(stream: Option<S>) {
-    let Some(stream) = stream else { return };
-    tauri::async_runtime::spawn(async move {
-        let mut lines = tokio::io::BufReader::new(stream).lines();
-        while let Ok(Some(line)) = lines.next_line().await {
-            if !line.trim().is_empty() {
-                log::info!("voice server: {line}");
-            }
-        }
-    });
+enum Probe {
+    /// Answering with our token — ours (adopt, don't spawn).
+    Ours,
+    /// Answering without a token field, with a foreign token, or with a
+    /// non-JSON body — a zombie or manual server (evict, respawn).
+    Foreign,
+    /// Nothing answered (spawn).
+    Quiet,
 }
 
 #[cfg(all(desktop, not(windows)))]
-async fn spawn_voice_server(app: AppHandle) {
-    if health_up().await {
-        log::info!("voice server: already answering at {HEALTH_URL}");
-        return;
-    }
-    let (Ok(script), Some(python)) = (resolve_server_script(&app), resolve_python()) else {
-        log::warn!("voice server: no working interpreter or script — skipping auto-start");
-        return;
+async fn probe(token: &str) -> Probe {
+    let Ok(client) = reqwest::Client::builder()
+        .timeout(Duration::from_secs(3))
+        .build()
+    else {
+        return Probe::Quiet;
     };
-    // TOCTOU: another process may have started a server while we resolved
-    // the interpreter (each probe costs a python startup).
-    if health_up().await {
-        log::info!("voice server: already answering at {HEALTH_URL} (post-resolve probe)");
-        return;
-    }
-    log::info!("voice server: starting {} via {}", script.display(), python);
-
-    let mut child = match tokio::process::Command::new(&python)
-        .arg(&script)
-        .stdin(Stdio::null())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .kill_on_drop(true)
-        .spawn()
-    {
-        Ok(child) => child,
-        Err(e) => {
-            log::warn!("voice server: spawn failed: {e}");
-            return;
-        }
+    let Ok(res) = client.get(HEALTH_URL).send().await else {
+        return Probe::Quiet;
     };
-
-    pump_to_log(child.stdout.take()).await;
-    pump_to_log(child.stderr.take()).await;
-
-    // Hand the child to app-lifetime state BEFORE waiting on health: this
-    // task returning must not drop (and kill) the server.
-    if let Some(state) = app.try_state::<VoiceServerState>() {
-        match state.child.lock() {
-            Ok(mut guard) => *guard = Some(child),
-            Err(_) => log::error!("voice server: state lock poisoned — child will not survive"),
-        }
-    } else {
-        log::error!("voice server: managed state missing — child will not survive");
+    if !res.status().is_success() {
+        // Something occupies the port but doesn't speak our health protocol.
+        return Probe::Foreign;
     }
-
-    let mut waited = Duration::ZERO;
-    while waited < HEALTH_LIMIT {
-        tokio::time::sleep(HEALTH_POLL).await;
-        waited += HEALTH_POLL;
-        if health_up().await {
-            log::info!("voice server: healthy after {}s", waited.as_secs());
-            return;
-        }
+    let Ok(body) = res.text().await else {
+        return Probe::Foreign;
+    };
+    match serde_json::from_str::<serde_json::Value>(&body) {
+        Ok(json) => match json.get("token").and_then(|t| t.as_str()) {
+            Some(found) if found == token => Probe::Ours,
+            // No `token` field at all: a server started without `--token`
+            // (manual or spawned by an older app build) — never adopt.
+            _ => Probe::Foreign,
+        },
+        Err(_) => Probe::Foreign,
     }
-    log::warn!(
-        "voice server: no health after {}s — leaving it running in the background",
-        HEALTH_LIMIT.as_secs()
-    );
 }
 
-/// Restart the local voice server. Called from the narration layer when
-/// synthesis starts failing while `/health` still answers — a half-dead
-/// MLX stack: the stdlib HTTP server survives, but every generation
-/// EPIPEs under it (observed 2026-09-14 after a sleep/wake cycle, ~4 h
-/// into the server's life). The narration controller can't detect that
-/// from a health probe, so the client counts consecutive synthesis
-/// failures and asks for a restart.
-///
-/// Both ownership cases are handled: the child we spawned this session,
-/// AND a zombie answering the port from a previous app instance (today's
-/// bug — the launch probe adopted the zombie, so our own child is None
-/// and killing it alone would restart nothing).
+/// Kill every pid answering :8737 (the `lsof` pattern used everywhere in
+/// this module). Returns the evicted pids for logging.
 #[cfg(all(desktop, not(windows)))]
-#[tauri::command]
-pub async fn restart_voice_server(app: AppHandle) -> Result<bool, String> {
-    log::info!("voice server: restart requested");
-
-    // Take the child under a short scope — the std MutexGuard is not Send,
-    // so it must drop before we await the kill.
-    let held = app
-        .try_state::<VoiceServerState>()
-        .and_then(|state| state.child.lock().ok().and_then(|mut guard| guard.take()));
-    if let Some(mut child) = held {
-        let _ = child.start_kill();
-        let _ = child.wait().await;
-        log::info!("voice server: killed held child");
-    }
-
-    // Evict anything else answering :8737 (zombie from a previous app
-    // instance — the launch probe adopts those, so we own no handle).
+fn evict_foreign_pids() -> Vec<u32> {
     let pids = std::process::Command::new("lsof")
         .args(["-ti", "tcp:8737"])
         .output()
@@ -270,23 +322,304 @@ pub async fn restart_voice_server(app: AppHandle) -> Result<bool, String> {
             .args(["-9", &pid.to_string()])
             .status();
     }
+    pids
+}
+
+/// Wait (up to 10 s) for the port to actually go quiet after an eviction.
+#[cfg(all(desktop, not(windows)))]
+async fn wait_port_quiet() {
+    let mut waited = Duration::ZERO;
+    while health_up().await && waited < Duration::from_secs(10) {
+        tokio::time::sleep(Duration::from_millis(250)).await;
+        waited += Duration::from_millis(250);
+    }
+}
+
+#[cfg(all(desktop, not(windows)))]
+async fn pump_to_log<S: tokio::io::AsyncRead + Unpin + Send + 'static>(stream: Option<S>) {
+    let Some(stream) = stream else { return };
+    tauri::async_runtime::spawn(async move {
+        let mut lines = tokio::io::BufReader::new(stream).lines();
+        while let Ok(Some(line)) = lines.next_line().await {
+            if !line.trim().is_empty() {
+                log::info!("voice server: {line}");
+            }
+        }
+    });
+}
+
+/// Spawn the bundled server with our ownership token. The argv is part of
+/// the coordination contract with qwen_server.py:
+///   `python qwen_server.py --token <hex> --port 8737`
+#[cfg(all(desktop, not(windows)))]
+async fn spawn_child(python: &str, script: &Path, token: &str) -> Result<tokio::process::Child, String> {
+    log::info!("voice server: starting {} via {}", script.display(), python);
+    let mut child = tokio::process::Command::new(python)
+        .arg(script)
+        .args(["--token", token, "--port", &VOICE_PORT.to_string()])
+        .stdin(Stdio::null())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .kill_on_drop(true)
+        .spawn()
+        .map_err(|e| format!("spawn failed: {e}"))?;
+
+    pump_to_log(child.stdout.take()).await;
+    pump_to_log(child.stderr.take()).await;
+    Ok(child)
+}
+
+/// Hand a freshly spawned child to app-lifetime state. This must happen
+/// before the supervisor waits on health: the spawning task returning must
+/// not drop (and kill) the server.
+#[cfg(all(desktop, not(windows)))]
+fn store_child(app: &AppHandle, child: tokio::process::Child) {
+    match app.try_state::<VoiceServerState>() {
+        Some(state) => match state.child.lock() {
+            Ok(mut guard) => *guard = Some(child),
+            Err(_) => log::error!("voice server: state lock poisoned — child will not survive"),
+        },
+        None => log::error!("voice server: managed state missing — child will not survive"),
+    }
+}
+
+/// Result of a watch / health-wait phase. `Resync` means
+/// `restart_voice_server` bumped the generation mid-phase: abandon the phase
+/// and let the supervisor re-probe from scratch (the restart kills and
+/// respawns via the same supervisor loop — it never stores a child itself,
+/// keeping a single spawner).
+#[cfg(all(desktop, not(windows)))]
+enum Phase {
+    Healthy,
+    Unhealthy,
+    Shutdown,
+    Resync,
+}
+
+/// Watch a server we consider up (owned child or adopted). Returns when it
+/// dies, when shutdown begins, or when a restart bumps the generation.
+#[cfg(all(desktop, not(windows)))]
+async fn watch(app: &AppHandle) -> Phase {
+    let start_gen = generation(app);
+    let mut strikes = 0u32;
+    loop {
+        tokio::time::sleep(WATCH_POLL).await;
+        if shutdown_flag(app) {
+            return Phase::Shutdown;
+        }
+        if generation(app) != start_gen {
+            return Phase::Resync;
+        }
+        // Reap the owned child if it has exited (also keeps it from
+        // lingering as a zombie). Adopted servers have no child here; their
+        // death is detected by the health strikes below.
+        let exited = match app.try_state::<VoiceServerState>() {
+            Some(state) => match state.child.lock() {
+                Ok(mut guard) => match guard.as_mut() {
+                    Some(child) => matches!(child.try_wait(), Ok(Some(_))),
+                    None => false,
+                },
+                Err(_) => false,
+            },
+            None => true,
+        };
+        if exited {
+            let reaped = app
+                .try_state::<VoiceServerState>()
+                .and_then(|state| state.child.lock().ok().and_then(|mut guard| guard.take()));
+            if let Some(mut child) = reaped {
+                let _ = child.wait().await;
+            }
+            return Phase::Unhealthy;
+        }
+        if health_up().await {
+            strikes = 0;
+        } else {
+            strikes += 1;
+            if strikes >= WATCH_STRIKES {
+                return Phase::Unhealthy;
+            }
+        }
+    }
+}
+
+/// Wait (up to `HEALTH_LIMIT`) for a just-spawned server to answer /health.
+#[cfg(all(desktop, not(windows)))]
+async fn wait_healthy(app: &AppHandle) -> Phase {
+    let start_gen = generation(app);
+    let mut waited = Duration::ZERO;
+    while waited < HEALTH_LIMIT {
+        if shutdown_flag(app) {
+            return Phase::Shutdown;
+        }
+        if generation(app) != start_gen {
+            return Phase::Resync;
+        }
+        if health_up().await {
+            return Phase::Healthy;
+        }
+        tokio::time::sleep(HEALTH_POLL).await;
+        waited += HEALTH_POLL;
+    }
+    Phase::Unhealthy
+}
+
+/// The app-owned server supervisor. Sole spawner: it adopts or evicts on
+/// probe, spawns with the ownership token, watches the result, and on an
+/// unexpected death respawns with exponential backoff (max 5 attempts).
+#[cfg(all(desktop, not(windows)))]
+async fn supervise(app: AppHandle) {
+    let Some(token) = load_or_create_token(&app) else {
+        log::warn!("voice server: cannot establish ownership token — skipping auto-start");
+        return;
+    };
+
+    let mut attempts = 0u32;
+    let mut backoff = BACKOFF_START;
+    loop {
+        if shutdown_flag(&app) {
+            return;
+        }
+
+        // Adopt-or-evict probe: never spawn on top of a server we don't own.
+        match probe(&token).await {
+            Probe::Ours => {
+                eprintln!("voice server: adopted existing server (token match) — no spawn needed");
+                log::info!("voice server: adopted existing server (token match)");
+                match watch(&app).await {
+                    Phase::Shutdown => return,
+                    Phase::Resync => continue,
+                    Phase::Healthy | Phase::Unhealthy => {
+                        eprintln!("voice server: adopted server went away — respawning ours");
+                        log::warn!("voice server: adopted server went away — respawning ours");
+                    }
+                }
+            }
+            Probe::Foreign => {
+                eprintln!(
+                    "voice server: foreign/zombie server on :8737 (token missing or mismatch) — evicting"
+                );
+                log::info!("voice server: foreign/zombie server on :8737 — evicting");
+                let pids = evict_foreign_pids();
+                if !pids.is_empty() {
+                    log::info!("voice server: evicted {} foreign pid(s): {:?}", pids.len(), pids);
+                }
+                wait_port_quiet().await;
+                // Loop around: the re-probe should now find the port quiet.
+                continue;
+            }
+            Probe::Quiet => {}
+        }
+
+        // Nothing (ours) answers — spawn our own.
+        let (Ok(script), Some(python)) = (resolve_server_script(&app), resolve_python()) else {
+            log::warn!("voice server: no working interpreter or script — skipping auto-start");
+            return;
+        };
+        match spawn_child(&python, &script, &token).await {
+            Ok(child) => {
+                store_child(&app, child);
+                match wait_healthy(&app).await {
+                    Phase::Shutdown => return,
+                    Phase::Resync => continue,
+                    Phase::Healthy => {
+                        eprintln!("voice server: healthy — watching");
+                        log::info!("voice server: healthy — watching");
+                        attempts = 0;
+                        backoff = BACKOFF_START;
+                        match watch(&app).await {
+                            Phase::Shutdown => return,
+                            Phase::Resync => continue,
+                            Phase::Healthy | Phase::Unhealthy => {
+                                eprintln!(
+                                    "voice server: child exited unexpectedly — restarting (attempt {})",
+                                    attempts + 1
+                                );
+                                log::warn!("voice server: child exited unexpectedly — restarting");
+                            }
+                        }
+                    }
+                    Phase::Unhealthy => {
+                        eprintln!("voice server: spawned but never became healthy");
+                        log::warn!("voice server: no health after {}s", HEALTH_LIMIT.as_secs());
+                    }
+                }
+            }
+            Err(e) => {
+                log::warn!("voice server: {e}");
+            }
+        }
+
+        attempts += 1;
+        if attempts >= MAX_RESTART_ATTEMPTS {
+            eprintln!(
+                "voice server: giving up after {attempts} failed attempts — leaving it down this session"
+            );
+            log::error!("voice server: giving up after {attempts} failed attempts");
+            return;
+        }
+        eprintln!(
+            "voice server: respawn attempt {} in {}s",
+            attempts,
+            backoff.as_secs()
+        );
+        tokio::time::sleep(backoff).await;
+        backoff = (backoff * 2).min(BACKOFF_MAX);
+    }
+}
+
+/// Restart the local voice server. Called from the narration layer when
+/// synthesis starts failing while `/health` still answers — a half-dead
+/// MLX stack: the stdlib HTTP server survives, but every generation
+/// EPIPEs under it (observed 2026-09-14 after a sleep/wake cycle, ~4 h
+/// into the server's life). The narration controller can't detect that
+/// from a health probe, so the client counts consecutive synthesis
+/// failures and asks for a restart.
+///
+/// Ownership cases handled: the child we spawned this session (killed via
+/// the stored handle), a token-matching server adopted at launch, AND a
+/// zombie answering the port without a token (evicted via lsof) — every
+/// case ends with the supervisor respawning a token-verified server. This
+/// command never stores the new child itself: the supervisor stays the
+/// sole spawner, so its crash-restart bookkeeping can't double-spawn.
+#[cfg(all(desktop, not(windows)))]
+#[tauri::command]
+pub async fn restart_voice_server(app: AppHandle) -> Result<bool, String> {
+    log::info!("voice server: restart requested");
+
+    // Bump the generation FIRST so the supervisor abandons any in-flight
+    // health-wait/watch promptly instead of racing our kill below.
+    if let Some(state) = app.try_state::<VoiceServerState>() {
+        state.generation.fetch_add(1, Ordering::SeqCst);
+    }
+
+    // Take the child under a short scope — the std MutexGuard is not Send,
+    // so it must drop before we await the kill.
+    let held = app
+        .try_state::<VoiceServerState>()
+        .and_then(|state| state.child.lock().ok().and_then(|mut guard| guard.take()));
+    if let Some(mut child) = held {
+        let _ = child.start_kill();
+        let _ = child.wait().await;
+        log::info!("voice server: killed held child");
+    }
+
+    // Evict anything else answering :8737 (adopted or zombie — the launch
+    // probe may have adopted a token-matching server we hold no handle to).
+    let pids = evict_foreign_pids();
     if !pids.is_empty() {
         log::info!("voice server: evicted {} foreign pid(s): {:?}", pids.len(), pids);
     }
+    wait_port_quiet().await;
 
-    // Wait for the port to actually go quiet before respawning.
-    let mut quiet = Duration::ZERO;
-    while health_up().await && quiet < Duration::from_secs(10) {
-        tokio::time::sleep(Duration::from_millis(250)).await;
-        quiet += Duration::from_millis(250);
-    }
-
-    spawn_voice_server(app).await;
-
-    // Cold start re-downloads nothing (models are disk-cached) but MLX
-    // load takes a few seconds — give the fresh server a grace window.
+    // The supervisor notices the generation bump within WATCH_POLL, finds
+    // the port quiet, and spawns a fresh token-verified server. We only
+    // wait for health to report the result.
     let mut waited = Duration::ZERO;
     while waited < Duration::from_secs(60) {
+        if shutdown_flag(&app) {
+            return Ok(false);
+        }
         if health_up().await {
             log::info!("voice server: healthy again after {}s", waited.as_secs());
             return Ok(true);

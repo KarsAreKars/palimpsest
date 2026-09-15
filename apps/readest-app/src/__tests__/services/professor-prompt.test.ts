@@ -5,7 +5,11 @@
  * THU-MAIC/OpenMAIC (MIT) on 2026-09-10. If an edit drops them, fail loud.
  */
 import { describe, expect, test } from 'vitest';
-import { PROFESSOR_SYSTEM_PROMPT, buildProfessorUserMessage } from '@/services/professor/prompt';
+import {
+  PROFESSOR_SYSTEM_PROMPT,
+  PROFESSOR_WORKBENCH_ADDENDUM,
+  buildProfessorUserMessage,
+} from '@/services/professor/prompt';
 import type { ProfessorContextPack } from '@/services/professor/contextPack';
 
 describe('professor system prompt', () => {
@@ -34,6 +38,28 @@ describe('professor system prompt', () => {
   test('check-me protocol: correct the specific wrong turn first', () => {
     expect(PROFESSOR_SYSTEM_PROMPT).toContain('load-bearing claim');
     expect(PROFESSOR_SYSTEM_PROMPT).toContain('wrong turn first');
+  });
+});
+
+describe('professor workbench addendum — key contract lines are pinned', () => {
+  test('citation whitelist contract: cite only listed pages, else "I will look"', () => {
+    expect(PROFESSOR_WORKBENCH_ADDENDUM).toContain('Pages in your context');
+    expect(PROFESSOR_WORKBENCH_ADDENDUM).toContain('cite only those');
+    expect(PROFESSOR_WORKBENCH_ADDENDUM).toContain('I will look');
+  });
+
+  test('tag output contract: protocol tags only at the very end, END tag named', () => {
+    expect(PROFESSOR_WORKBENCH_ADDENDUM).toContain('Protocol tags ONLY at the very end');
+    expect(PROFESSOR_WORKBENCH_ADDENDUM).toContain('[CONCEPT:name]');
+    expect(PROFESSOR_WORKBENCH_ADDENDUM).toContain('[QKIND:kind]');
+    expect(PROFESSOR_WORKBENCH_ADDENDUM).toContain('[WORKBENCH:END]');
+    expect(PROFESSOR_WORKBENCH_ADDENDUM).toContain('$$ display blocks');
+  });
+
+  test('the workbench system prompt is the base prompt plus the addendum', () => {
+    expect(PROFESSOR_WORKBENCH_ADDENDUM.length).toBeGreaterThan(0);
+    // additive-only guard: the addendum must not rewrite the base ladder.
+    expect(PROFESSOR_SYSTEM_PROMPT).not.toContain('WORKBENCH MODE');
   });
 });
 

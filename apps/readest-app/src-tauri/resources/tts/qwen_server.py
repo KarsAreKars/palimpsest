@@ -4,22 +4,38 @@
 Wraps mlx-audio's Qwen3-TTS (Apple Silicon, fully offline) in a tiny HTTP
 contract the app's SpeechProvider can talk to:
 
-    GET  /health            -> {"ok": true, "model": ..., "voices": [...]}
+    GET  /health            -> {"ok": true, "model": ..., "voices": [...],
+                               "token": ...}   # token only with --token
     POST /tts               -> audio/wav bytes
        body: {"text": str, "voice"?: str, "speed"?: float, "instruct"?: str}
+    POST /check             -> deterministic per-step math verdicts (CAS)
+       body: {"steps": [{"id", "latex"}], "goal_latex"?, "assumptions"?}
+       resp: {"steps": [{"id", "status", "verdict", "basis",
+                          "counterexample"?, "elapsed_ms"}], "goal",
+              "engine": {"name": "sympy", "version": ...}}
+       Verdicts are three-valued: a step is never called wrong without a
+       counterexample, and "unknown" (sympy couldn't decide) is a
+       first-class verdict, never a failure. The CAS decides correctness;
+       the LLM only diagnoses. Requires sympy + latex2sympy2 (lazy import);
+       without them /check returns 503 and voice routes keep working.
 
 The model loads once at startup; generation runs under a lock (MLX is not
 concurrency-safe). ~2x real-time on Apple Silicon — narration pre-builds per
 unit, so playback never waits.
 
-Run:  <venv>/bin/python qwen_server.py [--port 8737] [--model <hf-id>]
+Run:  <venv>/bin/python qwen_server.py [--port 8737] [--model <hf-id>] [--token <hex>]
 Requires: pip install mlx-audio  (M1+ Mac, ~2GB model download on first run)
+           pip install sympy latex2sympy2  (optional, only for /check)
 """
 
 from __future__ import annotations
 
 import argparse
+import concurrent.futures
+import itertools
 import json
+import os
+import re
 import socket
 import sys
 import tempfile
@@ -27,7 +43,11 @@ import threading
 import time
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
-import os
+
+try:  # SIGALRM is the clean per-pair timeout kill; Unix-only (macOS: fine)
+    import signal
+except ImportError:  # pragma: no cover - non-Unix fallback exists below
+    signal = None
 
 MODEL_ID = "mlx-community/Qwen3-TTS-12Hz-1.7B-CustomVoice-8bit"
 
@@ -169,6 +189,8 @@ def synth_kokoro(text: str, voice: str, speed: float) -> bytes:
 _lock = threading.Lock()
 _model = None
 _model_id = MODEL_ID
+# Auth token echoed by /health when the app spawns us with --token <hex>.
+_TOKEN = None
 
 
 def get_model():
@@ -254,6 +276,538 @@ def transcribe_audio(raw: bytes) -> str:
                 pass
 
 
+# ---------------------------------------------------------------------------
+# /check — deterministic math checking (M2). The CAS decides correctness;
+# the LLM only diagnoses. Everything here is lazy: sympy/latex2sympy2 import
+# on first /check so voice-only installs keep working without them.
+# ---------------------------------------------------------------------------
+
+_engine_cache = None          # (sympy, latex2sympy) once imported OK
+_engine_failed = False        # import already failed once — don't retry
+
+
+def _get_engine():
+    """Lazy import of the math engine. Returns (sympy, latex2sympy) or None."""
+    global _engine_cache, _engine_failed
+    if _engine_cache is not None:
+        return _engine_cache
+    if _engine_failed:
+        return None
+    try:
+        import sympy as sp
+        from latex2sympy2 import latex2sympy
+    except Exception as e:  # ImportError or the antlr runtime breakage
+        _engine_failed = True
+        print(f"[check] math engine unavailable: {e}", file=sys.stderr, flush=True)
+        return None
+    _engine_cache = (sp, latex2sympy)
+    print(f"[check] math engine ready (sympy {sp.__version__})", flush=True)
+    return _engine_cache
+
+
+class _CheckTimeout(Exception):
+    """Raised when a single pair check blows its 2s budget -> verdict unknown."""
+
+
+def _alarm_handler(signum, frame):
+    raise _CheckTimeout()
+
+
+def _with_timeout(fn, seconds=2):
+    """Run fn with a hard `seconds` budget; _CheckTimeout on overrun.
+
+    Uses SIGALRM on the main thread (the production server runs
+    serve_forever there, so signal handlers bind). Any other thread
+    (threaded servers, tests) falls back to a future with a timeout — the
+    worker thread may leak if sympy is stuck in C, but the request still
+    answers on time.
+    """
+    if signal is not None and threading.current_thread() is threading.main_thread():
+        prev = signal.signal(signal.SIGALRM, _alarm_handler)
+        signal.setitimer(signal.ITIMER_REAL, seconds)
+        try:
+            return fn()
+        finally:
+            signal.setitimer(signal.ITIMER_REAL, 0)
+            signal.signal(signal.SIGALRM, prev)
+    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
+        fut = pool.submit(fn)
+        try:
+            return fut.result(timeout=seconds)
+        except concurrent.futures.TimeoutError:
+            raise _CheckTimeout()
+
+
+class _ParseError(Exception):
+    """LaTeX we can't turn into math — a parse problem, NOT wrong math."""
+
+
+# Relation operators at brace-depth 0, longest-first so \neq beats \ne etc.
+_REL_OPS = ("\\neq", "\\leq", "\\geq", "\\approx", "\\ne", "\\le", "\\ge", "=", "<", ">")
+_REL_BUILDERS = {}  # filled lazily from sympy
+
+
+def _strip_environments(latex: str) -> str:
+    """Drop \\begin{...}/\\end{...} wrappers (aligned, gather, cases, ...)."""
+    return re.sub(r"\\(?:begin|end)\{[^}]*\}", " ", latex)
+
+
+def _last_line(latex: str) -> str:
+    """Multi-line/aligned input: keep the LAST relation — the current line
+    of working. Steps are sequential, so the final line is the claim."""
+    s = _strip_environments(latex)
+    lines = [ln.strip() for ln in re.split(r"\\\\|\n", s)]
+    lines = [ln for ln in lines if ln]
+    if not lines:
+        raise _ParseError("empty")
+    return lines[-1].replace("&", " ").rstrip(".,;").strip()
+
+
+def _split_disjunction(s: str) -> list:
+    """"x=1 \\lor x=4" / \\vee / bare ' or ' -> list of disjunct strings."""
+    parts = re.split(r"\\lor|\\vee| or ", s)
+    return [p.strip() for p in parts if p.strip()]
+
+
+def _split_top_level_relation(s: str):
+    """Find a relation operator at brace-depth 0. Returns (op, lhs, rhs)."""
+    depth = 0
+    i = 0
+    while i < len(s):
+        c = s[i]
+        if c == "{":
+            depth += 1
+        elif c == "}":
+            depth = max(0, depth - 1)
+        elif depth == 0:
+            for op in _REL_OPS:
+                if s.startswith(op, i):
+                    return op, s[:i].strip(), s[i + len(op):].strip()
+        i += 1
+    return None
+
+
+def _parse_side(sp, latex2sympy, s: str):
+    """Parse one expression side. Equations are split BEFORE this, so a bare
+    number/symbol/expr is expected — latex2sympy2 pre-SOLVES whole equations
+    ("2x+3=7" -> [Eq(x,2)]), which is why relations never reach it whole."""
+    if not s:
+        raise _ParseError("empty side")
+    out = latex2sympy(s)
+    if isinstance(out, list):
+        if len(out) == 1:
+            out = out[0]
+        else:
+            raise _ParseError("unexpected list")
+    if isinstance(out, sp.Expr):
+        return out
+    raise _ParseError(f"not an expression: {type(out).__name__}")
+
+
+def _rel_from_op(sp, op: str, lhs, rhs):
+    if op in ("=", "\\approx"):
+        return sp.Eq(lhs, rhs)
+    if op in ("\\ne", "\\neq"):
+        return sp.Ne(lhs, rhs)
+    if op in ("\\le", "\\leq"):
+        return sp.Le(lhs, rhs)
+    if op in ("\\ge", "\\geq"):
+        return sp.Ge(lhs, rhs)
+    if op == "<":
+        return sp.StrictLessThan(lhs, rhs)
+    return sp.StrictGreaterThan(lhs, rhs)
+
+
+def _parse_item(latex: str, sp, latex2sympy) -> dict:
+    """LaTeX -> {"kind": expr|rel|or|and, ...}. Raises _ParseError."""
+    line = _last_line(latex)
+    disjuncts = _split_disjunction(line)
+    items = [_parse_single(d, sp, latex2sympy) for d in disjuncts]
+    if len(items) == 1:
+        return items[0]
+    # "x = 1 or x = 4" claims ANY disjunct — a solution-set union.
+    return {"kind": "or", "items": items}
+
+
+def _parse_single(s: str, sp, latex2sympy) -> dict:
+    split = _split_top_level_relation(s)
+    if split is None:
+        return {"kind": "expr", "expr": _parse_side(sp, latex2sympy, s)}
+    op, lhs_s, rhs_s = split
+    # chained "a = b = c": all segments must agree (conjunction of Eq).
+    segs = [lhs_s]
+    rest = rhs_s
+    while True:
+        nxt = _split_top_level_relation(rest)
+        if nxt is None:
+            segs.append(rest)
+            break
+        n_op, n_lhs, n_rhs = nxt
+        if n_op != op:
+            raise _ParseError("mixed relation chain")
+        segs.append(n_lhs)
+        rest = n_rhs
+    parts = [_parse_side(sp, latex2sympy, g) for g in segs]
+    rels = [_rel_from_op(sp, op, parts[0], p) for p in parts[1:]]
+    if len(rels) == 1:
+        return {"kind": "rel", "rel": rels[0]}
+    return {"kind": "and", "items": [{"kind": "rel", "rel": r} for r in rels]}
+
+
+_ASSUMPTION_KEYS = {"real", "positive", "negative", "integer", "nonzero", "complex"}
+
+
+def _apply_assumptions(item: dict, ctx: dict) -> dict:
+    """Rebuild symbols per the request's assumptions (e.g. x: {real: true})
+    so domain solving and numeric probes respect them."""
+    sp = ctx["sp"]
+    assumed = ctx.setdefault("assumed", {})
+    spec = ctx.get("sym_assumptions") or {}
+
+    def map_sym(sym):
+        want = spec.get(sym.name) or {}
+        kwargs = {k: bool(v) for k, v in want.items() if k in _ASSUMPTION_KEYS}
+        key = (sym.name, tuple(sorted(kwargs.items())))
+        if key not in assumed:
+            assumed[key] = sp.Symbol(sym.name, **kwargs) if kwargs else sym
+        return assumed[key]
+
+    def map_obj(obj):
+        repl = {s: map_sym(s) for s in obj.free_symbols}
+        return obj.subs(repl, simultaneous=True) if repl else obj
+
+    out = dict(item)
+    if out["kind"] in ("expr", "rel"):
+        for fld in ("expr", "rel"):
+            if fld in out:
+                out[fld] = map_obj(out[fld])
+    else:
+        out["items"] = [_apply_assumptions(i, ctx) for i in out["items"]]
+    return out
+
+
+def _core_rel(item: dict, sp):
+    """The relation whose solution set is the item's zero/validity set."""
+    if item["kind"] == "expr":
+        return sp.Eq(item["expr"], 0)
+    return item["rel"]
+
+
+def _zero_set(item: dict, ctx):
+    """Solution/validity set of an item over the declared domain, or None if
+    sympy can't produce one (-> that rung of the ladder is skipped)."""
+    sp = ctx["sp"]
+    domain = ctx["domain"]
+    if item["kind"] == "or":
+        parts = [_zero_set(i, ctx) for i in item["items"]]
+        return sp.Union(*parts) if all(p is not None for p in parts) else None
+    if item["kind"] == "and":
+        parts = [_zero_set(i, ctx) for i in item["items"]]
+        return sp.Intersection(*parts) if all(p is not None for p in parts) else None
+    core = _core_rel(item, sp)
+    free = sorted(core.free_symbols, key=str)
+    if not free:
+        # Constant statement: an equality is either tautological or empty.
+        try:
+            if isinstance(core, sp.Equality):
+                return domain if bool(core.lhs == core.rhs) else sp.S.EmptySet
+            return sp.S.EmptySet  # constant inequalities: treat as undecidable
+        except Exception:
+            return None
+    if len(free) == 1:
+        x = free[0]
+        try:
+            return sp.solveset(core, x, domain=domain)
+        except Exception:
+            pass
+        try:
+            sols = sp.solve(core, x)
+            flat = [s[x] if isinstance(s, dict) else s for s in sols]
+            return sp.FiniteSet(*flat)
+        except Exception:
+            return None
+    try:  # multivariate: solve returns lists of tuples
+        sols = sp.solve(core, free)
+        tuples = []
+        for s in sols:
+            if isinstance(s, dict):
+                tuples.append(tuple(s.get(v) for v in free))
+            elif isinstance(s, (tuple, list)):
+                tuples.append(tuple(s))
+            else:
+                tuples.append((s,))
+        return sp.FiniteSet(*tuples)
+    except Exception:
+        return None
+
+
+def _is_zero(sp, e) -> bool:
+    try:
+        if e.is_zero is True:
+            return True
+    except Exception:
+        pass
+    try:
+        return bool(sp.simplify(e) == 0)
+    except Exception:
+        return False
+
+
+def _vals_equal(sp, a, b) -> bool:
+    try:
+        if bool(a == b):
+            return True
+    except Exception:
+        pass
+    try:
+        if _is_zero(sp, a - b):
+            return True
+    except Exception:
+        pass
+    try:
+        return bool(abs((a - b).evalf()) < 1e-9)
+    except Exception:
+        return False
+
+
+def _sample_points(n_symbols: int, sp):
+    ints = list(range(-5, 6))
+    if n_symbols == 1:
+        rats = [sp.Rational(k, 2) for k in range(-9, 10, 2)]
+        return ints + rats
+    return ints
+
+
+def _residual(item: dict, sp):
+    """lhs-rhs for relations, the expression itself for bare expressions."""
+    if item["kind"] == "expr":
+        return item["expr"]
+    return item["rel"].lhs - item["rel"].rhs
+
+
+def _satisfied(item: dict, env, sp) -> bool:
+    """Truth of the item under an assignment (expr means expr = 0)."""
+    if item["kind"] == "or":
+        return any(_satisfied(i, env, sp) for i in item["items"])
+    if item["kind"] == "and":
+        return all(_satisfied(i, env, sp) for i in item["items"])
+    if item["kind"] == "expr":
+        return _is_zero(sp, item["expr"].subs(env))
+    try:
+        return bool(item["rel"].subs(env))
+    except Exception:
+        return False
+
+
+def _json_number(v):
+    try:
+        f = float(v)
+        return int(f) if f.is_integer() else f
+    except Exception:
+        return str(v)
+
+
+def _find_counterexample(prev: dict, step: dict, ctx):
+    """Rung 5: hunt for ONE concrete assignment where the lines disagree.
+    Integer (and half-integer, single-var) points in [-5, 5]. Returns the
+    mission-shaped counterexample dict or None (no evidence -> unknown)."""
+    sp = ctx["sp"]
+    free = sorted(
+        {s for it in (prev, step) for s in _core_rel(it, sp).free_symbols},
+        key=str,
+    )
+    if not free or len(free) > 2:
+        return None
+    points = _sample_points(len(free), sp)
+    both_expr = prev["kind"] == "expr" and step["kind"] == "expr"
+    r_prev, r_step = _residual(prev, sp), _residual(step, sp)
+    for combo in itertools.product(points, repeat=len(free)):
+        env = dict(zip(free, combo))
+        if both_expr:
+            v1, v2 = r_prev.subs(env), r_step.subs(env)
+            if not _vals_equal(sp, v1, v2):
+                return {
+                    "assignments": {s.name: _json_number(env[s]) for s in free},
+                    "prev_value": str(sp.simplify(v1)),
+                    "step_value": str(sp.simplify(v2)),
+                }
+            continue
+        t1, t2 = _satisfied(prev, env, sp), _satisfied(step, env, sp)
+        if t1 == t2:
+            continue
+        v1, v2 = r_prev.subs(env), r_step.subs(env)
+        return {
+            "assignments": {s.name: _json_number(env[s]) for s in free},
+            "prev_value": str(sp.simplify(v1)),
+            "step_value": str(sp.simplify(v2)),
+        }
+    return None
+
+
+def _sample_all_equal(sp, e1, e2) -> bool:
+    """Numeric probe used when sympy's equals() couldn't decide (None)."""
+    free = sorted(e1.free_symbols | e2.free_symbols, key=str)
+    if not free or len(free) > 2:
+        return False
+    for combo in itertools.product(_sample_points(len(free), sp), repeat=len(free)):
+        env = dict(zip(free, combo))
+        if not _vals_equal(sp, e1.subs(env), e2.subs(env)):
+            return False
+    return True
+
+
+def _check_pair(prev: dict, step: dict, ctx):
+    """The verdict ladder for one adjacent pair. Returns
+    (verdict, basis, counterexample|None). A step is NEVER called wrong
+    without evidence; "unknown" is a first-class verdict."""
+    sp = ctx["sp"]
+    # Rung 2 — algebraic equivalence, proven.
+    if prev["kind"] == "expr" and step["kind"] == "expr":
+        if _is_zero(sp, prev["expr"] - step["expr"]):
+            return "equivalent", "proven", None
+    elif (
+        prev["kind"] == "rel"
+        and step["kind"] == "rel"
+        and isinstance(prev["rel"], sp.Equality)
+        and isinstance(step["rel"], sp.Equality)
+    ):
+        d = (prev["rel"].lhs - prev["rel"].rhs) - (step["rel"].lhs - step["rel"].rhs)
+        if _is_zero(sp, d):
+            return "equivalent", "proven", None
+    # Rung 3 — sympy's own equals(); None means "could not decide".
+    diff_pair = None
+    if prev["kind"] == "expr" and step["kind"] == "expr":
+        diff_pair = (prev["expr"], step["expr"])
+    elif (
+        prev["kind"] == "rel"
+        and step["kind"] == "rel"
+        and isinstance(prev["rel"], sp.Equality)
+        and isinstance(step["rel"], sp.Equality)
+    ):
+        diff_pair = (prev["rel"].lhs - prev["rel"].rhs, step["rel"].lhs - step["rel"].rhs)
+    if diff_pair is not None:
+        e1, e2 = diff_pair
+        try:
+            res = e1.equals(e2)
+        except Exception:
+            res = None
+        if res is True:
+            return "equivalent", "numeric_evidence", None
+        if res is None:
+            if _sample_all_equal(sp, e1, e2):
+                return "equivalent", "numeric_evidence", None
+            if prev["kind"] == "expr" and step["kind"] == "expr":
+                cx = _find_counterexample(prev, step, ctx)
+                if cx is not None:
+                    return "not_equivalent", "numeric_evidence", cx
+                # numeric probe disagreed but no clean counterexample found
+                return "unknown", "none", None
+            # relations: a disagreeing probe on lhs-rhs isn't a root-set
+            # counterexample — fall through to implication rungs.
+    # Rung 4 — implication probes over the declared domain (STACK's
+    # marks): squaring both sides / cancelling are VALID one-way moves a
+    # naive checker flags wrong.
+    a_set, b_set = _zero_set(prev, ctx), _zero_set(step, ctx)
+    if a_set is not None and b_set is not None:
+        fwd = a_set.is_subset(b_set)   # sol(prev) <= sol(step): prev => step
+        bwd = b_set.is_subset(a_set)   # sol(step) <= sol(prev): step => prev
+        if fwd is True and bwd is True:
+            return "equivalent_same_roots", "proven", None
+        if fwd is True:
+            return "implied_forward", "proven", None
+        if bwd is True:
+            return "implied_backward", "proven", None
+    # Rung 5 — not_equivalent ONLY with a concrete counterexample.
+    cx = _find_counterexample(prev, step, ctx)
+    if cx is not None:
+        return "not_equivalent", "numeric_evidence", cx
+    return "unknown", "none", None
+
+
+def _ms(t0: float) -> int:
+    return int((time.time() - t0) * 1000)
+
+
+def run_check(payload: dict, engine) -> dict:
+    """Check every step in isolation (one bad line never blocks others),
+    then the goal against the final parsed step."""
+    sp, latex2sympy = engine
+    assumptions = payload.get("assumptions")
+    if not isinstance(assumptions, dict):
+        assumptions = {}
+    domain = sp.S.Complexes if str(assumptions.get("domain", "real")).lower() in (
+        "complex", "c") else sp.S.Reals
+    ctx = {
+        "sp": sp,
+        "domain": domain,
+        "sym_assumptions": assumptions.get("symbols")
+        if isinstance(assumptions.get("symbols"), dict)
+        else {},
+        "assumed": {},
+    }
+    results = []
+    prev_item = None
+    last_item = last_id = None
+    for idx, raw in enumerate(payload.get("steps") or []):
+        if not isinstance(raw, dict):
+            results.append({"id": f"s{idx+1}", "status": "parse_error", "elapsed_ms": 0})
+            continue
+        sid = str(raw.get("id") or f"s{idx+1}")
+        latex = raw.get("latex")
+        t0 = time.time()
+        if not isinstance(latex, str) or not latex.strip():
+            results.append({"id": sid, "status": "parse_error", "elapsed_ms": _ms(t0)})
+            continue
+        try:
+            item = _apply_assumptions(_parse_item(latex, sp, latex2sympy), ctx)
+        except Exception:
+            results.append({"id": sid, "status": "parse_error", "elapsed_ms": _ms(t0)})
+            continue
+        last_item, last_id = item, sid
+        if prev_item is None:
+            # No predecessor: nothing to judge against — unknown, never wrong.
+            results.append(
+                {"id": sid, "status": "ok", "verdict": "unknown", "basis": "none", "elapsed_ms": _ms(t0)}
+            )
+        else:
+            try:
+                verdict, basis, cx = _with_timeout(
+                    lambda p=prev_item, s=item: _check_pair(p, s, ctx), seconds=2
+                )
+            except _CheckTimeout:
+                verdict, basis, cx = "unknown", "none", None
+            except Exception as e:
+                print(f"[check] pair check error at {sid}: {e}", file=sys.stderr, flush=True)
+                verdict, basis, cx = "unknown", "none", None
+            rec = {"id": sid, "status": "ok", "verdict": verdict, "basis": basis, "elapsed_ms": _ms(t0)}
+            if cx is not None:
+                rec["counterexample"] = cx
+            results.append(rec)
+        prev_item = item
+    goal = None
+    goal_latex = payload.get("goal_latex")
+    if isinstance(goal_latex, str) and goal_latex.strip():
+        reached, by_step = False, None
+        if last_item is not None:
+            try:
+                gitem = _apply_assumptions(_parse_item(goal_latex, sp, latex2sympy), ctx)
+                verdict, _, _ = _with_timeout(
+                    lambda l=last_item, g=gitem: _check_pair(l, g, ctx), seconds=2
+                )
+                reached = verdict in ("equivalent", "equivalent_same_roots", "implied_forward")
+                by_step = last_id
+            except _CheckTimeout:
+                pass
+            except Exception as e:
+                print(f"[check] goal check error: {e}", file=sys.stderr, flush=True)
+        goal = {"reached": reached, "by_step": by_step}
+    return {
+        "steps": results,
+        "goal": goal,
+        "engine": {"name": "sympy", "version": sp.__version__},
+    }
+
+
 class Handler(BaseHTTPRequestHandler):
     def log_message(self, fmt, *args):  # quiet default access log
         pass
@@ -278,13 +832,19 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_GET(self) -> None:
         if self.path == "/health":
-            self._json(200, {"ok": True, "model": _model_id, "voices": ALL_VOICES})
+            body = {"ok": True, "model": _model_id, "voices": ALL_VOICES}
+            if _TOKEN:
+                body["token"] = _TOKEN  # app's spawn-time handshake (fast, side-effect-free)
+            self._json(200, body)
         elif self.path == "/voices":
             self._json(200, {"voices": ALL_VOICES})
         else:
             self._json(404, {"error": "not found"})
 
     def do_POST(self) -> None:
+        if self.path == "/check":
+            self._handle_check()
+            return
         if self.path == "/stt":
             if not ensure_whisper():
                 self._json(503, {"error": "whisper model not downloaded yet"})
@@ -433,14 +993,45 @@ class Handler(BaseHTTPRequestHandler):
         self.wfile.write(data)
 
 
+    def _handle_check(self) -> None:
+        engine = _get_engine()
+        if engine is None:
+            self._json(503, {"error": "math engine unavailable"})
+            return
+        try:
+            length = int(self.headers.get("Content-Length") or 0)
+            payload = json.loads(self.rfile.read(length) or b"{}")
+        except Exception as e:
+            self._json(400, {"error": f"bad json: {e}"})
+            return
+        if not isinstance(payload, dict) or not isinstance(payload.get("steps"), list):
+            self._json(400, {"error": "body must be a JSON object with a 'steps' list"})
+            return
+        t0 = time.time()
+        try:
+            result = run_check(payload, engine)
+        except Exception as e:
+            print(f"[check] internal error: {e}", file=sys.stderr, flush=True)
+            self._json(500, {"error": f"check failed: {e}"})
+            return
+        ok = sum(1 for s in result["steps"] if s.get("status") == "ok")
+        print(
+            f"[check] {ok}/{len(result['steps'])} steps ok in {time.time() - t0:.2f}s",
+            flush=True,
+        )
+        self._json(200, result)
+
+
 def main() -> None:
-    global _model_id
+    global _model_id, _TOKEN
     ap = argparse.ArgumentParser()
     ap.add_argument("--port", type=int, default=8737)
     ap.add_argument("--model", default=MODEL_ID)
+    ap.add_argument("--token", default=None, help="hex token echoed by /health")
     ap.add_argument("--preload", action="store_true", help="load the model at startup")
     args = ap.parse_args()
     _model_id = args.model
+    _TOKEN = args.token
     if args.preload:
         get_model()
         get_kokoro()  # warm both engines — a cold kokoro first-request costs ~20s
@@ -452,7 +1043,11 @@ def main() -> None:
     # Cost: /health can't answer mid-generation; acceptable (probes happen
     # at session start).
     server = HTTPServer(("127.0.0.1", args.port), Handler)
-    print(f"[qwen-tts] listening on http://127.0.0.1:{args.port} (model {_model_id})", file=sys.stderr)
+    token_note = " (token-protected)" if _TOKEN else ""
+    print(
+        f"[qwen-tts] listening on http://127.0.0.1:{args.port} (model {_model_id}){token_note}",
+        file=sys.stderr,
+    )
     server.serve_forever()
 
 

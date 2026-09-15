@@ -38,6 +38,13 @@ export interface ChapterSlice {
   /** Chapter title from the TOC, or "page N" when the TOC can't place it. */
   label: string;
   text: string;
+  /** 1-based pages whose spans fed `text` (additive, context-architecture
+   *  T1 whitelist: the professor may cite exactly these pages). */
+  pages?: number[];
+  /** The honest subset of `pages` whose text actually survived the
+   *  maxChars truncation — pages past the cut ride in neither text nor
+   *  (therefore) the citation whitelist. */
+  includedPages?: number[];
 }
 
 export const MAX_OBJECTIVES = 5;
@@ -57,10 +64,7 @@ const flattenToc = (toc: TOCItem[]): TOCItem[] => {
   return out;
 };
 
-const pageSpan = (
-  manifest: HpubManifest,
-  page: number,
-): [number, number] | null => {
+const pageSpan = (manifest: HpubManifest, page: number): [number, number] | null => {
   const entry = manifest.alignment.find((a) => a.page === page);
   return entry && entry.md_char_start !== null && entry.md_char_end !== null
     ? [entry.md_char_start, entry.md_char_end]
@@ -101,27 +105,38 @@ export function getChapterText(args: {
   }
 
   const spans: Array<[number, number]> = [];
+  const pages: number[] = [];
   for (let p = startPage; p < endPageExclusive; p++) {
     const span = pageSpan(manifest, p);
-    if (span) spans.push(span);
+    if (span) {
+      spans.push(span);
+      pages.push(p);
+    }
   }
   // No anchored pages in the window (a diagram-only chapter): fall back to
   // the reader's own page so the prompt still has real text under it.
   if (spans.length === 0) {
     const span = pageSpan(manifest, page);
-    if (span) spans.push(span);
+    if (span) {
+      spans.push(span);
+      pages.push(page);
+    }
   }
   const text =
     spans.length === 0
       ? ''
       : md
-          .slice(
-            Math.min(...spans.map((s) => s[0])),
-            Math.max(...spans.map((s) => s[1])),
-          )
+          .slice(Math.min(...spans.map((s) => s[0])), Math.max(...spans.map((s) => s[1])))
           .trim()
           .slice(0, maxChars);
-  return { label, text };
+  // Citation honesty: a page whose span begins at or past the truncation
+  // cut contributes no text to the prompt — it must not wear the whitelist.
+  const base = spans.length === 0 ? 0 : Math.min(...spans.map((s) => s[0]));
+  const includedPages =
+    spans.length === 0
+      ? undefined
+      : pages.filter((_p, i) => (spans[i]?.[0] ?? Infinity) < base + maxChars);
+  return { label, text, pages, includedPages };
 }
 
 /**
@@ -243,8 +258,7 @@ export function buildSessionReportMd(args: {
 }): string {
   const { chapterLabel, objectives, date, page } = args;
   const lines = objectives.map((o, i) => {
-    const stamp =
-      o.status === 'pass' ? 'PASS' : o.status === 'retry' ? 'RETRY' : 'not reached';
+    const stamp = o.status === 'pass' ? 'PASS' : o.status === 'retry' ? 'RETRY' : 'not reached';
     const takeaway = o.takeaway ? ` — ${o.takeaway}` : '';
     return `${i + 1}. **${stamp}** — ${o.text}${takeaway}`;
   });

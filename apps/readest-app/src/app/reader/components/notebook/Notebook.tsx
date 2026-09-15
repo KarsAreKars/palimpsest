@@ -1,5 +1,5 @@
 import clsx from 'clsx';
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { lazy, Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import { RiQuillPenLine } from 'react-icons/ri';
 
 import { useSettingsStore } from '@/store/settingsStore';
@@ -11,7 +11,6 @@ import { useTranslation } from '@/hooks/useTranslation';
 import { useThemeStore } from '@/store/themeStore';
 import { useEnv } from '@/context/EnvContext';
 import { useSwipeToDismiss } from '@/hooks/useSwipeToDismiss';
-import { usePanelResize } from '@/hooks/usePanelResize';
 import { TextSelection } from '@/utils/sel';
 import { BookNote } from '@/types/book';
 import { uniqueId } from '@/utils/misc';
@@ -37,7 +36,51 @@ import EmptyState from '../EmptyState';
 import type { NotebookTab } from '@/store/notebookStore';
 
 const MIN_NOTEBOOK_WIDTH = 0.15;
-const MAX_NOTEBOOK_WIDTH = 0.45;
+// The workbench (math desk) asked for a wider panel: a derivation beside your
+// working steps needs real width, so the drag range extends past the old
+// 0.45 notes-era ceiling. Mobile behaviour is unchanged (full width).
+const MAX_NOTEBOOK_WIDTH = 0.85;
+const DEFAULT_NOTEBOOK_WIDTH_FRAC = 0.35;
+
+// The math workbench mounts lazily and behind a quiet error boundary — the
+// 2026-09-06 lesson: a chat-runtime crash took the whole notebook down, so a
+// crash inside the workbench desk must never propagate past this panel.
+const WorkbenchTab = lazy(() => import('./WorkbenchTab'));
+
+/** Quiet paper fallback when the workbench desk crashes: no stack trace, no
+ *  drama, and the notebook's other tabs keep working. */
+const WorkbenchFallback: React.FC = () => {
+  const _ = useTranslation();
+  return (
+    <div className='flex flex-grow items-center justify-center px-3'>
+      <div className='border-ink/25 bg-paperlight rounded-sm border px-4 py-6 text-center'>
+        <p className='typed text-mutedink text-[9px] leading-relaxed'>
+          {_('This desk is being restored.')}
+        </p>
+      </div>
+    </div>
+  );
+};
+
+class DeskErrorBoundary extends React.Component<
+  { children: React.ReactNode },
+  { crashed: boolean }
+> {
+  override state = { crashed: false };
+
+  static getDerivedStateFromError() {
+    return { crashed: true };
+  }
+
+  override componentDidCatch(error: unknown) {
+    // Log for diagnostics; render stays the quiet paper note above.
+    console.error('[workbench] desk crashed; sealed behind fallback', error);
+  }
+
+  override render() {
+    return this.state.crashed ? <WorkbenchFallback /> : this.props.children;
+  }
+}
 
 const Notebook: React.FC = ({}) => {
   const _ = useTranslation();
@@ -45,13 +88,12 @@ const Notebook: React.FC = ({}) => {
   const { settings } = useSettingsStore();
   const { updateAppTheme, safeAreaInsets, systemUIVisible, statusBarHeight } = useThemeStore();
   const { sideBarBookKey } = useSidebarStore();
-  const { notebookWidth, isNotebookVisible, isNotebookPinned, notebookActiveTab } =
-    useNotebookStore();
+  const { isNotebookVisible, isNotebookPinned, notebookActiveTab } = useNotebookStore();
+  const { notebookWidthFrac, setNotebookWidthFrac } = useNotebookStore();
   const { notebookNewAnnotation, notebookEditAnnotation, setNotebookPin } = useNotebookStore();
   const { getBookData, getConfig, saveConfig, updateBooknotes } = useBookDataStore();
   const { getView, getViewsById, getProgress, getViewSettings } = useReaderStore();
-  const { getNotebookWidth, setNotebookWidth, setNotebookVisible, toggleNotebookPin } =
-    useNotebookStore();
+  const { setNotebookWidth, setNotebookVisible, toggleNotebookPin } = useNotebookStore();
   const { setNotebookNewAnnotation, setNotebookNewHighlightId } = useNotebookStore();
   const { setNotebookEditAnnotation, setNotebookActiveTab } = useNotebookStore();
 
@@ -124,9 +166,40 @@ const Notebook: React.FC = ({}) => {
     }
   }, [isNotebookVisible, notebookNewAnnotation, notebookEditAnnotation]);
 
-  const handleNotebookResize = (newWidth: string) => {
-    setNotebookWidth(newWidth);
-    settings.globalReadSettings.notebookWidth = newWidth;
+  // Width drag (M1): pointer events + pointer capture on the left-edge
+  // handle; the panel is anchored right, so dragging LEFT widens it.
+  // Fraction lives in notebookStore (clamped 0.15–0.85); dblclick resets.
+  const handleWidthDragStart = useCallback(
+    (e: React.PointerEvent<HTMLDivElement>) => {
+      if (isMobile) return;
+      e.preventDefault();
+      const handle = e.currentTarget;
+      handle.setPointerCapture(e.pointerId);
+      const startX = e.clientX;
+      const startFrac = useNotebookStore.getState().notebookWidthFrac;
+      const onMove = (ev: PointerEvent) => {
+        setNotebookWidthFrac(startFrac + (startX - ev.clientX) / window.innerWidth);
+      };
+      const onDone = () => handle.removeEventListener('pointermove', onMove);
+      handle.addEventListener('pointermove', onMove);
+      handle.addEventListener('pointerup', onDone, { once: true });
+      handle.addEventListener('pointercancel', onDone, { once: true });
+    },
+    [isMobile, setNotebookWidthFrac],
+  );
+
+  const handleWidthKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    const step = e.shiftKey ? 0.05 : 0.02;
+    if (e.key === 'ArrowLeft') {
+      e.preventDefault();
+      setNotebookWidthFrac(useNotebookStore.getState().notebookWidthFrac + step);
+    } else if (e.key === 'ArrowRight') {
+      e.preventDefault();
+      setNotebookWidthFrac(useNotebookStore.getState().notebookWidthFrac - step);
+    } else if (e.key === 'Home') {
+      e.preventDefault();
+      setNotebookWidthFrac(DEFAULT_NOTEBOOK_WIDTH_FRAC);
+    }
   };
 
   const handleTogglePin = () => {
@@ -284,15 +357,6 @@ const Notebook: React.FC = ({}) => {
     setNotebookEditAnnotation(null);
   };
 
-  const { handleResizeStart: handleDragStart, handleResizeKeyDown: handleDragKeyDown } =
-    usePanelResize({
-      side: 'end',
-      minWidth: MIN_NOTEBOOK_WIDTH,
-      maxWidth: MAX_NOTEBOOK_WIDTH,
-      getWidth: getNotebookWidth,
-      onResize: handleNotebookResize,
-    });
-
   const config = getConfig(sideBarBookKey);
   const { booknotes: allNotes = [] } = config || {};
   const excerptNotes = allNotes
@@ -352,7 +416,7 @@ const Notebook: React.FC = ({}) => {
         aria-label={_('Notebook')}
         dir={viewSettings?.rtl && languageDir === 'rtl' ? 'rtl' : 'ltr'}
         style={{
-          width: isMobile ? '100%' : `${notebookWidth}`,
+          width: isMobile ? '100%' : `${Math.round(notebookWidthFrac * 10000) / 100}%`,
           maxWidth: isMobile ? '100%' : `${MAX_NOTEBOOK_WIDTH * 100}%`,
           position: isMobile ? 'fixed' : isNotebookPinned ? 'relative' : 'absolute',
           paddingTop: `${getPanelTopInset({
@@ -377,18 +441,23 @@ const Notebook: React.FC = ({}) => {
         `}</style>
         <div
           className={clsx(
-            'drag-bar absolute -left-2 top-0 h-full w-0.5 cursor-col-resize bg-transparent p-2',
+            'group absolute -left-1.5 top-0 z-10 flex h-full w-3 cursor-col-resize touch-none',
+            'flex-col items-center',
             isMobile && 'hidden',
           )}
           role='slider'
           tabIndex={0}
           aria-label={_('Resize Notebook')}
           aria-orientation='horizontal'
-          aria-valuenow={parseFloat(notebookWidth)}
-          onMouseDown={handleDragStart}
-          onTouchStart={handleDragStart}
-          onKeyDown={handleDragKeyDown}
-        />
+          aria-valuemin={Math.round(MIN_NOTEBOOK_WIDTH * 100)}
+          aria-valuemax={Math.round(MAX_NOTEBOOK_WIDTH * 100)}
+          aria-valuenow={Math.round(notebookWidthFrac * 100)}
+          onPointerDown={handleWidthDragStart}
+          onKeyDown={handleWidthKeyDown}
+          onDoubleClick={() => setNotebookWidthFrac(DEFAULT_NOTEBOOK_WIDTH_FRAC)}
+        >
+          <div className='bg-ink/0 group-hover:bg-mutedink h-full w-0.5 transition-colors duration-150' />
+        </div>
         <div className='flex-shrink-0'>
           {isMobile && (
             <div
@@ -433,6 +502,14 @@ const Notebook: React.FC = ({}) => {
           </div>
         ) : notebookActiveTab === 'study' ? (
           <StudyTab bookKey={sideBarBookKey} />
+        ) : notebookActiveTab === 'workbench' ? (
+          <div className='min-h-0 flex-1'>
+            <DeskErrorBoundary>
+              <Suspense fallback={null}>
+                <WorkbenchTab bookKey={sideBarBookKey} />
+              </Suspense>
+            </DeskErrorBoundary>
+          </div>
         ) : isNotesTabEmpty ? (
           <div className='flex flex-grow items-center justify-center overflow-y-auto px-3'>
             <EmptyState
