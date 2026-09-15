@@ -48,6 +48,10 @@ export interface MathFieldProps {
   onCommit?: (latex: string) => void;
   placeholder?: string;
   readOnly?: boolean;
+  /** Focus the field on mount — the pair-mode popover is keyboard-first. */
+  autoFocus?: boolean;
+  /** Compact face (min-height 1.4rem) for the step/justify pair mode. */
+  compact?: boolean;
 }
 
 /**
@@ -61,6 +65,8 @@ const MathField: React.FC<MathFieldProps> = ({
   onCommit,
   placeholder,
   readOnly = false,
+  autoFocus = false,
+  compact = false,
 }) => {
   const ref = useRef<MathfieldElement | null>(null);
   const onChangeRef = useRef(onChange);
@@ -97,10 +103,15 @@ const MathField: React.FC<MathFieldProps> = ({
     }
   }, [value]);
 
+  // Pair mode is keyboard-first: focus on mount when asked.
+  useEffect(() => {
+    if (autoFocus) ref.current?.focus();
+  }, [autoFocus]);
+
   return (
     <math-field
       ref={ref}
-      className='workbench-math-field'
+      className={`workbench-math-field${compact ? ' workbench-math-field-compact' : ''}`}
       virtual-keyboard-mode='off'
       math-virtual-keyboard-policy='manual'
       read-only={readOnly || undefined}

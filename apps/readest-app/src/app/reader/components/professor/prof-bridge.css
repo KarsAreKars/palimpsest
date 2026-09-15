@@ -1,0 +1,57 @@
+/* Chat-bridge plate (Workbench 2.x #7) — the cataloguer's inline suggestion.
+   Unlayered CSS, catalogue grammar, light mode only; the stamp (#8C3B22,
+   var(--stamp)) is the sole accent. */
+
+.wb-bridge {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-width: 24rem;
+  padding: 10px 14px;
+  border: 1px solid color-mix(in srgb, var(--stamp) 55%, transparent);
+}
+
+/* The typed label — sentence-case _() key, uppercased here (the catalogue's
+   TypedLabel convention: typography lives in CSS, never in the string). */
+.wb-bridge-label {
+  font-family: 'Courier New', ui-monospace, monospace;
+  font-size: 9px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--stamp);
+}
+
+.wb-bridge-copy {
+  font-family: Newsreader, Georgia, serif;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--ink);
+  font-style: italic;
+}
+
+.wb-bridge-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 2px;
+}
+
+/* The dismissal is a typed text button, quiet against the stamp — one
+   action carries the accent, per the standing law. */
+.wb-bridge-dismiss {
+  font-family: 'Courier New', ui-monospace, monospace;
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink);
+  opacity: 0.65;
+  background: none;
+  border: none;
+  padding: 4px 2px;
+  cursor: pointer;
+}
+
+.wb-bridge-dismiss:hover {
+  opacity: 1;
+  color: var(--stamp);
+}

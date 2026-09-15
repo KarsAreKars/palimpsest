@@ -3,9 +3,13 @@
  *
  * The professor's streamed workbench messages end with protocol tags on
  * their own lines — [CONCEPT:name], [QKIND:kind], optionally [WORKBENCH:END]
- * to close the session, and [POINT:…] for a one-line takeaway. The UI renders
- * the display markdown (typeset $$ math via Streamdown) and consumes the
- * tags separately for the study log / session state.
+ * to close the session, and [POINT:…] for a one-line takeaway. Workbench 2.x
+ * adds the pedagogy + structure vocabulary: [PROBE], [CONCEPTS known:…;
+ * edge:…; unknown:…], [TEACHBACK ask:…], [EVALUATION], [LOOK page:N[,M]],
+ * [DERIVE title:… goal:…], [STEP n /CHECKED ok|bad], [DIAGRAM claim:…], and
+ * [VOICE]. The UI renders the display markdown (typeset $$ math via
+ * Streamdown) and consumes the tags separately for the study log / session
+ * state.
  *
  * Contract:
  *  - Tags are case-sensitive as spec'd: [CONCEPT:…] strips, [concept:…] is
@@ -20,6 +24,13 @@
  *    legitimately appear inside math anyway.
  */
 
+/** [CONCEPTS …] — concept names in three shelves, as emitted. */
+export interface ConceptMapShelves {
+  known: string[];
+  edge: string[];
+  unknown: string[];
+}
+
 export interface ParsedProfessorMessage {
   /** Clean display markdown, tags stripped, math preserved verbatim. */
   display: string;
@@ -31,14 +42,42 @@ export interface ParsedProfessorMessage {
   end?: boolean;
   /** [POINT:…] — one-line takeaway, if the professor offered one. */
   point?: string;
+  /** [PROBE] — the professor offers the stance chip row. */
+  probe?: boolean;
+  /** [CONCEPTS …] — the session's concept map at this point. */
+  conceptMap?: ConceptMapShelves;
+  /** [TEACHBACK ask:…] — this block requests a teach-back. */
+  teachbackAsk?: string;
+  /** [EVALUATION] — this block judges the most recent teach-back attempt. */
+  evaluation?: boolean;
+  /** [DERIVE title:.. goal:..] — a derivation folio opens in this block. */
+  derive?: { title?: string; goal?: string };
+  /** [STEP n /CHECKED ok|bad] — in display order; the desk renumbers. */
+  stepMarks?: { professorChecked?: 'ok' | 'bad' }[];
+  /** [DIAGRAM claim:..] — a figure slip; the SVG rides in a ```svg fence. */
+  diagram?: { claim?: string };
+  /** [LOOK page:N,M] — raw page list (numbers only; the desk caps it).
+   *  Malformed values capture nothing. */
+  look?: number[];
+  /** [VOICE] — the professor asked that this turn be heard (never
+   *  displayed). Value ignored. */
+  voice?: boolean;
 }
 
 /** All-caps bracket-tag shape: NAME or NAME:value. Case-sensitive. */
 const TAG_PATTERN = /\[([A-Z][A-Z0-9_-]*)(?::([^\]\n]*))?\]/g;
 
-/** The four protocol tags, scanned even inside math shields — their
- *  uppercase names cannot legitimately appear in math ([0,1] can). */
-const PROTOCOL_TAG = /\[(CONCEPT|QKIND|WORKBENCH|POINT)(?::([^\]\n]*))?\]/g;
+/** The protocol tags, scanned even inside math shields — their uppercase
+ *  names cannot legitimately appear in math ([0,1] can). One regex, three
+ *  arms (campaign audit R2, with one consistency fix): CONCEPTS/TEACHBACK
+ *  and — because their grammars are space-joined key:value bodies, which
+ *  R2's colon-only arm could never match — DERIVE/DIAGRAM/LOOK share the
+ *  space-body arm; STEP carries a numeral and an optional /CHECKED tail;
+ *  the rest carry a colon value or nothing. The space arm requires a
+ *  lowercase `key:` after the space, so prose like `[NOTE see: below]`
+ *  still passes through untouched (R2's load-bearing rationale). */
+const PROTOCOL_TAG =
+  /\[(CONCEPTS|TEACHBACK|DERIVE|DIAGRAM|LOOK)(?:[ \t]+[a-z][A-Za-z0-9_-]*:[^\]\n]*|:[^\]\n]*)?\]|\[(STEP)(?:[ \t]+\d+)?(?:[ \t]*\/CHECKED[ \t]+(?:ok|bad))?[ \t]*\]|\[(CONCEPT|QKIND|WORKBENCH|POINT|PROBE|EVALUATION|VOICE)(?::([^\]\n]*))?\]/g;
 
 /** Split out $$ … $$ display math (an unterminated $$ protects to end-of-
  *  string rather than leaking tag-stripping into the tail). */
@@ -49,9 +88,35 @@ export function parseProfessorTags(raw: string): ParsedProfessorMessage {
   let qkind: string | undefined;
   let end = false;
   let point: string | undefined;
+  let probe = false;
+  let conceptMap: ConceptMapShelves | undefined;
+  let teachbackAsk: string | undefined;
+  let evaluation = false;
+  let derive: { title?: string; goal?: string } | undefined;
+  let stepMarks: { professorChecked?: 'ok' | 'bad' }[] | undefined;
+  let diagram: { claim?: string } | undefined;
+  let look: number[] | undefined;
+  let voice = false;
 
-  const captureProtocol = (_match: string, name: string, value?: string): string => {
-    const v = (value ?? '').trim();
+  // The regex carries four groups — (CONCEPTS|TEACHBACK), (STEP),
+  // (CONCEPT|…|VOICE), and its colon value — so the callback receives them
+  // positionally: the name is whichever group participated, and only the
+  // third arm's value is a real capture.
+  const captureProtocol = (
+    _match: string,
+    shelfOrTeachback: string | undefined,
+    step: string | undefined,
+    colonName: string | undefined,
+    colonValue: string | undefined,
+  ): string => {
+    const name = shelfOrTeachback ?? step ?? colonName;
+    if (!name) return '';
+    const value = colonName !== undefined ? colonValue : undefined;
+    // The space-joined bodies ([CONCEPTS known:…], [TEACHBACK ask:…]) and
+    // the step mark capture no value group — recover the body from the
+    // match itself (text between `[NAME` and the closing `]`).
+    const body = value ?? _match.slice(name.length + 1, -1);
+    const v = body.trim();
     switch (name) {
       case 'CONCEPT':
         if (v) concept = v;
@@ -65,6 +130,69 @@ export function parseProfessorTags(raw: string): ParsedProfessorMessage {
       case 'WORKBENCH':
         if (v === 'END') end = true;
         break;
+      case 'PROBE':
+        probe = true;
+        break;
+      case 'EVALUATION':
+        evaluation = true;
+        break;
+      case 'VOICE':
+        voice = true; // value ignored
+        break;
+      case 'TEACHBACK': {
+        const ask = body.replace(/^[ \t]+/, ''); // strip the space-joined body's lead
+        const m = /^ask:(.*)$/s.exec(ask);
+        if (m?.[1]?.trim()) teachbackAsk = m[1].trim();
+        break;
+      }
+      case 'CONCEPTS': {
+        const grab = (key: string): string[] => {
+          const re = new RegExp(`${key}:([^;\\]]*)`);
+          const hit = re.exec(v);
+          if (!hit) return [];
+          return (hit[1] ?? '')
+            .split(',')
+            .map((s) => s.trim())
+            .filter(Boolean);
+        };
+        conceptMap = { known: grab('known'), edge: grab('edge'), unknown: grab('unknown') };
+        break;
+      }
+      case 'DERIVE': {
+        // Split on the LAST ` goal:`; the head loses its leading `title:`.
+        const goalIdx = v.lastIndexOf(' goal:');
+        const head = (goalIdx >= 0 ? v.slice(0, goalIdx) : v).replace(/^title:/, '').trim();
+        const goal = goalIdx >= 0 ? v.slice(goalIdx + ' goal:'.length).trim() : '';
+        derive = {
+          ...(head ? { title: head } : {}),
+          ...(goal ? { goal } : {}),
+        };
+        break;
+      }
+      case 'STEP': {
+        const m = /^\[STEP(?:[ \t]+(\d+))?(?:[ \t]*\/CHECKED[ \t]+(ok|bad))?[ \t]*\]$/.exec(_match);
+        const numeral = m?.[1];
+        const checked = m?.[2] as 'ok' | 'bad' | undefined;
+        // Rebuild the value so the step value parse below works verbatim
+        // (audit R2): [STEP] → '' → captures {}, tag still consumed.
+        const stepValue = `${numeral ?? ''}${checked ? ` /CHECKED ${checked}` : ''}`.trim();
+        const parsedStep = /^\s*\d+\s*(?:\/CHECKED\s+(ok|bad))?\s*$/.exec(stepValue);
+        stepMarks = [
+          ...(stepMarks ?? []),
+          parsedStep ? { professorChecked: parsedStep[1] as 'ok' | 'bad' | undefined } : {},
+        ];
+        break;
+      }
+      case 'DIAGRAM': {
+        const claim = v.replace(/^claim:/, '').trim();
+        if (claim) diagram = { claim }; // empty claim → nothing built
+        break;
+      }
+      case 'LOOK': {
+        const m = /^page:(\d+(?:\s*,\s*\d+)*)$/.exec(v);
+        if (m?.[1]) look = m[1].split(/\s*,\s*/).map(Number); // malformed → nothing
+        break;
+      }
       default:
         break;
     }
@@ -94,5 +222,14 @@ export function parseProfessorTags(raw: string): ParsedProfessorMessage {
   if (qkind !== undefined) parsed.qkind = qkind;
   if (end) parsed.end = true;
   if (point !== undefined) parsed.point = point;
+  if (probe) parsed.probe = true;
+  if (conceptMap) parsed.conceptMap = conceptMap;
+  if (teachbackAsk !== undefined) parsed.teachbackAsk = teachbackAsk;
+  if (evaluation) parsed.evaluation = true;
+  if (derive) parsed.derive = derive;
+  if (stepMarks) parsed.stepMarks = stepMarks;
+  if (diagram) parsed.diagram = diagram;
+  if (look !== undefined) parsed.look = look;
+  if (voice) parsed.voice = true;
   return parsed;
 }

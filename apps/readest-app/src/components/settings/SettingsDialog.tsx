@@ -9,7 +9,7 @@ import { useCommandPalette } from '@/components/command-palette';
 import { RiFontSize, RiShareLine } from 'react-icons/ri';
 import { RiDashboardLine, RiTranslate } from 'react-icons/ri';
 import { VscSymbolColor } from 'react-icons/vsc';
-import { PiDotsThreeVerticalBold, PiSpeakerHigh } from 'react-icons/pi';
+import { PiDotsThreeVerticalBold, PiGraduationCap, PiSpeakerHigh } from 'react-icons/pi';
 import { LiaHandPointerSolid } from 'react-icons/lia';
 import { IoAccessibilityOutline } from 'react-icons/io5';
 import {
@@ -34,6 +34,7 @@ import LangPanel from './LangPanel';
 import MiscPanel from './MiscPanel';
 import TTSPanel from './TTSPanel';
 import NarrationPanel from './NarrationPanel';
+import StudyProfilePanel from './StudyProfilePanel';
 
 export type SettingsPanelType =
   | 'Font'
@@ -44,7 +45,8 @@ export type SettingsPanelType =
   | 'Narration'
   | 'Language'
   | 'Integrations'
-  | 'Custom';
+  | 'Custom'
+  | 'Study';
 export type SettingsPanelPanelProp = {
   bookKey: string;
   onRegisterReset: (resetFn: () => void) => void;
@@ -125,6 +127,11 @@ const SettingsDialog: React.FC<{ bookKey: string }> = ({ bookKey }) => {
       icon: IoAccessibilityOutline,
       label: _('Custom'),
     },
+    {
+      tab: 'Study',
+      icon: PiGraduationCap,
+      label: _('Study'),
+    },
   ] as TabConfig[];
 
   const [activePanel, setActivePanel] = useState<SettingsPanelType>(() => {
@@ -179,6 +186,7 @@ const SettingsDialog: React.FC<{ bookKey: string }> = ({ bookKey }) => {
     Language: null,
     Integrations: null,
     Custom: null,
+    Study: null,
   });
 
   const registerResetFunction = (panel: SettingsPanelType, resetFn: () => void) => {
@@ -213,6 +221,7 @@ const SettingsDialog: React.FC<{ bookKey: string }> = ({ bookKey }) => {
         language: 'Language',
         integrations: 'Integrations',
         custom: 'Custom',
+        study: 'Study',
       };
       const panelKey = parts[1]?.toLowerCase();
       const targetPanel = panelMap[panelKey || ''];
@@ -487,6 +496,12 @@ const SettingsDialog: React.FC<{ bookKey: string }> = ({ bookKey }) => {
           <MiscPanel
             bookKey={bookKey}
             onRegisterReset={(fn) => registerResetFunction('Custom', fn)}
+          />
+        )}
+        {activePanel === 'Study' && (
+          <StudyProfilePanel
+            bookKey={bookKey}
+            onRegisterReset={(fn) => registerResetFunction('Study', fn)}
           />
         )}
       </div>

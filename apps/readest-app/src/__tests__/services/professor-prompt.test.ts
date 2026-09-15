@@ -63,6 +63,52 @@ describe('professor workbench addendum — key contract lines are pinned', () =>
   });
 });
 
+describe('workbench 2.x addendum', () => {
+  test('structured derivations: DERIVE/STEP literals, the ledger rules, and the parse-error kindness are present', () => {
+    expect(PROFESSOR_WORKBENCH_ADDENDUM).toContain('STRUCTURED DERIVATIONS');
+    expect(PROFESSOR_WORKBENCH_ADDENDUM).toContain(
+      '[DERIVE title:What the substitution buys us goal:x = 2]',
+    );
+    expect(PROFESSOR_WORKBENCH_ADDENDUM).toContain('[STEP /CHECKED ok]');
+    expect(PROFESSOR_WORKBENCH_ADDENDUM).toContain('[STEP n /CHECKED ok|bad]');
+    expect(PROFESSOR_WORKBENCH_ADDENDUM).toContain('"algebra" is not a justification');
+    expect(PROFESSOR_WORKBENCH_ADDENDUM).toContain('a parse error, never wrong');
+  });
+
+  test('figures: DIAGRAM literal, the self-check sentence, and the emitted ```svg fence', () => {
+    expect(PROFESSOR_WORKBENCH_ADDENDUM).toContain('FIGURES');
+    expect(PROFESSOR_WORKBENCH_ADDENDUM).toContain(
+      '[DIAGRAM claim:The three angles of a triangle sum to 180 degrees]',
+    );
+    // The self-check, before you send: the picture must SHOW the claim.
+    expect(PROFESSOR_WORKBENCH_ADDENDUM).toContain('the picture must SHOW the claim');
+    // The EMITTED string carries a literal triple-backtick svg fence.
+    expect(PROFESSOR_WORKBENCH_ADDENDUM).toContain('```svg');
+    expect(PROFESSOR_WORKBENCH_ADDENDUM).toContain('viewBox="0 0 200 120"');
+  });
+
+  test('pedagogy + lookup + voice + bridge paragraphs are appended additively', () => {
+    expect(PROFESSOR_WORKBENCH_ADDENDUM).toContain('PROBE BEFORE YOU TEACH');
+    expect(PROFESSOR_WORKBENCH_ADDENDUM).toContain('Looking things up');
+    expect(PROFESSOR_WORKBENCH_ADDENDUM).toContain('[LOOK page:N]');
+    expect(PROFESSOR_WORKBENCH_ADDENDUM).toContain('Spoken turns');
+    expect(PROFESSOR_WORKBENCH_ADDENDUM).toContain('[VOICE]');
+    expect(PROFESSOR_WORKBENCH_ADDENDUM).toContain('Routing to the desk');
+    // R1: the bridge paragraph lives in the addendum, not the system prompt.
+    expect(PROFESSOR_WORKBENCH_ADDENDUM).toContain(
+      "[TO_WORKBENCH prompt:'one short line, in your own words, single-quoted']",
+    );
+    expect(PROFESSOR_SYSTEM_PROMPT).not.toContain('TO_WORKBENCH');
+  });
+
+  test('the original addendum text is unchanged (one sentence still present)', () => {
+    expect(PROFESSOR_WORKBENCH_ADDENDUM).toContain(
+      'Citations: pages you can cite this turn are listed in "Pages in your context"',
+    );
+    expect(PROFESSOR_WORKBENCH_ADDENDUM).toContain('WORKBENCH MODE');
+  });
+});
+
 describe('buildProfessorUserMessage', () => {
   const pack: ProfessorContextPack = {
     position: { page: 7, md_span: [0, 500], narration_unit: null },

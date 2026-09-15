@@ -116,3 +116,65 @@ describe('parseProfessorTags', () => {
     expect(parsed.display).toBe('Body.');
   });
 });
+
+describe('workbench 2.x protocol tags', () => {
+  test('[DERIVE title:.. goal:..] inside an unterminated $$ shield is still captured (pass-1 everywhere)', () => {
+    const raw = '$$x^2 + 1\n[DERIVE title:Open folio goal:x = 2]';
+    const parsed = parseProfessorTags(raw);
+    expect(parsed.derive).toEqual({ title: 'Open folio', goal: 'x = 2' });
+    expect(parsed.display).not.toContain('[DERIVE');
+  });
+
+  test('[STEP 3 /CHECKED ok] captures and strips; bare [STEP] is legal', () => {
+    const parsed = parseProfessorTags(
+      '$$a = b$$\nwhy\n[STEP 3 /CHECKED ok]\n$$b = c$$\nmore\n[STEP]',
+    );
+    expect(parsed.stepMarks).toEqual([{ professorChecked: 'ok' }, {}]);
+    expect(parsed.display).not.toContain('[STEP');
+    expect(parsed.display).toContain('$$a = b$$');
+  });
+
+  test('[DIAGRAM claim:…] with an empty claim captures nothing but consumes the tag', () => {
+    const parsed = parseProfessorTags('A drawing was meant to sit here.\n[DIAGRAM claim:]');
+    expect(parsed.diagram).toBeUndefined();
+    expect(parsed.display).not.toContain('[DIAGRAM');
+  });
+
+  test('[LOOK page:N,M] parses into numbers; malformed values capture nothing', () => {
+    expect(parseProfessorTags('I will look.\n[LOOK page:12]').look).toEqual([12]);
+    expect(parseProfessorTags('I will look.\n[LOOK page:7, 12]').look).toEqual([7, 12]);
+    expect(parseProfessorTags('I will look.\n[LOOK page:3,9, 15]').look).toEqual([3, 9, 15]);
+    expect(parseProfessorTags('I will look.\n[LOOK page:]').look).toBeUndefined();
+    expect(parseProfessorTags('I will look.\n[LOOK page:abc]').look).toBeUndefined();
+    expect(parseProfessorTags('I will look.\n[LOOK page:12x]').look).toBeUndefined();
+    expect(parseProfessorTags('I will look.\n[LOOK]').look).toBeUndefined();
+    // Captured or not, the tag never reaches the eye.
+    expect(parseProfessorTags('I will look.\n[LOOK page:12]').display).not.toContain('[LOOK');
+  });
+
+  test('[VOICE] is a boolean tag; value ignored; lowercase passes through', () => {
+    expect(parseProfessorTags('Hear the rhythm.\n[VOICE]').voice).toBe(true);
+    expect(parseProfessorTags('Hear it.\n[VOICE:ignored]').voice).toBe(true);
+    const lower = parseProfessorTags('A [voice] in prose stays.');
+    expect(lower.voice).toBeUndefined();
+    expect(lower.display).toContain('[voice]');
+  });
+
+  test('[0,1] and [A] inside $$…$$ still survive; unknown ALL-CAPS tags still stripped without capture', () => {
+    const parsed = parseProfessorTags(
+      '$$x \\in [0,1],\\quad A = [B]$$\n[FROBNICATE:x]\n[CONCEPT:intervals]',
+    );
+    expect(parsed.display).toContain('[0,1]');
+    expect(parsed.display).toContain('[B]');
+    expect(parsed.display).not.toContain('FROBNICATE');
+    expect(parsed.concept).toBe('intervals');
+  });
+
+  test('a prose bracket like [NOTE see: below] is not mistaken for a protocol tag', () => {
+    const raw = 'See [NOTE see: below] for the convention.';
+    const parsed = parseProfessorTags(raw);
+    expect(parsed.display).toContain('[NOTE see: below]');
+    expect(parsed.concept).toBeUndefined();
+    expect(parsed.probe).toBeUndefined();
+  });
+});

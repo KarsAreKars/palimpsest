@@ -36,6 +36,11 @@ import {
   setProfessorAnnotations,
 } from '@/services/professor/annotationBus';
 import { ProfessorVoice, holdPartialTag } from '@/services/professor/voice';
+import {
+  extractBridgeSuggestion,
+  makeBridgeTagFilter,
+  useBridgeStore,
+} from '@/services/professor/bridge';
 import { PROF_ASK_EVENT } from '@/app/reader/components/notebook/StudyTab';
 import {
   appendExchange,
@@ -269,8 +274,12 @@ export const useProfessor = ({ bookKey }: { bookKey: string }) => {
       // mark appears while the voice is still on an earlier sentence, then
       // snaps sharp when the answer completes. Tags held mid-token are
       // excluded by holdPartialTag, and validation drops hallucinated ids.
+      // The bridge tag ([TO_WORKBENCH …]) is filtered BEFORE anything in
+      // this loop — it can never reach the answer state, the ink buffer,
+      // or the ear.
       let streamBuf = '';
       let inkPublished = 0;
+      const bridgeFilter = makeBridgeTagFilter();
       const publishStreamingInk = () => {
         const { safe } = holdPartialTag(streamBuf);
         const parsed = parseAnnotations(safe).filter(
@@ -328,10 +337,12 @@ export const useProfessor = ({ bookKey }: { bookKey: string }) => {
               profTrace('llm-ttft'); // time-to-first-token = perceived speed
             }
             setPhase('answering');
-            setAnswer((prev) => prev + t);
-            streamBuf += t;
-            if (t.includes(']')) publishStreamingInk();
-            voice.push(t); // speaks at the first complete sentence
+            const safe = bridgeFilter.push(t);
+            if (!safe && !t.includes(']')) return; // nothing releasable this chunk
+            setAnswer((prev) => prev + safe);
+            streamBuf += safe;
+            if (safe.includes(']')) publishStreamingInk();
+            voice.push(safe); // speaks at the first complete sentence — the tag can never reach the ear
           },
           onDone: (full, meta) => {
             profTrace('llm-done', { chars: full.length });
@@ -346,6 +357,20 @@ export const useProfessor = ({ bookKey }: { bookKey: string }) => {
             pushExchange(bookKey, { q, a: cleaned });
 
             const parsed = parseAnnotations(full);
+            // Chat-bridge (W2.x #7): if the answer closed with a well-formed
+            // [TO_WORKBENCH prompt:'…'], stage the persistent desk suggestion.
+            // The tag is already gone from `answer` (filtered tokens) and is
+            // stripped from `cleaned` below by the same route.
+            const bridgeConcept = parsed.find(
+              (a): a is Extract<ProfessorAnnotation, { kind: 'concept' }> => a.kind === 'concept',
+            )?.name;
+            const { suggestion } = extractBridgeSuggestion(full, {
+              bookKey,
+              question: q,
+              concept: bridgeConcept,
+            });
+            if (suggestion) useBridgeStore.getState().setSuggestion(suggestion);
+            bridgeFilter.flush();
             const jump = parsed.find(
               (a): a is Extract<ProfessorAnnotation, { kind: 'page' }> => a.kind === 'page',
             );

@@ -17,6 +17,11 @@ import { useProfessor } from '@/app/reader/hooks/useProfessor';
 import { stripAnnotations } from '@/services/professor/annotations';
 import { profTrace, profTraceReset } from '@/services/professor/telemetry';
 import { PaperField } from '@/components/apothecary';
+import { requestWorkbenchBridge, useBridgeStore } from '@/services/professor/bridge';
+import { useNotebookStore } from '@/store/notebookStore';
+import { useTranslation } from '@/hooks/useTranslation';
+import StampButton from '@/components/apothecary/StampButton';
+import './prof-bridge.css';
 
 interface ProfOverlayProps {
   bookKey: string;
@@ -31,9 +36,31 @@ const lastLine = (answer: string): string => {
 };
 
 const ProfOverlay: React.FC<ProfOverlayProps> = ({ bookKey }) => {
+  const _ = useTranslation();
   const { open, phase, answer, error, ask, close, interrupt } = useProfessor({ bookKey });
   const [draft, setDraft] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
+
+  // The chat-bridge plate (W2.x #7): a persistent, store-backed suggestion
+  // that survives Esc-close/reopen. No floating chip, no mid-session button —
+  // a cataloguer's plate inline in the overlay column, below the ask card.
+  const suggestion = useBridgeStore((s) => s.suggestion);
+  const clearSuggestion = useBridgeStore((s) => s.clear);
+
+  const takeToDesk = () => {
+    if (!suggestion) return;
+    requestWorkbenchBridge({
+      bookKey,
+      question: suggestion.question,
+      ...(suggestion.concept ? { concept: suggestion.concept } : {}),
+      at: suggestion.at,
+    });
+    // Tab-activation precedent: Notebook.tsx handleTabChange →
+    // setNotebookActiveTab; store-only, no settings write needed here.
+    useNotebookStore.getState().setNotebookActiveTab('workbench');
+    useNotebookStore.getState().setNotebookVisible(true);
+    clearSuggestion();
+  };
 
   const submit = (q?: string) => {
     const question = (q ?? draft).trim();
@@ -80,9 +107,7 @@ const ProfOverlay: React.FC<ProfOverlayProps> = ({ bookKey }) => {
         data-testid='prof-overlay'
       >
         {/* status line — typed, muted; the only "chrome" */}
-        {thinking && (
-          <div className='typed text-stamp animate-pulse text-[10px]'>THINKING…</div>
-        )}
+        {thinking && <div className='typed text-stamp animate-pulse text-[10px]'>THINKING…</div>}
         {error && <div className='typed text-stamp max-w-lg truncate text-[10px]'>{error}</div>}
 
         <div className='pointer-events-auto flex items-center gap-3'>
@@ -124,6 +149,22 @@ const ProfOverlay: React.FC<ProfOverlayProps> = ({ bookKey }) => {
             </button>
           </div>
         </div>
+
+        {/* the bridge plate: the professor's quiet suggestion that this
+            question belongs at the desk. Anchored here — part of the
+            answer's presence, not a floating chip. */}
+        {phase === 'idle' && suggestion && (
+          <div className='wb-bridge plate chrome-lift pointer-events-auto' role='note'>
+            <p className='wb-bridge-label'>{_('The desk would serve this better')}</p>
+            <p className='wb-bridge-copy'>{suggestion.prompt}</p>
+            <div className='wb-bridge-actions'>
+              <StampButton onClick={takeToDesk}>{_('Take it to the desk')}</StampButton>
+              <button type='button' className='wb-bridge-dismiss' onClick={clearSuggestion}>
+                {_('Not now')}
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* the subtitle: one line at the bottom edge while he speaks.

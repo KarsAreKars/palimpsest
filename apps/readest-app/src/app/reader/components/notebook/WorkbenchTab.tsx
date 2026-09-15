@@ -22,8 +22,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
 import 'katex/dist/katex.min.css';
-import { Streamdown } from 'streamdown';
-import { math as streamdownMath } from '@streamdown/math';
 import { PiCaretDown } from 'react-icons/pi';
 
 import { useEnv } from '@/context/EnvContext';
@@ -41,13 +39,17 @@ import {
   type WorkbenchBlock,
   type WorkbenchErrorKind,
 } from '@/services/professor/workbenchSession';
-import type { CheckStepVerdict } from '@/services/professor/mathCheck';
 import { checkDerivation } from '@/services/professor/mathCheck';
 import { parseProfessorTags } from '@/services/professor/professorTags';
+import { extractDiagramSvg } from '@/services/professor/diagramSvg';
 import {
   WORKBENCH_TRANSCRIPT_FILENAME,
+  MAX_STEPS_PER_CHECK,
+  associateLearnerStep,
   commitProfessorBlock,
+  derivationOrdinal,
   extractMathSteps,
+  isProbeSignal,
   newBlockId,
   parseTranscript,
   serializeTranscript,
@@ -55,8 +57,13 @@ import {
   summarizeChecks,
   useWorkbenchChatStore,
   type BlockCheck,
+  type ConceptMapData,
+  type ProbeStance,
   type TranscriptBlock,
 } from './workbenchChat';
+import { Prose, Slip, VerdictChip } from './wbShared';
+import DerivationSlip from './DerivationSlip';
+import DiagramSlip from './DiagramSlip';
 import './WorkbenchTab.css';
 
 // MathLive touches `window` at definition time — the hard next/dynamic
@@ -98,19 +105,9 @@ const contentHash = (s: string): string => {
 };
 
 // ---------------------------------------------------------------------------
-// Small presentational pieces
+// Small presentational pieces (the shared layer lives in wbShared.tsx —
+// audit R5; Prose/Slip/VerdictChip are re-imported therefrom unchanged)
 // ---------------------------------------------------------------------------
-
-const Prose: React.FC<{ text: string }> = ({ text }) => (
-  <div className='wb-prose select-text'>
-    <Streamdown
-      remarkPlugins={[streamdownMath.remarkPlugin]}
-      rehypePlugins={[streamdownMath.rehypePlugin]}
-    >
-      {text}
-    </Streamdown>
-  </div>
-);
 
 /** Split display markdown on the professor's `[Page N]` citations: the
  *  anchors become chips (evidence you can travel to), the rest stays prose. */
@@ -126,81 +123,6 @@ const splitPageCites = (text: string): { text?: string; page?: number }[] => {
   }
   if (last < text.length) out.push({ text: text.slice(last) });
   return out;
-};
-
-/** The paper slip under a chip (hover-only; the aria-label carries the same
- *  words for everyone else). */
-const Slip: React.FC<{ children: React.ReactNode; label?: string }> = ({ children, label }) => (
-  <span className='wb-slip' aria-hidden='true'>
-    {label && <span className='wb-slip-label'>{label}</span>}
-    <span className='wb-slip-quote'>{children}</span>
-  </span>
-);
-
-const VerdictChip: React.FC<{ verdict: CheckStepVerdict }> = ({ verdict }) => {
-  const _ = useTranslation();
-  const cx = verdict.counterexample;
-  const assigns = cx
-    ? Object.entries(cx.assignments)
-        .map(([k, val]) => `${k} = ${String(val)}`)
-        .join(', ')
-    : '';
-  const counterexampleCopy = cx
-    ? assigns
-      ? _('For {{assigns}}, the left side reads {{prev}} while this line reads {{step}}.', {
-          assigns,
-          prev: cx.prevValue,
-          step: cx.stepValue,
-        })
-      : _('The left side reads {{prev}} while this line reads {{step}}.', {
-          prev: cx.prevValue,
-          step: cx.stepValue,
-        })
-    : '';
-
-  let glyph = '◌';
-  let tone = 'wb-chip-muted';
-  let label = _('Unmarked');
-  let tip: string = _('The professor will take a moment.');
-  if (verdict.status === 'parse_error') {
-    label = _('Parse error');
-    tip = _('Could not read this line as math.');
-  } else {
-    switch (verdict.verdict) {
-      case 'equivalent':
-      case 'equivalent_same_roots':
-        glyph = '✓';
-        tone = 'wb-chip-sage';
-        label = _('Checks out');
-        tip = _('This line checks out.');
-        break;
-      case 'implied_forward':
-      case 'implied_backward':
-        glyph = '✓';
-        tone = 'wb-chip-sage';
-        label = _('Holds in one direction');
-        tip = _('This line holds in one direction.');
-        break;
-      case 'not_equivalent':
-        glyph = '✗';
-        tone = 'wb-chip-stamp';
-        label = _('Does not follow');
-        tip = counterexampleCopy || label;
-        break;
-      default:
-        break;
-    }
-  }
-  return (
-    <span
-      className={`wb-chip ${tone}${verdict.status === 'parse_error' ? ' wb-chip-parse' : ''}`}
-      role='img'
-      aria-label={label}
-    >
-      <span aria-hidden='true'>{glyph}</span>
-      {tip && <Slip>{tip}</Slip>}
-    </span>
-  );
 };
 
 /** The silent checker's verdicts, rendered inside the student block. No
@@ -261,6 +183,109 @@ const PageChip: React.FC<{ page: number; quote: string | null; onGo: () => void 
   );
 };
 
+const STANCES: { stance: ProbeStance; label: string }[] = [
+  { stance: 'lead', label: 'Lead me' },
+  { stance: 'ask', label: 'Ask me first' },
+  { stance: 'work', label: 'I will work it' },
+];
+
+/** The stance chip row under a [PROBE] block (s1 §5.2) — the sanctioned
+ *  mid-session interaction: the chips replace a typed message and go inert
+ *  after a pick. */
+const ProbeRow: React.FC<{
+  picked?: ProbeStance;
+  onPick: (stance: ProbeStance, message: string) => void;
+}> = ({ picked, onPick }) => {
+  const _ = useTranslation();
+  return (
+    <div
+      className='wb-probe-row'
+      role='group'
+      aria-label={_('Choose how the professor guides you')}
+    >
+      {STANCES.map(({ stance, label }) => (
+        <button
+          key={stance}
+          type='button'
+          className={`wb-chip wb-probe-chip${picked === stance ? ' wb-probe-picked' : ''}`}
+          disabled={picked !== undefined}
+          onClick={() => onPick(stance, _(label))}
+        >
+          {_(label)}
+          {picked === stance && (
+            <span className='wb-probe-tick' aria-hidden='true'>
+              {_('Chosen')}
+            </span>
+          )}
+        </button>
+      ))}
+    </div>
+  );
+};
+
+/** The concept-map slip (s1 §5.2) — the session's known/edge/unknown
+ *  catalogue; every chip travels to the thread where the concept was last
+ *  discussed. Names never yet discussed render as muted, inert chips. */
+const ConceptMapSlip: React.FC<{
+  map: ConceptMapData;
+  onOpen: (threadId: string) => void;
+}> = ({ map, onOpen }) => {
+  const _ = useTranslation();
+  const shelves: { head: string; entries: ConceptMapData['known'] }[] = [
+    { head: _('KNOWN'), entries: map.known },
+    { head: _('EDGE'), entries: map.edge },
+    { head: _('UNKNOWN'), entries: map.unknown },
+  ];
+  return (
+    <div className='wb-map'>
+      <p className='wb-map-caption'>{_('The catalogue so far')}</p>
+      <div className='wb-map-cols'>
+        {shelves.map(({ head, entries }) => (
+          <div className='wb-map-col' key={head}>
+            <span className='wb-map-head'>{head}</span>
+            {entries.length === 0 && (
+              <span className='wb-map-empty'>{_('Nothing filed here yet')}</span>
+            )}
+            {entries.map((entry) =>
+              entry.threadId ? (
+                <button
+                  key={entry.name}
+                  type='button'
+                  className='wb-chip wb-map-chip'
+                  aria-label={_('Open the thread on {{concept}}', { concept: entry.name })}
+                  onClick={() => onOpen(entry.threadId!)}
+                >
+                  {entry.name}
+                </button>
+              ) : (
+                <span key={entry.name} className='wb-chip wb-map-chip wb-map-chip-dim'>
+                  {entry.name}
+                </span>
+              ),
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+/** The "consulting the book" mark under a block whose professor consulted
+ *  pages via [LOOK] (s2 §8 — landed with wave A per audit R7a). */
+const ConsultMark: React.FC<{ pages: number[] }> = ({ pages }) => {
+  const _ = useTranslation();
+  return (
+    <p className='wb-consult' role='status'>
+      <span className='wb-consult-mark' aria-hidden='true'>
+        ❧
+      </span>
+      {pages.length > 0
+        ? _('Consulted page {{pages}}', { pages: pages.join(', ') })
+        : _('The book had nothing on that page.')}
+    </p>
+  );
+};
+
 // ---------------------------------------------------------------------------
 // The tab
 // ---------------------------------------------------------------------------
@@ -276,6 +301,7 @@ const WorkbenchTab: React.FC<{ bookKey: string }> = ({ bookKey }) => {
   const setBlocks = useWorkbenchChatStore((s) => s.setBlocks);
   const appendBlock = useWorkbenchChatStore((s) => s.appendBlock);
   const setCheck = useWorkbenchChatStore((s) => s.setCheck);
+  const markProbePicked = useWorkbenchChatStore((s) => s.markProbePicked);
 
   const hasKey =
     Boolean(aiSettings?.enabled) &&
@@ -431,9 +457,14 @@ const WorkbenchTab: React.FC<{ bookKey: string }> = ({ bookKey }) => {
 
   const runSilentCheck = useCallback(
     async (candidates: TranscriptBlock[]): Promise<void> => {
-      const withMath = candidates.filter(
-        (b) => b.author === 'user' && extractMathSteps(b.content, b.id).length > 0,
-      );
+      const withMath = candidates.filter((b) => {
+        // "I don't know" is a first-class signal — surfaced, never graded (s1).
+        if (b.probeSignal) return false;
+        // The professor's folios are marked too — the desk does not grade
+        // only the learner's paper (s3 §4.1).
+        if (b.derivation && b.derivation.steps.length > 0) return true;
+        return b.author === 'user' && extractMathSteps(b.content, b.id).length > 0;
+      });
       if (withMath.length === 0) return;
       if (checkInFlightRef.current) {
         // One check at a time; queue a re-run against the newest blocks.
@@ -443,26 +474,42 @@ const WorkbenchTab: React.FC<{ bookKey: string }> = ({ bookKey }) => {
       checkInFlightRef.current = true;
       const alive = (id: string) =>
         (useWorkbenchChatStore.getState().blocks[bookKey] ?? []).some((b) => b.id === id);
-      // Only blocks whose content changed since their last check — each
-      // block's chain is judged WITHIN itself, never against a neighbour
+      // Only blocks whose checkable content changed since their last check —
+      // each block's chain is judged WITHIN itself, never against a neighbour
       // block (the old flatMap compared block A's last step with block B's
-      // first and manufactured ✗s).
-      const stale = withMath.filter(
-        (b) => checkedHashRef.current.get(b.id) !== contentHash(b.content),
-      );
+      // first and manufactured ✗s). For folios the fingerprint covers the
+      // STEPS (the block's prose does not change when the learner appends
+      // a step) plus the goal.
+      const stale = withMath
+        .map((b) => ({
+          block: b,
+          fingerprint:
+            b.derivation && b.derivation.steps.length > 0
+              ? `folio:${JSON.stringify(b.derivation.steps)}|${b.derivation.goalLatex ?? ''}`
+              : contentHash(b.content),
+        }))
+        .filter(({ block, fingerprint }) => checkedHashRef.current.get(block.id) !== fingerprint);
       try {
         if (stale.length === 0) return; // nothing new — the last marks stand
-        stale.forEach((b) => {
-          if (alive(b.id)) setCheck(bookKey, b.id, { status: 'checking' });
+        stale.forEach(({ block }) => {
+          if (alive(block.id)) setCheck(bookKey, block.id, { status: 'checking' });
         });
         const results = await Promise.all(
-          stale.map(async (b) => {
-            const steps = extractMathSteps(b.content, b.id);
-            const result = await checkDerivation(steps);
-            return { block: b, steps, result };
+          stale.map(async ({ block, fingerprint }) => {
+            // Folios submit their structured steps (prefix-sliced to the same
+            // MAX_STEPS_PER_CHECK cap: step 9+ simply wears no chip);
+            // ordinary blocks go through the usual extraction.
+            const steps =
+              block.derivation && block.derivation.steps.length > 0
+                ? block.derivation.steps
+                    .slice(0, MAX_STEPS_PER_CHECK)
+                    .map(({ id, latex }) => ({ id, latex }))
+                : extractMathSteps(block.content, block.id);
+            const result = await checkDerivation(steps, block.derivation?.goalLatex);
+            return { block, steps, result, fingerprint };
           }),
         );
-        for (const { block, steps, result } of results) {
+        for (const { block, steps, result, fingerprint } of results) {
           if (!alive(block.id)) continue;
           if (result.unavailable) {
             // Echo mode: the engine is away — no marks, and no hash is
@@ -476,12 +523,35 @@ const WorkbenchTab: React.FC<{ bookKey: string }> = ({ bookKey }) => {
             verdicts: steps.map(
               (s, i) => byId.get(s.id) ?? { id: `${block.id}:${i}`, status: 'ok' },
             ),
+            ...(result.goal ? { goal: result.goal } : {}),
           });
-          checkedHashRef.current.set(block.id, contentHash(block.content));
+          // Persist the whole-derivation verdict onto the block so a resumed
+          // sitting keeps it (the transcript saves on every blocks change).
+          if (result.goal && block.derivation) {
+            const cur = useWorkbenchChatStore.getState().blocks[bookKey] ?? [];
+            if (cur.some((b) => b.id === block.id)) {
+              setBlocks(
+                bookKey,
+                cur.map((b) =>
+                  b.id === block.id && b.derivation
+                    ? {
+                        ...b,
+                        derivation: {
+                          ...b.derivation,
+                          goalReached: result.goal!.reached,
+                          ...(result.goal!.byStep ? { goalByStep: result.goal!.byStep } : {}),
+                        },
+                      }
+                    : b,
+                ),
+              );
+            }
+          }
+          checkedHashRef.current.set(block.id, fingerprint);
         }
       } catch {
-        stale.forEach((b) => {
-          if (alive(b.id)) setCheck(bookKey, b.id, null);
+        stale.forEach(({ block }) => {
+          if (alive(block.id)) setCheck(bookKey, block.id, null);
         });
       } finally {
         checkInFlightRef.current = false;
@@ -492,7 +562,7 @@ const WorkbenchTab: React.FC<{ bookKey: string }> = ({ bookKey }) => {
         }
       }
     },
-    [bookKey, setCheck],
+    [bookKey, setCheck, setBlocks],
   );
 
   // ── One turn: silent check, then the professor answers ─────────────────
@@ -535,22 +605,52 @@ const WorkbenchTab: React.FC<{ bookKey: string }> = ({ bookKey }) => {
   const [value, setValue] = useState('');
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
 
-  const send = useCallback(() => {
-    const text = value.trim();
-    if (!text) return; // a quiet no-op — no disabled state, no error
-    if (phaseRef.current !== 'idle') commitPartialIfAny();
-    const userBlock: TranscriptBlock = {
-      id: newBlockId(),
-      author: 'user',
-      content: text,
-      at: new Date().toISOString(),
-    };
-    appendBlock(bookKey, userBlock);
-    setValue('');
-    textareaRef.current?.focus();
-    const history = [...(useWorkbenchChatStore.getState().blocks[bookKey] ?? [])];
-    void respond(history, userBlock.content);
-  }, [value, bookKey, appendBlock, respond, commitPartialIfAny]);
+  const send = useCallback(
+    (override?: string) => {
+      const text = (override ?? value).trim();
+      if (!text) return; // a quiet no-op — no disabled state, no error
+      if (phaseRef.current !== 'idle') commitPartialIfAny();
+      const priorBlocks = useWorkbenchChatStore.getState().blocks[bookKey] ?? [];
+      const userBlock: TranscriptBlock = {
+        id: newBlockId(),
+        author: 'user',
+        content: text,
+        at: new Date().toISOString(),
+      };
+      // Teach-back: this attempt answers the professor's open ask (s1 §5.2).
+      const prior = priorBlocks[priorBlocks.length - 1];
+      if (prior?.author === 'professor' && prior.teachbackAsk && !prior.teachbackOf) {
+        userBlock.teachbackAsk = prior.teachbackAsk;
+      }
+      // "I don't know" is surfaced as a marker chip — never graded (s1).
+      if (isProbeSignal(text)) userBlock.probeSignal = true;
+      // A step/justify-only block appends to the professor's open folio;
+      // the learner's paper still lands as their own block (s3 §7.3).
+      const associated = associateLearnerStep(priorBlocks, userBlock);
+      if (associated !== priorBlocks) {
+        const changed = associated.find((b, i) => b !== priorBlocks[i]);
+        if (changed) userBlock.extendsDerivation = changed.id;
+        setBlocks(bookKey, associated);
+      }
+      appendBlock(bookKey, userBlock);
+      setValue('');
+      textareaRef.current?.focus();
+      const history = [...(useWorkbenchChatStore.getState().blocks[bookKey] ?? [])];
+      void respond(history, userBlock.content);
+    },
+    [value, bookKey, appendBlock, respond, commitPartialIfAny, setBlocks],
+  );
+
+  /** The probe chip pick is an ordinary student message through send() —
+   *  partial-commit, silent-check, and history all behave identically to a
+   *  typed message (s1 §5.2). */
+  const pickProbe = useCallback(
+    (blockId: string, stance: ProbeStance, message: string) => {
+      markProbePicked(bookKey, blockId, stance);
+      send(message);
+    },
+    [bookKey, markProbePicked, send],
+  );
 
   const handleComposerKey = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     // Enter sends; Shift+Enter inserts a newline. ⌘/Ctrl+Enter also sends.
@@ -565,41 +665,83 @@ const WorkbenchTab: React.FC<{ bookKey: string }> = ({ bookKey }) => {
   // ── The ƒx popover (MathLive composer) ─────────────────────────────────
   const [mathOpen, setMathOpen] = useState(false);
   const [mathValue, setMathValue] = useState('');
+  const [justifyValue, setJustifyValue] = useState('');
 
   const closeMath = useCallback(() => {
     setMathOpen(false);
     setMathValue(''); // never reopen with stale content
+    setJustifyValue('');
   }, []);
 
   const openMath = useCallback(() => {
     setMathValue('');
+    setJustifyValue('');
     setMathOpen(true);
   }, []);
 
-  const insertMath = useCallback(() => {
-    const latex = mathValue.trim();
-    const ta = textareaRef.current;
-    if (latex) {
-      // Display-sized expressions (multi-line environments, explicit
-      // \displaystyle, matrix/cases rows) get $$…$$; the rest rides inline.
-      const display = /\\displaystyle|\\begin\{|\\\\|\n/.test(latex);
-      const wrapped = display ? `$$${latex}$$` : `$${latex}$`;
+  // A folio is open while the last professor block carries a derivation —
+  // only a later professor prose block closes it (s3 §7.3, §10 Q2).
+  const folioOpen = Boolean(
+    [...blocks].reverse().find((b) => b.author === 'professor')?.derivation,
+  );
+
+  /** Splice a snippet into the textarea at the caret (shared by the single
+   *  expression insert and the step/justify pair commit — s3 §7.3). */
+  const spliceAtCaret = useCallback(
+    (snippet: string) => {
+      const ta = textareaRef.current;
       const start = ta?.selectionStart ?? value.length;
       const end = ta?.selectionEnd ?? value.length;
-      setValue(value.slice(0, start) + wrapped + value.slice(end));
-      const caret = start + wrapped.length;
+      setValue(value.slice(0, start) + snippet + value.slice(end));
+      const caret = start + snippet.length;
       requestAnimationFrame(() => {
         ta?.focus();
         ta?.setSelectionRange(caret, caret);
       });
+    },
+    [value],
+  );
+
+  const insertMath = useCallback(() => {
+    const latex = mathValue.trim();
+    if (latex) {
+      // Display-sized expressions (multi-line environments, explicit
+      // \displaystyle, matrix/cases rows) get $$…$$; the rest rides inline.
+      const display = /\\displaystyle|\\begin\{|\\\\|\n/.test(latex);
+      spliceAtCaret(display ? `$$${latex}$$` : `$${latex}$`);
     }
     closeMath();
-  }, [mathValue, value, closeMath]);
+  }, [mathValue, spliceAtCaret, closeMath]);
+
+  /** Pair mode commit: the step and its justification splice into the
+   *  composer as `$$…$$\nwhy` — the send path re-associates them with the
+   *  open folio (s3 §7.3). */
+  const insertStepPair = useCallback(() => {
+    const latex = mathValue.trim();
+    if (latex) {
+      const justification = justifyValue.trim();
+      spliceAtCaret(justification ? `$$${latex}$$\n${justification}` : `$$${latex}$$`);
+    }
+    closeMath();
+  }, [mathValue, justifyValue, spliceAtCaret, closeMath]);
+
+  const commitPopover = folioOpen ? insertStepPair : insertMath;
 
   const handleMathPopoverKey = (e: React.KeyboardEvent<HTMLDivElement>) => {
     if (e.key === 'Enter' && !e.shiftKey && (e.target as HTMLElement).tagName === 'MATH-FIELD') {
       e.preventDefault();
-      insertMath();
+      commitPopover();
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      closeMath();
+      textareaRef.current?.focus();
+    }
+  };
+
+  const handleJustifyKey = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      insertStepPair();
     } else if (e.key === 'Escape') {
       e.preventDefault();
       closeMath();
@@ -815,6 +957,16 @@ const WorkbenchTab: React.FC<{ bookKey: string }> = ({ bookKey }) => {
     [bookKey],
   );
 
+  /** Concept chips travel the transcript: glide to the thread where the
+   *  concept was last discussed (s1 §5.2). */
+  const scrollToBlock = useCallback((id: string) => {
+    const target = scrollRef.current?.querySelector(`article[data-bid="${id}"]`);
+    target?.scrollIntoView({
+      behavior: prefersReducedMotion() ? 'auto' : 'smooth',
+      block: 'center',
+    });
+  }, []);
+
   const renderContent = (text: string) =>
     splitPageCites(text).map((seg, i) => {
       if (seg.page !== undefined) {
@@ -864,6 +1016,71 @@ const WorkbenchTab: React.FC<{ bookKey: string }> = ({ bookKey }) => {
               >
                 <p className='wb-byline'>{_(b.author === 'professor' ? 'THE PROFESSOR' : 'YOU')}</p>
                 <div className='wb-content'>{renderContent(b.content)}</div>
+                {b.author === 'professor' && b.conceptMap && (
+                  <ConceptMapSlip map={b.conceptMap} onOpen={scrollToBlock} />
+                )}
+                {b.author === 'professor' && b.lookedUp && <ConsultMark pages={b.lookedUp} />}
+                {b.author === 'professor' && b.probe && (
+                  <ProbeRow picked={b.probePicked} onPick={(s, m) => pickProbe(b.id, s, m)} />
+                )}
+                {b.diagram && <DiagramSlip block={b} />}
+                {b.author === 'professor' && b.derivation && b.derivation.steps.length > 0 && (
+                  <DerivationSlip
+                    block={b}
+                    ordinalBase={derivationOrdinal(blocks, b.id, 0) - 1}
+                    check={checks[b.id]}
+                  />
+                )}
+                {b.author === 'user' &&
+                  b.extendsDerivation &&
+                  (() => {
+                    const folio = blocks.find((f) => f.id === b.extendsDerivation);
+                    if (!folio?.derivation) return null;
+                    const stepCount = folio.derivation.steps.length;
+                    const learnerStepCount = (b.content.match(/\$\$[\s\S]*?\$\$/g) ?? []).length;
+                    if (learnerStepCount === 0 || learnerStepCount > stepCount) return null;
+                    // The folio already carries these steps (associate-
+                    // LearnerStep appended them); render the learner's paper
+                    // compactly with the folio's own step ids and ordinals.
+                    const base =
+                      derivationOrdinal(blocks, folio.id, 0) - 1 + stepCount - learnerStepCount;
+                    const learnerBlock: TranscriptBlock = {
+                      ...b,
+                      derivation: {
+                        steps: folio.derivation.steps.slice(stepCount - learnerStepCount),
+                      },
+                    };
+                    return (
+                      <DerivationSlip
+                        compact
+                        block={learnerBlock}
+                        ordinalBase={base}
+                        check={checks[folio.id]}
+                      />
+                    );
+                  })()}
+                {b.author === 'user' && b.teachbackAsk && (
+                  <p className='wb-teachback-caption'>
+                    {_('The professor asked you to restate it — in your own words')}
+                    <span className='wb-teachback-ask'>
+                      {_('His question: {{ask}}', { ask: b.teachbackAsk })}
+                    </span>
+                  </p>
+                )}
+                {b.author === 'professor' && b.teachbackOf && (
+                  <p className='wb-teachback-caption'>{_('His reading of your restatement')}</p>
+                )}
+                {b.author === 'user' && b.probeSignal && (
+                  <div className='wb-chip-row'>
+                    <span
+                      className='wb-chip wb-chip-muted wb-idk'
+                      role='img'
+                      aria-label={_('Said honestly: not yet known')}
+                    >
+                      {_('Said honestly: not yet known')}
+                    </span>
+                  </div>
+                )}
                 {b.author === 'user' && <BlockChips check={checks[b.id]} />}
                 <hr className='wb-sep' />
               </article>
@@ -874,7 +1091,21 @@ const WorkbenchTab: React.FC<{ bookKey: string }> = ({ bookKey }) => {
                 <p className='wb-byline'>{_('THE PROFESSOR')}</p>
                 <div className='wb-prose wb-streaming'>
                   {partial.trim()
-                    ? renderContent(parseProfessorTags(stripPartialTagTail(partial)).display)
+                    ? (() => {
+                        const disp = parseProfessorTags(stripPartialTagTail(partial)).display;
+                        // Raw SVG never streams into the DOM uncommitted:
+                        // a complete fence mid-stream holds a muted
+                        // placeholder instead (s3 §3.2).
+                        const { svg, display } = extractDiagramSvg(disp);
+                        return (
+                          <>
+                            {renderContent(display)}
+                            {svg !== '' && (
+                              <p className='wb-figure-pending'>{_('The professor is drawing.')}</p>
+                            )}
+                          </>
+                        );
+                      })()
                     : null}
                   <span className='wb-nib' aria-hidden='true' />
                 </div>
@@ -964,13 +1195,34 @@ const WorkbenchTab: React.FC<{ bookKey: string }> = ({ bookKey }) => {
               aria-label={_('Compose math')}
               onKeyDown={handleMathPopoverKey}
             >
-              <MathField
-                value={mathValue}
-                onChange={setMathValue}
-                placeholder={_('Write an expression…')}
-              />
+              {folioOpen ? (
+                <div className='wb-step-pair'>
+                  <MathField
+                    value={mathValue}
+                    onChange={setMathValue}
+                    compact
+                    autoFocus
+                    placeholder={_('Write an expression…')}
+                  />
+                  <input
+                    type='text'
+                    className='wb-justify-input'
+                    value={justifyValue}
+                    aria-label={_('Justify the step')}
+                    placeholder={_('Why is this step allowed?…')}
+                    onChange={(e) => setJustifyValue(e.target.value)}
+                    onKeyDown={handleJustifyKey}
+                  />
+                </div>
+              ) : (
+                <MathField
+                  value={mathValue}
+                  onChange={setMathValue}
+                  placeholder={_('Write an expression…')}
+                />
+              )}
               <div className='wb-math-actions'>
-                <button type='button' className='ink-btn' onClick={insertMath}>
+                <button type='button' className='ink-btn' onClick={commitPopover}>
                   {_('Add to page')}
                 </button>
               </div>

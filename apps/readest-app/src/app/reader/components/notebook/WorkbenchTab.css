@@ -543,6 +543,16 @@ math-field.workbench-math-field[read-only] {
     align-items: flex-start;
   }
 
+  /* The concept map's shelves and the probe row stack vertically. */
+  .wb-map-cols {
+    flex-direction: column;
+  }
+
+  .wb-probe-row {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
   /* Math display scrolls horizontally as the LAST resort, with a faint
      fade mask on the trailing edge (eink: masks off — flat is honest). */
   .wb-prose .katex-display {
@@ -584,4 +594,277 @@ math-field.workbench-math-field[read-only] {
   .wb-slip {
     transition: none;
   }
+}
+
+/* ---------- probe chips (S1) ---------- */
+.wb-probe-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 8px;
+}
+
+.wb-probe-chip:disabled {
+  cursor: default;
+  opacity: 0.75;
+}
+
+.wb-probe-picked,
+.wb-probe-picked:disabled {
+  color: var(--stamp);
+  border-color: var(--stamp);
+  opacity: 1;
+}
+
+.wb-probe-tick {
+  margin-inline-start: 4px;
+}
+
+/* ---------- the concept-map slip (S1) ---------- */
+.wb-map {
+  margin-top: 8px;
+  max-width: min(340px, 100%);
+  border: 1px solid color-mix(in srgb, var(--ink) 25%, transparent);
+  border-radius: 2px;
+  background: var(--paper-light);
+  padding: 8px 10px;
+}
+
+.wb-map-caption {
+  font-family: 'Special Elite', 'Courier New', monospace;
+  font-size: 8.5px;
+  line-height: 1;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin: 0 0 6px;
+  user-select: none;
+}
+
+.wb-map-cols {
+  display: flex;
+  gap: 10px;
+}
+
+.wb-map-col {
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+}
+
+.wb-map-head {
+  font-family: 'Special Elite', 'Courier New', monospace;
+  font-size: 8.5px;
+  line-height: 1;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+  user-select: none;
+}
+
+.wb-map-chip {
+  border-color: color-mix(in srgb, var(--ink) 25%, transparent);
+  text-transform: none;
+  letter-spacing: normal;
+  font-size: 9.5px;
+  padding: 2px 6px 1px;
+}
+
+.wb-map-chip:hover {
+  color: var(--stamp);
+  border-color: var(--stamp);
+}
+
+.wb-map-chip-dim {
+  opacity: 0.7;
+}
+
+.wb-map-empty {
+  font-family: 'Newsreader', Georgia, serif;
+  font-style: italic;
+  font-size: 11px;
+  color: var(--muted);
+}
+
+/* ---------- teach-back captions + the probe-signal marker (S1) ---------- */
+.wb-teachback-caption {
+  font-family: 'Special Elite', 'Courier New', monospace;
+  font-size: 8.5px;
+  line-height: 1.5;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin: 6px 0 0;
+  user-select: none;
+}
+
+.wb-teachback-ask {
+  display: block;
+  font-family: 'Newsreader', Georgia, serif;
+  font-style: italic;
+  font-size: 12px;
+  text-transform: none;
+  letter-spacing: normal;
+  color: var(--ink);
+  margin-top: 2px;
+}
+
+.wb-idk {
+  font-style: italic;
+  text-transform: none;
+  letter-spacing: normal;
+  font-size: 9.5px;
+}
+
+/* ---------- consulting-the-book mark (S2, audit R7a) ---------- */
+.wb-consult {
+  margin: 4px 0 0;
+  font-size: 0.8em;
+  font-style: italic;
+  color: var(--stamp);
+}
+
+.wb-consult-mark {
+  margin-right: 6px;
+}
+
+/* ---------- derivation folio (S3) ---------- */
+.wb-derive {
+  margin-top: 8px;
+}
+
+.wb-derive-title {
+  font-family: 'Special Elite', 'Courier New', monospace;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-size: 9px;
+  line-height: 1;
+  color: var(--muted);
+  margin: 0 0 6px;
+  user-select: none;
+}
+
+.wb-step-row {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.wb-step-no {
+  font-family: 'Special Elite', 'Courier New', monospace;
+  font-size: 9px;
+  color: var(--muted);
+  min-width: 3ch;
+  text-align: end;
+  flex-shrink: 0;
+  user-select: none;
+}
+
+.wb-step-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.wb-step-justify {
+  display: block;
+  font-family: 'Newsreader', Georgia, serif;
+  font-style: italic;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.wb-goal-line {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-top: 8px;
+  padding-top: 6px;
+  border-top: 1px dotted color-mix(in srgb, var(--ink) 25%, transparent);
+}
+
+/* ---------- figure slip (S3) ---------- */
+.wb-figure {
+  margin: 8px 0 0;
+}
+
+.wb-figure-svg {
+  background: var(--paper-light);
+  border: 1px solid color-mix(in srgb, var(--ink) 25%, transparent);
+  border-radius: 2px;
+  padding: 10px;
+}
+
+.wb-figure-svg svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.wb-figure-svg svg text {
+  font-family: 'Newsreader', Georgia, serif;
+}
+
+.wb-figure-caption {
+  font-family: 'Newsreader', Georgia, serif;
+  font-style: italic;
+  font-size: 12px;
+  color: var(--muted);
+  margin-top: 4px;
+}
+
+.wb-figure-missing {
+  font-family: 'Special Elite', 'Courier New', monospace;
+  font-size: 9px;
+  font-style: italic;
+  color: var(--muted);
+  margin: 4px 0 0;
+}
+
+.wb-figure-pending {
+  font-family: 'Special Elite', 'Courier New', monospace;
+  font-size: 9px;
+  color: var(--muted);
+  margin: 6px 0 0;
+  animation: wb-fade-in 300ms ease;
+}
+
+/* ---------- composer pair mode (S3 §7.3) ---------- */
+.wb-step-pair {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.wb-justify-input {
+  flex: 1;
+  min-width: 0;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid color-mix(in srgb, var(--ink) 25%, transparent);
+  border-radius: 0;
+  outline: none;
+  font-family: 'Newsreader', Georgia, serif;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--ink);
+  padding: 2px 0 1px;
+}
+
+.wb-justify-input:focus {
+  border-bottom-color: var(--stamp);
+}
+
+.wb-justify-input::placeholder {
+  font-family: 'Special Elite', 'Courier New', monospace;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 10px;
+  color: var(--muted);
+}
+
+math-field.workbench-math-field-compact {
+  min-height: 1.4rem;
 }
