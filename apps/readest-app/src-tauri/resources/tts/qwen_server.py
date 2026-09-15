@@ -5,7 +5,10 @@ Wraps mlx-audio's Qwen3-TTS (Apple Silicon, fully offline) in a tiny HTTP
 contract the app's SpeechProvider can talk to:
 
     GET  /health            -> {"ok": true, "model": ..., "voices": [...],
+                               "engines": {"kokoro": bool, "math": bool},
                                "token": ...}   # token only with --token
+                               # engines = cheap IMPORT-level self-test
+                               # (no model loading; cold start stays lazy)
     POST /tts               -> audio/wav bytes
        body: {"text": str, "voice"?: str, "speed"?: float, "instruct"?: str}
     POST /check             -> deterministic per-step math verdicts (CAS)
@@ -191,6 +194,35 @@ _model = None
 _model_id = MODEL_ID
 # Auth token echoed by /health when the app spawns us with --token <hex>.
 _TOKEN = None
+
+
+def _probe_engines() -> dict:
+    """Cheap import-level engine self-test, run ONCE at startup. NO model
+    loading — the cold start stays lazy; this only checks that the voice
+    stack's import-time dependency surface is intact.
+
+    Why (2026-09-15): `import misaki` top-level DEFERS its submodule deps
+    (spacy, num2words, ...), so a venv missing them passed every probe the
+    app had — then /health stayed green while every Kokoro request 500'd
+    with Broken pipe. The same check as bootstrap_voice.sh's probe, so
+    "healthy" now actually means "can synthesize"."""
+    out = {}
+    try:
+        import mlx_audio, mlx_whisper, huggingface_hub, misaki.en  # noqa: F401
+        out["kokoro"] = True
+    except Exception as e:
+        print(f"[health] kokoro engine import failed: {e}", file=sys.stderr, flush=True)
+        out["kokoro"] = False
+    try:
+        import sympy, latex2sympy2  # noqa: F401
+        out["math"] = True
+    except Exception as e:
+        print(f"[health] math engine import failed: {e}", file=sys.stderr, flush=True)
+        out["math"] = False
+    return out
+
+
+_ENGINES = _probe_engines()
 
 
 def get_model():
@@ -832,7 +864,7 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_GET(self) -> None:
         if self.path == "/health":
-            body = {"ok": True, "model": _model_id, "voices": ALL_VOICES}
+            body = {"ok": True, "model": _model_id, "voices": ALL_VOICES, "engines": _ENGINES}
             if _TOKEN:
                 body["token"] = _TOKEN  # app's spawn-time handshake (fast, side-effect-free)
             self._json(200, body)

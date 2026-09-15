@@ -59,6 +59,10 @@ const BACKOFF_START: Duration = Duration::from_secs(1);
 const BACKOFF_MAX: Duration = Duration::from_secs(30);
 /// Failed respawn attempts before the supervisor gives up for this app run.
 const MAX_RESTART_ATTEMPTS: u32 = 5;
+/// Engine self-repair (voice bootstrap) hard budget: model downloads on a
+/// slow link can legitimately take minutes; past this we give up and let
+/// the normal fallback (Edge voices) carry the session.
+const REPAIR_TIMEOUT: Duration = Duration::from_secs(600);
 
 /// App-lifetime voice server state.
 #[derive(Default)]
@@ -75,6 +79,14 @@ pub struct VoiceServerState {
     /// promptly (re-probing from scratch) when it changes — otherwise a
     /// user-triggered restart could race a supervisor respawn.
     generation: AtomicU64,
+    /// One-shot engine repair (2026-09-15): set when the voice bootstrap
+    /// has been run in response to `/health` reporting
+    /// `engines.kokoro == false`. At most ONE repair per app run; the
+    /// day-marker file bounds it to one per calendar day across runs.
+    repair_tried: AtomicBool,
+    /// Set when we've already logged the loud "repair didn't fix it" WARN,
+    /// so a broken-after-repair server warns once, not every watch cycle.
+    repair_warned: AtomicBool,
 }
 
 pub fn start(app: &AppHandle) {
@@ -202,15 +214,18 @@ fn resolve_server_script(app: &AppHandle) -> Result<PathBuf, String> {
 }
 
 /// The same import check bootstrap_voice.sh uses: a TTS interpreter must
-/// import the voice stack. Probing per candidate beats an existence check —
-/// a wrong interpreter spawns, dies on import, and we poll a dead port for
-/// 120 s. `misaki` matters: mlx-audio imports fine without it, then every
-/// Kokoro request 500s (the runaway narration cursor, 2026-09-13). The
-/// hpub/marker venvs are deliberately NOT candidates: they lack mlx-audio.
+/// import the voice stack — including `misaki.en`, because top-level
+/// `import misaki` DEFERS its submodule deps (spacy, num2words, ...). The
+/// old weak probe (`import misaki`) let a venv missing those pass, get
+/// chosen, and then every Kokoro request 500'd with Broken pipe while
+/// /health stayed green (owner's incident, 2026-09-15). Probing per
+/// candidate beats an existence check — a wrong interpreter spawns, dies
+/// on import, and we poll a dead port for 120 s. The hpub/marker venvs are
+/// deliberately NOT candidates: they lack mlx-audio.
 #[cfg(all(desktop, not(windows)))]
 fn voice_imports_ok(python: &str) -> bool {
     std::process::Command::new(python)
-        .args(["-c", "import mlx_audio, mlx_whisper, misaki"])
+        .args(["-c", "import mlx_audio, mlx_whisper, huggingface_hub, misaki.en"])
         .stdin(Stdio::null())
         .stdout(Stdio::null())
         .stderr(Stdio::null())
@@ -332,6 +347,200 @@ async fn wait_port_quiet() {
     while health_up().await && waited < Duration::from_secs(10) {
         tokio::time::sleep(Duration::from_millis(250)).await;
         waited += Duration::from_millis(250);
+    }
+}
+
+/// Resolve a bundled resource: installed bundle first, dev tree fallback.
+/// Same pattern as onboarding.rs (which runs the same script on demand).
+#[cfg(all(desktop, not(windows)))]
+fn resolve_resource(app: &AppHandle, rel: &str) -> Result<PathBuf, String> {
+    if let Ok(resource_dir) = app.path().resource_dir() {
+        let bundled = resource_dir.join(rel);
+        if bundled.is_file() {
+            return Ok(bundled);
+        }
+    }
+    let dev = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join(rel);
+    if dev.is_file() {
+        return Ok(dev);
+    }
+    Err(format!("resource not found: {rel}"))
+}
+
+/// Today's date as YYYY-MM-DD (UTC), computed from the Unix epoch with the
+/// standard civil-from-days conversion — no chrono dependency. Only used
+/// for the once-per-day engine-repair marker, so UTC vs local drift is
+/// irrelevant (the marker compares against itself).
+#[cfg(all(desktop, not(windows)))]
+fn today_string() -> String {
+    let days = (std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs()
+        / 86_400) as i64;
+    // Howard Hinnant's civil_from_days.
+    let z = days + 719_468;
+    let era = if z >= 0 { z } else { z - 146_096 } / 146_097;
+    let doe = z - era * 146_097;
+    let y = (doe - doe / 1_460 + doe / 36_524 - doe / 146_096) / 365 + era * 400;
+    let doy = doe - (365 * y + y / 4 - y / 100);
+    let mp = (5 * doy + 2) / 153;
+    let d = doy - (153 * mp + 2) / 5 + 1;
+    let m = if mp < 10 { mp + 3 } else { mp - 9 };
+    let y = if m <= 2 { y + 1 } else { y };
+    format!("{y:04}-{m:02}-{d:02}")
+}
+
+/// Engine-repair day marker, a sibling of the token file:
+/// `~/Library/Application Support/palimpsest-voice-repair` holds the
+/// YYYY-MM-DD date of the last repair. Bounds bootstrap re-runs to one per
+/// calendar day even across app relaunches.
+#[cfg(all(desktop, not(windows)))]
+fn repair_marker_path(app: &AppHandle) -> Option<PathBuf> {
+    app.path()
+        .app_data_dir()
+        .ok()
+        .and_then(|dir| dir.parent().map(|parent| parent.join("palimpsest-voice-repair")))
+}
+
+#[cfg(all(desktop, not(windows)))]
+fn repair_ran_today(app: &AppHandle) -> bool {
+    repair_marker_path(app)
+        .and_then(|path| std::fs::read_to_string(path).ok())
+        .map(|contents| contents.trim() == today_string())
+        .unwrap_or(false)
+}
+
+#[cfg(all(desktop, not(windows)))]
+fn mark_repair_today(app: &AppHandle) {
+    if let Some(path) = repair_marker_path(app) {
+        if let Err(e) = std::fs::write(&path, today_string()) {
+            eprintln!(
+                "voice server: could not write repair marker to {}: {e}",
+                path.display()
+            );
+        }
+    }
+}
+
+/// Fetch the full /health body as JSON. Unlike `health_up` (status only)
+/// and `probe` (token only), this exposes the engine self-test fields the
+/// server added on 2026-09-15.
+#[cfg(all(desktop, not(windows)))]
+async fn fetch_health_json() -> Option<serde_json::Value> {
+    let client = reqwest::Client::builder()
+        .timeout(Duration::from_secs(3))
+        .build()
+        .ok()?;
+    let body = client.get(HEALTH_URL).send().await.ok()?.text().await.ok()?;
+    serde_json::from_str(&body).ok()
+}
+
+/// Run the idempotent voice bootstrap script, streaming its output to the
+/// app log (same invocation pattern as onboarding.rs). Hard 10-minute cap.
+#[cfg(all(desktop, not(windows)))]
+async fn run_voice_bootstrap(app: &AppHandle) -> Result<(), String> {
+    let script = resolve_resource(app, "resources/tts/bootstrap_voice.sh")?;
+    log::info!("voice server: running bootstrap repair via {}", script.display());
+    let mut child = tokio::process::Command::new("/bin/bash")
+        .arg(&script)
+        .stdin(Stdio::null())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .kill_on_drop(true)
+        .spawn()
+        .map_err(|e| format!("failed to spawn voice bootstrap: {e}"))?;
+    pump_to_log(child.stdout.take()).await;
+    pump_to_log(child.stderr.take()).await;
+    let status = tokio::time::timeout(REPAIR_TIMEOUT, child.wait())
+        .await
+        .map_err(|_| "voice bootstrap timed out after 10 minutes".to_string())?
+        .map_err(|e| format!("voice bootstrap wait failed: {e}"))?;
+    if status.success() {
+        Ok(())
+    } else {
+        Err(format!("voice bootstrap exited with {:?}", status.code()))
+    }
+}
+
+/// One-shot engine self-repair (2026-09-15 incident: the chosen venv
+/// passed the old weak `import misaki` probe but lacked spacy/num2words,
+/// so /health was green while every Kokoro request 500'd with Broken
+/// pipe — the user sat with silently-dead voices). Called by the
+/// supervisor each time a server first passes health (owned or adopted):
+///
+///   1. Fetch /health once; if `engines.kokoro` is absent (pre-patch
+///      server) or true, do nothing.
+///   2. Guards: at most ONE repair per app run (`repair_tried`) and one
+///      per calendar day (the `palimpsest-voice-repair` marker file).
+///   3. Run bootstrap_voice.sh (idempotent; up to 10 min), then mark today.
+///   4. Owned child: kill it so the supervisor respawns against the
+///      repaired venv and re-checks. Adopted server: no handle to kill —
+///      bootstrap repairs the venv in place; the watch strikes cycle the
+///      process later.
+///   5. If kokoro is STILL false on the next healthy pass, log one loud
+///      WARN and stop trying (the narration layer's Edge-voice fallback
+///      covers playback).
+#[cfg(all(desktop, not(windows)))]
+async fn engine_self_repair(app: &AppHandle, adopted: bool) {
+    if shutdown_flag(app) {
+        return;
+    }
+    let Some(kokoro_ok) = fetch_health_json()
+        .await
+        .and_then(|json| json.get("engines")?.get("kokoro")?.as_bool())
+    else {
+        return; // old server without the engine self-test, or unparseable
+    };
+    let Some(state) = app.try_state::<VoiceServerState>() else {
+        return;
+    };
+    if state.repair_tried.load(Ordering::SeqCst) {
+        // The repair already ran this app run. Still broken -> one loud
+        // WARN per run, then stop trying; Edge-voice fallback covers it.
+        if !kokoro_ok && !state.repair_warned.swap(true, Ordering::SeqCst) {
+            log::warn!(
+                "voice server: ENGINE REPAIR RAN BUT kokoro IS STILL BROKEN — local voices will fail; falling back to Edge voices (see bootstrap log above)"
+            );
+        }
+        return;
+    }
+    if kokoro_ok || repair_ran_today(app) {
+        return;
+    }
+
+    state.repair_tried.store(true, Ordering::SeqCst);
+    log::warn!(
+        "voice server: /health reports engines.kokoro=false — venv is missing voice deps (2026-09-15 incident); running one-shot bootstrap repair"
+    );
+    match run_voice_bootstrap(app).await {
+        Ok(()) => {
+            mark_repair_today(app);
+            log::info!("voice server: bootstrap repair finished");
+        }
+        Err(e) => {
+            log::error!("voice server: bootstrap repair failed: {e}");
+            return;
+        }
+    }
+
+    if adopted {
+        // Not our child: no handle to kill. The venv is repaired on disk;
+        // the next watch-strike death respawns against it. Don't evict a
+        // healthy-answering server we adopted — that would drop an
+        // otherwise-working Qwen voice mid-session.
+        log::info!("voice server: adopted server keeps running; repaired venv applies after its next restart");
+        return;
+    }
+    // Owned child: kill it so the supervisor respawns it against the
+    // repaired venv and the next healthy pass re-checks engines.kokoro.
+    let held = app
+        .try_state::<VoiceServerState>()
+        .and_then(|state| state.child.lock().ok().and_then(|mut guard| guard.take()));
+    if let Some(mut child) = held {
+        log::info!("voice server: killing owned child so it respawns against the repaired venv");
+        let _ = child.start_kill();
+        let _ = child.wait().await;
     }
 }
 
@@ -486,6 +695,7 @@ async fn supervise(app: AppHandle) {
             Probe::Ours => {
                 eprintln!("voice server: adopted existing server (token match) — no spawn needed");
                 log::info!("voice server: adopted existing server (token match)");
+                engine_self_repair(&app, true).await;
                 match watch(&app).await {
                     Phase::Shutdown => return,
                     Phase::Resync => continue,
@@ -527,6 +737,7 @@ async fn supervise(app: AppHandle) {
                         log::info!("voice server: healthy — watching");
                         attempts = 0;
                         backoff = BACKOFF_START;
+                        engine_self_repair(&app, false).await;
                         match watch(&app).await {
                             Phase::Shutdown => return,
                             Phase::Resync => continue,

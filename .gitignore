@@ -63,3 +63,6 @@ apps/readest.koplugin/native/localsend-bin/target/
 # publish prep: never track local env or agent memory
 .env
 .claude/
+
+# Python sidecar caches
+__pycache__/

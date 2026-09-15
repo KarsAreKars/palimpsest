@@ -1,0 +1,51 @@
+name: CI
+
+# Quick gate on every push / PR: TypeScript, Rust, and the TTS math-check
+# tests. macOS runner so `cargo check` needs no extra system packages.
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  gate:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile --prefer-offline
+
+      - name: TypeScript check
+        working-directory: apps/readest-app
+        run: pnpm exec tsc --noEmit
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Cargo check
+        working-directory: apps/readest-app/src-tauri
+        run: cargo check -p Readest
+
+      # Math-check suite for qwen_server.py. latex2sympy2 must be pinned:
+      # newer releases pull an antlr runtime that breaks on Python 3.12+
+      # ("No module named 'typing.io'" → every /check test 503s).
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+      - name: Install math-check deps
+        run: pip install pytest sympy latex2sympy2==1.9.1
+      - name: Pytest (TTS math check)
+        run: pytest apps/readest-app/src-tauri/resources/tts/test_math_check.py -q
