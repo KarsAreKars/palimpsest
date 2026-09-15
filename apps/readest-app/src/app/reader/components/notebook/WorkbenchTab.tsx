@@ -43,6 +43,11 @@ import { checkDerivation } from '@/services/professor/mathCheck';
 import { parseProfessorTags } from '@/services/professor/professorTags';
 import { extractDiagramSvg } from '@/services/professor/diagramSvg';
 import {
+  consumeWorkbenchBridge,
+  WORKBENCH_BRIDGE_EVENT,
+  type WorkbenchBridgeRequest,
+} from '@/services/professor/bridge';
+import {
   WorkbenchVoicePlayer,
   type WorkbenchVoiceErrorKind,
   type WorkbenchVoiceState,
@@ -629,6 +634,32 @@ const WorkbenchTab: React.FC<{ bookKey: string }> = ({ bookKey }) => {
       ),
     });
   }, [bookKey, aiSettings, beginStream, streamCallbacks, appendBlock]);
+
+  // ── Bridge seed (audit R7b): the professor's "take it to the desk" plate ──
+  // arrives as a one-shot handoff. Seeding appends the question as a plain
+  // user block; the opening composition carries it via the history summary.
+  useEffect(() => {
+    const seedAndStart = (question: string) => {
+      voiceRef.current?.stop();
+      appendBlock(bookKey, {
+        id: newBlockId(),
+        author: 'user',
+        content: question,
+        at: new Date().toISOString(),
+      });
+      startSession();
+    };
+    const staged = consumeWorkbenchBridge(bookKey);
+    if (staged) seedAndStart(staged.question);
+    const onBridge = (ev: Event) => {
+      const req = (ev as CustomEvent<WorkbenchBridgeRequest>).detail;
+      if (req?.bookKey !== bookKey) return;
+      const handoff = consumeWorkbenchBridge(bookKey) ?? req;
+      seedAndStart(handoff.question);
+    };
+    window.addEventListener(WORKBENCH_BRIDGE_EVENT, onBridge);
+    return () => window.removeEventListener(WORKBENCH_BRIDGE_EVENT, onBridge);
+  }, [bookKey, appendBlock, startSession]);
 
   // ── Silent checking (§6.5 — no check button; it just happens) ──────────
   const checkInFlightRef = useRef(false);
