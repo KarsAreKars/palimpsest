@@ -8,8 +8,6 @@ import { useEnv } from '@/context/EnvContext';
 import { useDeskStore } from '@/store/deskStore';
 import { useReaderStore } from '@/store/readerStore';
 import { useBookDataStore } from '@/store/bookDataStore';
-import { latestConceptMap, useWorkbenchChatStore } from '../notebook/workbenchChat';
-import DeskRail from '../notebook/DeskRail';
 import useShortcuts from '@/hooks/useShortcuts';
 
 import DeskCanvas, { type DeskCanvasHandle } from './DeskCanvas';
@@ -119,10 +117,6 @@ const DeskSheet: React.FC<DeskSheetProps> = ({ bookKey }) => {
   // scroll (law 7); a stale threadId is a quiet no-op (the chip is
   // evidence, not a gate).
   const canvasRef = useRef<DeskCanvasHandle | null>(null);
-  const railMap = useWorkbenchChatStore((s) => latestConceptMap(s.blocks[bookKey] ?? []));
-  const handleOpenThread = useCallback((threadId: string) => {
-    canvasRef.current?.scrollToBlock(threadId);
-  }, []);
 
   if (!isDeskVisible || !bookData?.bookDoc || !bookData.book) return null;
 
@@ -176,11 +170,9 @@ const DeskSheet: React.FC<DeskSheetProps> = ({ bookKey }) => {
         </button>
       </header>
       <div className='desk-body min-h-0 flex-1'>
-        {/* R3: .desk-stage is an overflow-hidden flex filler and the rail's
-            positioning context; the canvas (DeskCanvas) is the single
-            scroll owner. */}
+        {/* The rail moved OUT of the desk (owner ruling: KNOWN/EDGE/UNKNOWN
+            muddies the paper). The stage is just the canvas. */}
         <div className='desk-stage h-full'>
-          <DeskRail map={railMap} onOpenThread={handleOpenThread} />
           <DeskErrorBoundary>
             <DeskCanvas ref={canvasRef} bookKey={bookKey} />
           </DeskErrorBoundary>

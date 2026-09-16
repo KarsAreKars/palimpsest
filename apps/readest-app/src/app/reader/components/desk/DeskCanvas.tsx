@@ -408,17 +408,20 @@ const DeskCanvas = forwardRef<DeskCanvasHandle, { bookKey: string }>(({ bookKey 
     // legacy column it is the click point as before. The professor's reply
     // clusters beside/under the anchor at this point (PENECHO R4/R5).
     const stage = stageRef.current;
+    // The block lands EXACTLY where the plate stood (the clamped, visible
+    // position — content coords), not the raw click point: what you see is
+    // what you get (owner dogfood: "it goes somewhere else").
     const placement =
       el && column && text.trim()
         ? {
-            x: Math.round(composer.point.x - (stage?.offsetLeft ?? 0)),
-            y: Math.round(composer.point.y + el.scrollTop - (stage?.offsetTop ?? 0)),
+            x: Math.round(platePosition.left - (stage?.offsetLeft ?? 0)),
+            y: Math.round(platePosition.top - (stage?.offsetTop ?? 0)),
             width: Math.round(stage?.clientWidth ?? column.offsetWidth),
           }
         : undefined;
     dispatch({ type: 'SEND' });
     if (text.trim()) streaming.sendTurn(text, placement);
-  }, [composer, streaming]);
+  }, [composer, streaming, platePosition]);
 
   // SENT / stream settle → idle (d2 §7.1).
   useEffect(() => {
