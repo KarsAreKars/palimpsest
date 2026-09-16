@@ -1,5 +1,5 @@
 import clsx from 'clsx';
-import React, { lazy, Suspense, useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { RiQuillPenLine } from 'react-icons/ri';
 
 import { useSettingsStore } from '@/store/settingsStore';
@@ -41,46 +41,6 @@ const MIN_NOTEBOOK_WIDTH = 0.15;
 // 0.45 notes-era ceiling. Mobile behaviour is unchanged (full width).
 const MAX_NOTEBOOK_WIDTH = 0.85;
 const DEFAULT_NOTEBOOK_WIDTH_FRAC = 0.35;
-
-// The math workbench mounts lazily and behind a quiet error boundary — the
-// 2026-09-06 lesson: a chat-runtime crash took the whole notebook down, so a
-// crash inside the workbench desk must never propagate past this panel.
-const WorkbenchTab = lazy(() => import('./WorkbenchTab'));
-
-/** Quiet paper fallback when the workbench desk crashes: no stack trace, no
- *  drama, and the notebook's other tabs keep working. */
-const WorkbenchFallback: React.FC = () => {
-  const _ = useTranslation();
-  return (
-    <div className='flex flex-grow items-center justify-center px-3'>
-      <div className='border-ink/25 bg-paperlight rounded-sm border px-4 py-6 text-center'>
-        <p className='typed text-mutedink text-[9px] leading-relaxed'>
-          {_('This desk is being restored.')}
-        </p>
-      </div>
-    </div>
-  );
-};
-
-class DeskErrorBoundary extends React.Component<
-  { children: React.ReactNode },
-  { crashed: boolean }
-> {
-  override state = { crashed: false };
-
-  static getDerivedStateFromError() {
-    return { crashed: true };
-  }
-
-  override componentDidCatch(error: unknown) {
-    // Log for diagnostics; render stays the quiet paper note above.
-    console.error('[workbench] desk crashed; sealed behind fallback', error);
-  }
-
-  override render() {
-    return this.state.crashed ? <WorkbenchFallback /> : this.props.children;
-  }
-}
 
 const Notebook: React.FC = ({}) => {
   const _ = useTranslation();
@@ -147,8 +107,12 @@ const Notebook: React.FC = ({}) => {
     setNotebookWidth(settings.globalReadSettings.notebookWidth);
     setNotebookPin(settings.globalReadSettings.isNotebookPinned);
     setNotebookVisible(settings.globalReadSettings.isNotebookPinned);
-    if (settings.globalReadSettings.notebookActiveTab) {
-      setNotebookActiveTab(settings.globalReadSettings.notebookActiveTab);
+    // Settings from older builds may persist notebookActiveTab: 'workbench'
+    // (the tab is gone — campaign default 1); only the three surviving tabs
+    // may land in the typed state.
+    const savedTab = settings.globalReadSettings.notebookActiveTab;
+    if (savedTab === 'spine' || savedTab === 'notes' || savedTab === 'study') {
+      setNotebookActiveTab(savedTab);
     }
 
     eventDispatcher.on('navigate', onNavigateEvent);
@@ -502,14 +466,6 @@ const Notebook: React.FC = ({}) => {
           </div>
         ) : notebookActiveTab === 'study' ? (
           <StudyTab bookKey={sideBarBookKey} />
-        ) : notebookActiveTab === 'workbench' ? (
-          <div className='min-h-0 flex-1'>
-            <DeskErrorBoundary>
-              <Suspense fallback={null}>
-                <WorkbenchTab bookKey={sideBarBookKey} />
-              </Suspense>
-            </DeskErrorBoundary>
-          </div>
         ) : isNotesTabEmpty ? (
           <div className='flex flex-grow items-center justify-center overflow-y-auto px-3'>
             <EmptyState

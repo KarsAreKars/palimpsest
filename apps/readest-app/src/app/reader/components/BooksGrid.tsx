@@ -27,6 +27,7 @@ import HintInfo from './HintInfo';
 import ReadingRuler from './ReadingRuler';
 import DoubleBorder from './DoubleBorder';
 import ReadingStatsTracker from './ReadingStatsTracker';
+import DeskSheet from './desk/DeskSheet';
 
 interface BooksGridProps {
   bookKeys: string[];
@@ -127,6 +128,10 @@ const BookCellInner: React.FC<BookCellProps> = ({
   // The page content (viewer + its header/footer chrome) that the pull-down
   // bookmark gesture slides as one block.
   const slideRef = useRef<HTMLDivElement | null>(null);
+
+  // The Desk mounts per cell, only for the focused book — the gate the
+  // DeskSheet mount below applies.
+  const sideBarBookKey = useSidebarStore((s) => s.sideBarBookKey);
 
   // Stable callback so HeaderBar doesn't see a new prop reference per
   // BooksGrid render.
@@ -260,6 +265,10 @@ const BookCellInner: React.FC<BookCellProps> = ({
           />
         )}
       </div>
+      {/* The Desk: full-page sheet over the page area; only for the focused
+          book, so multi-book splits never stack two desks. Sits above the
+          page wrapper, below HeaderBar (z-10). */}
+      {bookKey === sideBarBookKey && <DeskSheet bookKey={bookKey} />}
       <BookmarkPullDown bookKey={bookKey} ribbonHidden={!!hoveredBookKey} slideRef={slideRef} />
       <PageNavigationButtons bookKey={bookKey} isDropdownOpen={isDropdownOpen} />
       <SearchResultsNav bookKey={bookKey} gridInsets={gridInsets} />

@@ -50,6 +50,8 @@ Z-Index Layering Guide:
      • Docked navigation or note views.
 10 – Headerbar / Footbar / Ribbon
      • Top toolbar, bottom footbar and ribbon elements.
+ 5 – Desk Sheet
+     • The workbench's full-page surface over the page area, below all chrome.
  0 – Base Content
      • Main reading area or background content.
 */

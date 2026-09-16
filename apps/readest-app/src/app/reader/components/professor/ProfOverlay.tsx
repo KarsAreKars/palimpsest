@@ -18,7 +18,8 @@ import { stripAnnotations } from '@/services/professor/annotations';
 import { profTrace, profTraceReset } from '@/services/professor/telemetry';
 import { PaperField } from '@/components/apothecary';
 import { requestWorkbenchBridge, useBridgeStore } from '@/services/professor/bridge';
-import { useNotebookStore } from '@/store/notebookStore';
+import { useSidebarStore } from '@/store/sidebarStore';
+import { useDeskStore } from '@/store/deskStore';
 import { useTranslation } from '@/hooks/useTranslation';
 import StampButton from '@/components/apothecary/StampButton';
 import './prof-bridge.css';
@@ -55,10 +56,12 @@ const ProfOverlay: React.FC<ProfOverlayProps> = ({ bookKey }) => {
       ...(suggestion.concept ? { concept: suggestion.concept } : {}),
       at: suggestion.at,
     });
-    // Tab-activation precedent: Notebook.tsx handleTabChange →
-    // setNotebookActiveTab; store-only, no settings write needed here.
-    useNotebookStore.getState().setNotebookActiveTab('workbench');
-    useNotebookStore.getState().setNotebookVisible(true);
+    // The workbench surface is the Desk now (D1, campaign default 1): focus
+    // this book and slide the desk out from under the PDF. The staged
+    // handoff is consumed by the desk's workbench body on mount (the
+    // bridge.ts pending map), so the lazy body need not be mounted yet.
+    useSidebarStore.getState().setSideBarBookKey(bookKey);
+    useDeskStore.getState().setDeskVisible(true);
     clearSuggestion();
   };
 

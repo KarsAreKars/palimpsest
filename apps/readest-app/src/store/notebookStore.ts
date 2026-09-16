@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { BookNote } from '@/types/book';
 import { TextSelection } from '@/utils/sel';
 
-export type NotebookTab = 'spine' | 'notes' | 'study' | 'workbench';
+export type NotebookTab = 'spine' | 'notes' | 'study';
 
 interface NotebookState {
   notebookWidth: string;
