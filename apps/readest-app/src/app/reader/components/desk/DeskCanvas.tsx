@@ -109,6 +109,35 @@ const DeskCanvas = forwardRef<DeskCanvasHandle, { bookKey: string }>(({ bookKey 
   const blocks = useWorkbenchChatStore((s) => s.blocks[bookKey]) ?? EMPTY_BLOCKS;
   const checks = useWorkbenchChatStore((s) => s.checks[bookKey]) ?? EMPTY_CHECKS;
   const updateBlock = useWorkbenchChatStore((s) => s.updateBlock);
+  const setBlocks = useWorkbenchChatStore((s) => s.setBlocks);
+
+  /** Delete a block (owner dogfood: blocks need controls). User blocks only
+   *  carry plain content; professor artifacts vanish with their slot. */
+  const deleteBlock = useCallback(
+    (id: string) => {
+      setBlocks(
+        bookKey,
+        (useWorkbenchChatStore.getState().blocks[bookKey] ?? []).filter((b) => b.id !== id),
+      );
+    },
+    [bookKey, setBlocks],
+  );
+
+  /** Edit = reopen the text in the composer at the block's stored point and
+   *  remove the old block; sending writes the new version. */
+  const editBlock = useCallback(
+    (id: string) => {
+      const b = (useWorkbenchChatStore.getState().blocks[bookKey] ?? []).find((x) => x.id === id);
+      if (!b) return;
+      const x = b.x ?? 32;
+      const y = b.y ?? 32;
+      deleteBlock(id);
+      dispatch({ type: 'PLACE', point: { x, y } });
+      dispatch({ type: 'FOCUS' });
+      dispatch({ type: 'CHANGE', text: b.content });
+    },
+    [bookKey, deleteBlock],
+  );
 
   const aiSettings = useSettingsStore((s) => s.settings.aiSettings);
   const hasKey =
@@ -602,6 +631,26 @@ const DeskCanvas = forwardRef<DeskCanvasHandle, { bookKey: string }>(({ bookKey 
                   onPointerDown={(e) => startDrag(e, b.id, slot, false)}
                 >
                   {renderBlock(b, i)}
+                  <span className='desk-block-tools'>
+                    {b.author === 'user' && (
+                      <button
+                        type='button'
+                        className='desk-block-tool'
+                        aria-label={_('Edit this note')}
+                        onClick={() => editBlock(b.id)}
+                      >
+                        ✎
+                      </button>
+                    )}
+                    <button
+                      type='button'
+                      className='desk-block-tool'
+                      aria-label={_('Remove this from the sheet')}
+                      onClick={() => deleteBlock(b.id)}
+                    >
+                      ×
+                    </button>
+                  </span>
                   <span
                     className='desk-resize'
                     aria-hidden='true'

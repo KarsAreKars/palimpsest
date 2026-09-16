@@ -484,16 +484,15 @@ describe('layoutSheet — mixed-transcript reconciliation (e3 §2)', () => {
     expect(layout.extent).toBeGreaterThan(layout.placements.get('p2')!.y);
   });
 
-  test('the no-overlap clamp: a stored point colliding with flowed content slides DOWN', () => {
+  test('hand-placed points are respected verbatim (owner ruling 2026-09-16: no clamp)', () => {
     const blocks = [
       profBlock({ id: 'p0' }), // greeting occupies the head
       userBlock({ id: 'u1', x: 60, y: 10 }), // stored y collides with the greeting
     ];
     const layout = layoutSheet(blocks, 1000);
-    const greeting = layout.placements.get('p0')!;
     const anchor = layout.placements.get('u1')!;
-    expect(anchor.x).toBe(60); // horizontal position still respected
-    expect(anchor.y).toBeGreaterThanOrEqual(greeting.y + estimateHeight(blocks[0]!));
+    expect(anchor.x).toBe(60);
+    expect(anchor.y).toBe(10); // the user's ink stays where the user put it
   });
 
   test('the layout pass never mutates the document', () => {

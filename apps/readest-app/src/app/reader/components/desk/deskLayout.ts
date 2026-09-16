@@ -189,11 +189,10 @@ const STREAM_SENTINEL: TranscriptBlock = {
 };
 
 /**
- * Reconcile the whole sheet (e3 §2 mixed-transcript rule). Clusters lay
- * out in document order against a running flow cursor; a placed anchor
- * keeps its stored point UNLESS that point would overlap content already
- * laid above it — then the cluster is clamped DOWN, never up (the
- * no-ink-jumps law). Pure: the blocks are never mutated.
+ * Reconcile the whole sheet (e3 §2 mixed-transcript rule). OWNER RULING
+ * (2026-09-16 dogfood): a hand-placed point is respected VERBATIM — no
+ * downward clamp. The sheet is the user's to arrange; overlap is theirs
+ * to fix by dragging, not ours to prevent by moving their ink.
  */
 export function layoutSheet(blocks: TranscriptBlock[], stageWidth: number): SheetLayout {
   const clusters = buildClusters(blocks);
@@ -204,12 +203,8 @@ export function layoutSheet(blocks: TranscriptBlock[], stageWidth: number): Shee
   clusters.forEach((c, ci) => {
     const flowY = cursor;
     const layout = layoutCluster(c, stageWidth, flowY);
-    const anchorPlaced = c.anchor != null && c.anchor.x != null && c.anchor.y != null;
-    // The vertical clamp (e2 §2.2 step 7): a stored point colliding with
-    // content already laid above slides down to the cursor; otherwise the
-    // stored position is respected verbatim.
-    const shift =
-      anchorPlaced && layout.anchor && layout.anchor.y < cursor ? cursor - layout.anchor.y : 0;
+    // Owner ruling: no clamp. Stored points are verbatim; shift stays 0.
+    const shift = 0;
     const put = (id: string, p: ClusterPlacement) =>
       placements.set(id, { x: p.x, y: p.y + shift, width: p.width });
     if (layout.anchor && c.anchor) put(c.anchor.id, layout.anchor);

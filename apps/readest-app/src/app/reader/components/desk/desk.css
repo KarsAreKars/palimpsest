@@ -130,6 +130,29 @@
   cursor: nwse-resize;
   touch-action: none;
 }
+/* Per-block controls: hidden until hover — the paper stays clean. */
+.desk-block-tools {
+  position: absolute;
+  top: -18px;
+  right: 0;
+  display: none;
+  gap: 4px;
+}
+.desk-cluster-item:hover .desk-block-tools {
+  display: flex;
+}
+.desk-block-tool {
+  background: none;
+  border: none;
+  padding: 0 3px;
+  font-size: 13px;
+  line-height: 1;
+  color: var(--muted);
+  cursor: pointer;
+}
+.desk-block-tool:hover {
+  color: var(--stamp);
+}
 
 /* ---------- the endless tail ---------- */
 .desk-tail {
