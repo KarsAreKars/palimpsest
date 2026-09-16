@@ -29,6 +29,22 @@ export interface BlockRect {
   bottom: number;
 }
 
+export function isWritablePoint(
+  rects: BlockRect[],
+  contentExtent: number,
+  pointY: number,
+  caretHeight: number = 16,
+): boolean {
+  // Click anywhere that lands on empty paper: the tail below the last block,
+  // OR a vertical gap between blocks large enough to insert (v1.1 spatial pivot).
+  const overlapsBlock = rects.some(
+    (r) => pointY >= r.top - caretHeight && pointY <= r.bottom + caretHeight,
+  );
+  if (!overlapsBlock) return true;
+  const lastBottom = rects.reduce((m, r) => Math.max(m, r.bottom), 0);
+  return pointY >= lastBottom && pointY <= contentExtent;
+}
+
 /** True when the point lands on empty tail paper (below every block,
  *  inside the .desk-tail region) — the only v1 placement surface. */
 export function isTailPoint(
