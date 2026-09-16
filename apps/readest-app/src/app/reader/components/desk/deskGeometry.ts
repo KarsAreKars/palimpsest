@@ -4,10 +4,10 @@
  * testable without a renderer, matching the pure-contract style of
  * workbenchChat.ts.
  *
- * The sheet is a single fluid column (constitution default 3): the only
- * v1 placement surface is the empty tail paper below the last block.
- * Clicking on or above an existing block is inert — mid-paper insertion
- * is a freeform-x-era feature (d2 §5.2).
+ * The sheet is a single fluid column (constitution default 3) that the
+ * PENECHO pivot (e4 R1) opens to click-anywhere: any empty paper — the
+ * tail or a gap between blocks — accepts ink (isWritablePoint); clicking
+ * ON a block stays inert.
  */
 
 /** Follow distance: within this many px of the bottom the scroll stays
@@ -30,7 +30,7 @@ export interface BlockRect {
 }
 
 /** True when the point lands on empty tail paper (below every block,
- *  inside the .desk-tail region) — the only v1 placement surface. */
+ *  inside the .desk-tail region). */
 export function isTailPoint(
   rects: BlockRect[],
   contentExtent: number, // measured scrollHeight
@@ -38,6 +38,19 @@ export function isTailPoint(
 ): boolean {
   const lastBottom = rects.reduce((m, r) => Math.max(m, r.bottom), 0);
   return pointY >= lastBottom && pointY <= contentExtent;
+}
+
+/** PENECHO pivot (e4 R1): click-anywhere. True when the point lands on
+ *  writable paper — the endless tail below the last block OR a vertical
+ *  gap between blocks — and never ON a block rect. Supersedes isTailPoint
+ *  as the click predicate; isTailPoint remains for the tail invariant. */
+export function isWritablePoint(
+  rects: BlockRect[],
+  contentExtent: number, // measured scrollHeight
+  pointY: number,
+): boolean {
+  if (pointY < 0 || pointY > contentExtent) return false;
+  return !rects.some((r) => pointY >= r.top && pointY <= r.bottom);
 }
 
 /** Clamp the floating composer so it never leaves the visible sheet

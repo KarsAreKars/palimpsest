@@ -23,14 +23,31 @@ import {
   deskComposerReducer,
   idleComposer,
   isTailPoint,
+  isWritablePoint,
   shouldFollow,
 } from '@/app/reader/components/desk/deskGeometry';
+import {
+  STAGE,
+  buildClusters,
+  estimateHeight,
+  isSpatialSheet,
+  layoutCluster,
+  layoutSheet,
+} from '@/app/reader/components/desk/deskLayout';
 
 const userBlock = (over: Partial<TranscriptBlock> = {}): TranscriptBlock => ({
   id: 'u1',
   author: 'user',
   content: 'I tried the substitution.',
   at: '2026-09-16T00:00:00.000Z',
+  ...over,
+});
+
+const profBlock = (over: Partial<TranscriptBlock> = {}): TranscriptBlock => ({
+  id: 'p1',
+  author: 'professor',
+  content: 'Good — let us look at it together.',
+  at: '2026-09-16T00:00:01.000Z',
   ...over,
 });
 
@@ -303,5 +320,250 @@ describe('sheet extent invariant (d2 §9 case 9)', () => {
   test('the CSS contract agrees with the constant (min-height: 45vh)', () => {
     const css = readFileSync('src/app/reader/components/desk/desk.css', 'utf8');
     expect(css).toMatch(/\.desk-tail\s*\{[^}]*min-height:\s*45vh/);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// PENECHO PIVOT — click-anywhere + spatial clusters (e4 R1/R4/R5). Pure
+// contracts against deskGeometry.isWritablePoint and the deskLayout engine;
+// no existing case above is touched.
+// ---------------------------------------------------------------------------
+
+describe('isWritablePoint — click-anywhere (PENECHO R1)', () => {
+  const rects = [
+    { id: 'b1', top: 100, bottom: 300 },
+    { id: 'b2', top: 320, bottom: 500 },
+  ];
+  const extent = 500 + 360; // blocks + 45vh tail at a 800px viewport
+
+  test('the tail below every block is writable', () => {
+    expect(isWritablePoint(rects, extent, 501)).toBe(true);
+    expect(isWritablePoint(rects, extent, 700)).toBe(true);
+  });
+
+  test('a point ON a block is never writable — edges included', () => {
+    expect(isWritablePoint(rects, extent, 100)).toBe(false); // top edge
+    expect(isWritablePoint(rects, extent, 200)).toBe(false); // mid-block
+    expect(isWritablePoint(rects, extent, 300)).toBe(false); // bottom edge
+    expect(isWritablePoint(rects, extent, 320)).toBe(false);
+    expect(isWritablePoint(rects, extent, 500)).toBe(false);
+  });
+
+  test('a vertical gap between blocks is writable', () => {
+    expect(isWritablePoint(rects, extent, 301)).toBe(true);
+    expect(isWritablePoint(rects, extent, 310)).toBe(true);
+    expect(isWritablePoint(rects, extent, 319)).toBe(true);
+    expect(isWritablePoint(rects, extent, 0)).toBe(true); // above the first block
+  });
+
+  test('outside the content extent is inert', () => {
+    expect(isWritablePoint(rects, extent, extent + 1)).toBe(false);
+    expect(isWritablePoint(rects, extent, -1)).toBe(false);
+    expect(isWritablePoint([], 360, 359)).toBe(true); // empty sheet: anywhere
+    expect(isWritablePoint([], 360, 361)).toBe(false);
+  });
+});
+
+describe('buildClusters — the cluster grouping (e2 §1, e4 R4)', () => {
+  test('professor artifacts attach to the PRECEDING user block; order preserved', () => {
+    const blocks = [
+      userBlock({ id: 'u1' }),
+      profBlock({ id: 'p1' }),
+      profBlock({ id: 'p2' }),
+      profBlock({ id: 'p3' }),
+      userBlock({ id: 'u2' }),
+      profBlock({ id: 'p4' }),
+    ];
+    const clusters = buildClusters(blocks);
+    expect(clusters.map((c) => c.anchor?.id ?? null)).toEqual(['u1', 'u2']);
+    expect(clusters[0]!.artifacts.map((b) => b.id)).toEqual(['p1', 'p2', 'p3']);
+    expect(clusters[1]!.artifacts.map((b) => b.id)).toEqual(['p4']);
+  });
+
+  test('the session greeting is a cluster with a NULL anchor', () => {
+    const blocks = [profBlock({ id: 'p0' }), userBlock({ id: 'u1' }), profBlock({ id: 'p1' })];
+    const clusters = buildClusters(blocks);
+    expect(clusters).toHaveLength(2);
+    expect(clusters[0]!.anchor).toBeNull();
+    expect(clusters[0]!.artifacts.map((b) => b.id)).toEqual(['p0']);
+    expect(clusters[1]!.anchor?.id).toBe('u1');
+    // A transcript starting with a user block has no greeting run.
+    expect(buildClusters([userBlock({ id: 'u1' })])[0]!.anchor?.id).toBe('u1');
+    expect(buildClusters([])).toEqual([]);
+  });
+});
+
+describe('layoutCluster — spatial layout pure cases (e2 §2, e4 R5)', () => {
+  test('beside the anchor when the stage is wide enough', () => {
+    const anchor = userBlock({ id: 'u1', x: 60, y: 100 });
+    const artifact = profBlock({ id: 'p1' });
+    const layout = layoutCluster({ anchor, artifacts: [artifact] }, 1000, 0);
+    expect(layout.mode).toBe('beside');
+    // The anchor keeps its stored point at the anchor-box width.
+    expect(layout.anchor).toEqual({ x: 60, y: 100, width: STAGE.anchorWidth });
+    // The artifact sits to the anchor's right, LEVEL with it (y = anchor.y).
+    expect(layout.artifacts[0]).toEqual({
+      x: 60 + STAGE.anchorWidth + STAGE.clusterGap,
+      y: 100,
+      width: STAGE.artifactWidth,
+    });
+  });
+
+  test('stacked BELOW the anchor when the stage is narrow', () => {
+    const anchor = userBlock({ id: 'u1', x: 60, y: 100 });
+    const artifact = profBlock({ id: 'p1' });
+    // 60 + 380 + 24 + 380 + 32 = 876 > 600 — no beside room.
+    const layout = layoutCluster({ anchor, artifacts: [artifact] }, 600, 0);
+    expect(layout.mode).toBe('below');
+    expect(layout.artifacts[0]!.x).toBe(60); // the anchor's own x
+    expect(layout.artifacts[0]!.y).toBe(100 + estimateHeight(anchor) + STAGE.clusterGap);
+    expect(layout.artifacts[0]!.width).toBe(STAGE.anchorWidth);
+    // never overlapping the anchor box
+    expect(layout.artifacts[0]!.y).toBeGreaterThanOrEqual(100 + estimateHeight(anchor));
+  });
+
+  test('an unplaced anchor is a COLUMN cluster — the legacy measure at flowY', () => {
+    const anchor = userBlock({ id: 'u1' }); // no placement
+    const artifact = profBlock({ id: 'p1' });
+    const layout = layoutCluster({ anchor, artifacts: [artifact] }, 1000, 240);
+    expect(layout.mode).toBe('column');
+    expect(layout.anchor).toEqual({ x: (1000 - STAGE.columnWidth) / 2, y: 240, width: 720 });
+    expect(layout.artifacts[0]!.x).toBe((1000 - STAGE.columnWidth) / 2);
+    expect(layout.artifacts[0]!.width).toBe(STAGE.columnWidth);
+    expect(layout.artifacts[0]!.y).toBe(240 + estimateHeight(anchor) + STAGE.clusterGap);
+  });
+
+  test('the greeting cluster (null anchor) flows in the column at flowY', () => {
+    const layout = layoutCluster({ anchor: null, artifacts: [profBlock({ id: 'p0' })] }, 1000, 0);
+    expect(layout.mode).toBe('column');
+    expect(layout.anchor).toBeNull();
+    expect(layout.artifacts[0]).toEqual({ x: 140, y: 0, width: STAGE.columnWidth });
+  });
+});
+
+describe('layoutSheet — mixed-transcript reconciliation (e3 §2)', () => {
+  test('a legacy-only sheet reconciles to the centered column in document order', () => {
+    const blocks = [profBlock({ id: 'p0' }), userBlock({ id: 'u1' }), profBlock({ id: 'p1' })];
+    expect(isSpatialSheet(blocks)).toBe(false);
+    const layout = layoutSheet(blocks, 1000);
+    for (const b of blocks) {
+      const slot = layout.placements.get(b.id)!;
+      expect(slot.x).toBe(140);
+      expect(slot.width).toBe(STAGE.columnWidth);
+    }
+    // document order flows downward
+    const ys = blocks.map((b) => layout.placements.get(b.id)!.y);
+    expect(ys[0]).toBe(0);
+    expect(ys[1]!).toBeGreaterThan(ys[0]!);
+    expect(ys[2]!).toBeGreaterThan(ys[1]!);
+    expect(layout.extent).toBeGreaterThan(ys[2]!);
+  });
+
+  test('mixed sheet: placed cluster at its point, legacy content flows below it', () => {
+    const placed = userBlock({ id: 'u1', x: 60, y: 800 });
+    const blocks = [
+      profBlock({ id: 'p0' }), // greeting, column
+      placed,
+      profBlock({ id: 'p1' }), // u1's artifact
+      userBlock({ id: 'u2' }), // legacy anchor (probe pick: no placement)
+      profBlock({ id: 'p2' }),
+    ];
+    expect(isSpatialSheet(blocks)).toBe(true);
+    const layout = layoutSheet(blocks, 1000);
+    // The placed anchor keeps its stored point; the artifact rides beside.
+    expect(layout.placements.get('u1')).toEqual({ x: 60, y: 800, width: STAGE.anchorWidth });
+    expect(layout.placements.get('p1')!.x).toBe(60 + STAGE.anchorWidth + STAGE.clusterGap);
+    expect(layout.placements.get('p1')!.y).toBe(800);
+    // The legacy cluster flows in the column, BELOW the placed cluster's
+    // reserved extent — order preserved, no overlap.
+    const u2 = layout.placements.get('u2')!;
+    expect(u2.x).toBe(140);
+    expect(u2.width).toBe(STAGE.columnWidth);
+    expect(u2.y).toBeGreaterThanOrEqual(800 + estimateHeight(placed));
+    expect(layout.placements.get('p2')!.y).toBeGreaterThan(u2.y);
+    expect(layout.extent).toBeGreaterThan(layout.placements.get('p2')!.y);
+  });
+
+  test('the no-overlap clamp: a stored point colliding with flowed content slides DOWN', () => {
+    const blocks = [
+      profBlock({ id: 'p0' }), // greeting occupies the head
+      userBlock({ id: 'u1', x: 60, y: 10 }), // stored y collides with the greeting
+    ];
+    const layout = layoutSheet(blocks, 1000);
+    const greeting = layout.placements.get('p0')!;
+    const anchor = layout.placements.get('u1')!;
+    expect(anchor.x).toBe(60); // horizontal position still respected
+    expect(anchor.y).toBeGreaterThanOrEqual(greeting.y + estimateHeight(blocks[0]!));
+  });
+
+  test('the layout pass never mutates the document', () => {
+    const blocks = [
+      profBlock({ id: 'p0' }),
+      userBlock({ id: 'u1', x: 60, y: 800 }),
+      profBlock({ id: 'p1' }),
+    ];
+    const before = serializeTranscript(blocks);
+    layoutSheet(blocks, 1000);
+    layoutSheet(blocks, 400); // a narrow pass too
+    expect(serializeTranscript(blocks)).toBe(before);
+  });
+
+  test('streamSlot: the in-flight reply mounts at the open cluster’s next slot', () => {
+    const blocks = [userBlock({ id: 'u1', x: 60, y: 800 }), profBlock({ id: 'p1' })];
+    const layout = layoutSheet(blocks, 1000);
+    // beside the anchor, directly under the first artifact
+    expect(layout.streamSlot).toEqual({
+      x: 60 + STAGE.anchorWidth + STAGE.clusterGap,
+      y: 800 + estimateHeight(blocks[1]!) + STAGE.clusterGap,
+      width: STAGE.artifactWidth,
+    });
+    // a column (unplaced) active cluster streams in the legacy measure
+    const columnLayout = layoutSheet([userBlock({ id: 'u9' })], 1000);
+    expect(columnLayout.streamSlot).toEqual({
+      x: 140,
+      y: estimateHeight(userBlock({ id: 'u9' })) + STAGE.clusterGap,
+      width: STAGE.columnWidth,
+    });
+    // an empty sheet has no slot
+    expect(layoutSheet([], 1000).streamSlot).toBeNull();
+  });
+});
+
+describe('spatial render smoke (PENECHO R4/R5)', () => {
+  test('a placed user block renders at its stored point', () => {
+    const blocks = [userBlock({ id: 'u1', x: 96, y: 1200, width: 720 })];
+    expect(isSpatialSheet(blocks)).toBe(true);
+    const slot = layoutSheet(blocks, 1000).placements.get('u1')!;
+    // DeskCanvas binds this slot to the absolute .desk-cluster-item style.
+    expect(slot.x).toBe(96);
+    expect(slot.y).toBe(1200);
+  });
+
+  test('the CSS contract: the spatial stage and cluster item classes exist', () => {
+    const css = readFileSync('src/app/reader/components/desk/desk.css', 'utf8');
+    expect(css).toMatch(/\.desk-spatial\s*\{[^}]*position:\s*relative/);
+    expect(css).toMatch(/\.desk-cluster-item\s*\{[^}]*position:\s*absolute/);
+  });
+});
+
+describe('reader-key gate while the Desk is open (e4 R3)', () => {
+  test('useBookShortcuts subscribes isDeskVisible and early-returns the gated keys', () => {
+    const src = readFileSync('src/app/reader/hooks/useBookShortcuts.ts', 'utf8');
+    expect(src).toContain('useDeskStore((s) => s.isDeskVisible)');
+    for (const fn of [
+      'goLeft',
+      'goRight',
+      'goUp',
+      'goDown',
+      'toggleTTS',
+      'ttsPlayPause',
+      'ttsGoNextSentence',
+      'ttsGoPreviousSentence',
+      'ttsGoNextParagraph',
+      'ttsGoPreviousParagraph',
+      'ttsHighlightSentence',
+    ]) {
+      expect(src).toMatch(new RegExp(`const ${fn} = [^=]*=> \\{\\s*if \\(isDeskVisible\\) return`));
+    }
   });
 });

@@ -87,6 +87,26 @@
 /* Blocks inside reuse .wb-block/.wb-byline/.wb-content/.wb-sep — do not
    fork their faces. */
 
+/* ---------- spatial mode (PENECHO pivot, e4 R4/R5) ---------- */
+/* A sheet carrying any placement goes spatial: the column becomes the
+ * full-width stage and placed clusters position absolutely within it.
+ * Column clusters keep the 720px measure via their laid-out slot width.
+ * Legacy sheets (no placement anywhere) never match :has(.desk-spatial)
+ * and render exactly as above. */
+.desk-column:has(> .desk-spatial) {
+  max-width: none;
+}
+.desk-spatial {
+  position: relative;
+  width: 100%;
+  /* min-height is set inline from the layoutSheet extent so the tail
+   * paper follows the last cluster (heights are reserved estimates). */
+}
+.desk-cluster-item {
+  position: absolute;
+  /* left/top/width inline from the pure layout pass */
+}
+
 /* ---------- the endless tail ---------- */
 .desk-tail {
   min-height: 45vh; /* DESK_TAIL_MIN_VH — keep in sync with deskGeometry.ts */

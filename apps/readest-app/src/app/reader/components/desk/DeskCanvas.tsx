@@ -29,6 +29,7 @@ import React, {
   useCallback,
   useEffect,
   useImperativeHandle,
+  useMemo,
   useReducer,
   useRef,
   useState,
@@ -54,10 +55,11 @@ import {
   clampComposerPosition,
   deskComposerReducer,
   idleComposer,
-  isTailPoint,
+  isWritablePoint,
   type BlockRect,
   type SheetPoint,
 } from './deskGeometry';
+import { isSpatialSheet, layoutSheet } from './deskLayout';
 import { useDeskStreaming } from './useDeskStreaming';
 import { useTranscriptPersistence } from './useTranscriptPersistence';
 import DeskComposer from './DeskComposer';
@@ -89,6 +91,13 @@ export interface DeskCanvasHandle {
 
 const EMPTY_BLOCKS: TranscriptBlock[] = [];
 const EMPTY_CHECKS: Record<string, BlockCheck> = {};
+
+/** Content-coordinate top of an element within the scroll box — the
+ *  rect-based measure works for flow articles and for absolutely placed
+ *  spatial-cluster articles alike (offsetTop is wrapper-relative under
+ *  absolute positioning, so the pivot cannot use it). */
+const contentTop = (scroll: HTMLElement, a: HTMLElement): number =>
+  a.getBoundingClientRect().top - scroll.getBoundingClientRect().top + scroll.scrollTop;
 
 /** The floating plate's assumed size for clamping before it mounts —
  *  clampComposerPosition only needs a sane estimate to keep the plate on
@@ -125,6 +134,7 @@ const DeskCanvas = forwardRef<DeskCanvasHandle, { bookKey: string }>(({ bookKey 
   // ── Scroll policy (§8): pinned follow, no yank, one quiet stamp chip ───
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const columnRef = useRef<HTMLDivElement | null>(null);
+  const stageRef = useRef<HTMLDivElement | null>(null);
   const pinnedRef = useRef(true);
   const committedCountRef = useRef(0);
   const [pinned, setPinned] = useState(true);
@@ -148,8 +158,9 @@ const DeskCanvas = forwardRef<DeskCanvasHandle, { bookKey: string }>(({ bookKey 
     const articles = el.querySelectorAll<HTMLElement>('article[data-bid]');
     for (const a of articles) {
       // First block whose top edge is at or below the viewport top.
-      if (a.offsetTop >= el.scrollTop - 1) {
-        anchorRef.current = { id: a.dataset['bid'] ?? '', offset: a.offsetTop - el.scrollTop };
+      const top = contentTop(el, a);
+      if (top >= el.scrollTop - 1) {
+        anchorRef.current = { id: a.dataset['bid'] ?? '', offset: top - el.scrollTop };
         return;
       }
     }
@@ -197,7 +208,10 @@ const DeskCanvas = forwardRef<DeskCanvasHandle, { bookKey: string }>(({ bookKey 
       const target = el.querySelector<HTMLElement>(`article[data-bid="${anchor.id}"]`);
       if (!target) return;
       const max = el.scrollHeight - el.clientHeight;
-      el.scrollTop = Math.min(Math.max(target.offsetTop - anchor.offset, 0), Math.max(max, 0));
+      el.scrollTop = Math.min(
+        Math.max(contentTop(el, target) - anchor.offset, 0),
+        Math.max(max, 0),
+      );
     });
     ro.observe(el);
     return () => ro.disconnect();
@@ -233,6 +247,31 @@ const DeskCanvas = forwardRef<DeskCanvasHandle, { bookKey: string }>(({ bookKey 
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [blocks, checks, partial]);
+
+  // ── Spatial layout (PENECHO pivot, e4 R4/R5): when any block carries
+  //    placement the sheet goes spatial — placed clusters are positioned
+  //    absolutely from the pure layoutSheet pass; column clusters keep the
+  //    legacy 720px measure inside the same stage. Legacy sheets (no
+  //    placement anywhere) render today's single centered column,
+  //    byte-identical — zero migration, TRANSCRIPT_VERSION stays 1.
+  const [stageWidth, setStageWidth] = useState(0);
+  useEffect(() => {
+    const el = scrollRef.current;
+    const col = columnRef.current;
+    if (!el || typeof ResizeObserver === 'undefined') return;
+    const measure = () => setStageWidth(columnRef.current?.clientWidth ?? el.clientWidth);
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    if (col) ro.observe(col); // the :has() full-width flip resizes the column
+    return () => ro.disconnect();
+  }, [bookKey]);
+
+  const spatial = isSpatialSheet(blocks);
+  const sheetLayout = useMemo(
+    () => (spatial && stageWidth > 0 ? layoutSheet(blocks, stageWidth) : null),
+    [spatial, blocks, stageWidth],
+  );
 
   // ── Page chips: evidence you can travel to (the click scrolls the book
   //    through the reader view's existing goTo) ──────────────────────────
@@ -290,7 +329,8 @@ const DeskCanvas = forwardRef<DeskCanvasHandle, { bookKey: string }>(({ bookKey 
 
   useImperativeHandle(ref, () => ({ scrollToBlock }), [scrollToBlock]);
 
-  // ── Click-to-place (d2 §5.2): only empty tail paper accepts ink ──────
+  // ── Click-to-place (PENECHO R1): any empty paper accepts ink — the
+  //    tail OR a gap between blocks; clicking ON a block stays inert. ───
   const handleCanvasClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
     // Interactive children (chips, buttons, the composer plate) own their
     // own clicks — placement is the empty paper's gesture alone.
@@ -307,12 +347,11 @@ const DeskCanvas = forwardRef<DeskCanvasHandle, { bookKey: string }>(({ bookKey 
     const pointY = e.clientY - rect.top + el.scrollTop;
     const rects: BlockRect[] = Array.from(
       el.querySelectorAll<HTMLElement>('article[data-bid]'),
-    ).map((a) => ({
-      id: a.dataset['bid'] ?? '',
-      top: a.offsetTop,
-      bottom: a.offsetTop + a.offsetHeight,
-    }));
-    if (!isTailPoint(rects, el.scrollHeight, pointY)) return;
+    ).map((a) => {
+      const top = contentTop(el, a);
+      return { id: a.dataset['bid'] ?? '', top, bottom: top + a.getBoundingClientRect().height };
+    });
+    if (!isWritablePoint(rects, el.scrollHeight, pointY)) return;
     const point: SheetPoint = { x: e.clientX - rect.left, y: e.clientY - rect.top };
     dispatch({ type: 'PLACE', point });
   }, []);
@@ -342,15 +381,17 @@ const DeskCanvas = forwardRef<DeskCanvasHandle, { bookKey: string }>(({ bookKey 
     const text = composer.text;
     const el = scrollRef.current;
     const column = columnRef.current;
-    // Sheet-content coordinates (px, top-left relative to the column box —
-    // d2 §2.1). v1 stores them and ignores them at render; y is the
-    // commit-time insertion hint only.
+    // Sheet-content coordinates (px, d2 §2.1). In spatial mode the origin
+    // is the stage's top-left (the layoutSheet coordinate space); in the
+    // legacy column it is the click point as before. The professor's reply
+    // clusters beside/under the anchor at this point (PENECHO R4/R5).
+    const stage = stageRef.current;
     const placement =
       el && column && text.trim()
         ? {
-            x: Math.round(composer.point.x),
-            y: Math.round(composer.point.y + el.scrollTop),
-            width: Math.round(column.offsetWidth),
+            x: Math.round(composer.point.x - (stage?.offsetLeft ?? 0)),
+            y: Math.round(composer.point.y + el.scrollTop - (stage?.offsetTop ?? 0)),
+            width: Math.round(stage?.clientWidth ?? column.offsetWidth),
           }
         : undefined;
     dispatch({ type: 'SEND' });
@@ -373,6 +414,35 @@ const DeskCanvas = forwardRef<DeskCanvasHandle, { bookKey: string }>(({ bookKey 
     [...blocks].reverse().find((b) => b.author === 'professor')?.derivation,
   );
   const error = streaming.error;
+
+  // The per-block faces are identical in both modes — only their placement
+  // on the sheet differs (flow column vs laid-out cluster slot).
+  const renderBlock = (b: TranscriptBlock, i: number) => (
+    <BlockBody
+      key={b.id}
+      b={b}
+      blocks={blocks}
+      check={checks[b.id]}
+      checks={checks}
+      resumeFirst={i === 0 && !resumeNotice}
+      voice={voicePropsFor(b)}
+      onOpenThread={scrollToBlock}
+      onPickProbe={(blockId: string, stance: ProbeStance, message: string) =>
+        streaming.sendProbePick(blockId, stance, message)
+      }
+      quoteForPage={quoteForPage}
+      onGoPage={goToPage}
+    />
+  );
+  const streamingBody = (
+    <StreamingBody
+      partial={streaming.partial}
+      thinking={streaming.thinking}
+      quoteForPage={quoteForPage}
+      onGoPage={goToPage}
+    />
+  );
+  const streamingOn = streaming.phase !== 'idle' && streaming.showPlaceholder;
 
   return (
     <div
@@ -400,31 +470,45 @@ const DeskCanvas = forwardRef<DeskCanvasHandle, { bookKey: string }>(({ bookKey 
           </div>
         )}
 
-        {blocks.map((b, i) => (
-          <BlockBody
-            key={b.id}
-            b={b}
-            blocks={blocks}
-            check={checks[b.id]}
-            checks={checks}
-            resumeFirst={i === 0 && !resumeNotice}
-            voice={voicePropsFor(b)}
-            onOpenThread={scrollToBlock}
-            onPickProbe={(blockId: string, stance: ProbeStance, message: string) =>
-              streaming.sendProbePick(blockId, stance, message)
-            }
-            quoteForPage={quoteForPage}
-            onGoPage={goToPage}
-          />
-        ))}
+        {sheetLayout ? (
+          /* Spatial mode (PENECHO R4/R5): every block sits at its laid-out
+             slot — placed anchors at their stored point, professor
+             artifacts beside/below the anchor, column clusters in the
+             legacy measure. The stage reserves the estimated extent so the
+             tail paper follows the last cluster. */
+          <div className='desk-spatial' ref={stageRef} style={{ minHeight: sheetLayout.extent }}>
+            {blocks.map((b, i) => {
+              const slot = sheetLayout.placements.get(b.id);
+              if (!slot) return null;
+              return (
+                <div
+                  key={b.id}
+                  className='desk-cluster-item'
+                  style={{ left: slot.x, top: slot.y, width: slot.width }}
+                >
+                  {renderBlock(b, i)}
+                </div>
+              );
+            })}
+            {streamingOn && sheetLayout.streamSlot && (
+              <div
+                className='desk-cluster-item desk-cluster-stream'
+                style={{
+                  left: sheetLayout.streamSlot.x,
+                  top: sheetLayout.streamSlot.y,
+                  width: sheetLayout.streamSlot.width,
+                }}
+              >
+                {streamingBody}
+              </div>
+            )}
+          </div>
+        ) : (
+          <>
+            {blocks.map(renderBlock)}
 
-        {streaming.phase !== 'idle' && streaming.showPlaceholder && (
-          <StreamingBody
-            partial={streaming.partial}
-            thinking={streaming.thinking}
-            quoteForPage={quoteForPage}
-            onGoPage={goToPage}
-          />
+            {streamingOn && streamingBody}
+          </>
         )}
 
         {error && (
