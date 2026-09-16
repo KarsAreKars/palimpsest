@@ -56,6 +56,13 @@ const DeskComposer: React.FC<DeskComposerProps> = ({
   const _ = useTranslation();
   const text = state.kind === 'composing' ? state.text : '';
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+
+  // The plate owns the keys the moment it exists — without auto-focus the
+  // keystrokes fall through to the header's focused button (owner dogfood:
+  // "nothing I type seems to be working").
+  React.useEffect(() => {
+    textareaRef.current?.focus();
+  }, []);
   const composerRows = Math.min(5, Math.max(1, text.split('\n').length));
 
   // ── The ƒx popover (MathLive composer) — the 2.x markup, re-anchored ──

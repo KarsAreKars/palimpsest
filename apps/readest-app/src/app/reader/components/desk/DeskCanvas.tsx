@@ -557,27 +557,12 @@ const DeskCanvas = forwardRef<DeskCanvasHandle, { bookKey: string }>(({ bookKey 
           </div>
         )}
 
-        {blocks.length === 0 && streaming.phase === 'idle' && !error && (
+        {blocks.length === 0 && streaming.phase === 'idle' && !error && !hasKey && (
+          // No chat ceremony (owner ruling 2026-09-16): the paper is the
+          // affordance — click anywhere, write, Enter. Only the missing
+          // provider key gets a plate.
           <div className='wb-empty'>
-            <span className='ornament' role='img' aria-label={_('The workbench')}>
-              ✳
-            </span>
-            <p className='wb-empty-copy'>
-              {_(
-                'Sit down with the professor. Work the page line by line; your work is marked as you go.',
-              )}
-            </p>
-            {hasKey ? (
-              <button
-                type='button'
-                className='stamp-btn'
-                onClick={() => void streaming.startSession()}
-              >
-                {_('Start a session')}
-              </button>
-            ) : (
-              <NoKeyGuidance _={_} onOpen={openIntegrations} />
-            )}
+            <NoKeyGuidance _={_} onOpen={openIntegrations} />
           </div>
         )}
 
