@@ -54,7 +54,6 @@ import {
   clampComposerPosition,
   deskComposerReducer,
   idleComposer,
-  isWritablePoint,
   isTailPoint,
   type BlockRect,
   type SheetPoint,
@@ -313,7 +312,7 @@ const DeskCanvas = forwardRef<DeskCanvasHandle, { bookKey: string }>(({ bookKey 
       top: a.offsetTop,
       bottom: a.offsetTop + a.offsetHeight,
     }));
-    if (!isWritablePoint(rects, el.scrollHeight, pointY)) return;
+    if (!isTailPoint(rects, el.scrollHeight, pointY)) return;
     const point: SheetPoint = { x: e.clientX - rect.left, y: e.clientY - rect.top };
     dispatch({ type: 'PLACE', point });
   }, []);
@@ -490,14 +489,8 @@ const DeskCanvas = forwardRef<DeskCanvasHandle, { bookKey: string }>(({ bookKey 
           </div>
         )}
 
-        {/* Endless paper below the conversation — always writable (PENECHO). */}
+        {/* Endless paper below the conversation — always clickable (d2 §5). */}
         <div className='desk-tail' aria-hidden='true' />
-        <p
-          className={`desk-tail-hint${composer.kind !== 'idle' ? ' data-active="true"' : ''}`}
-          aria-hidden='true'
-        >
-          {_('The lower paper is yours — click to write.')}
-        </p>
       </div>
 
       {composer.kind === 'placed' && (

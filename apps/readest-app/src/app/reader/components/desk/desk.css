@@ -8,14 +8,6 @@
 /* ---------- the sheet ---------- */
 .desk-sheet {
   border-radius: 2px;
-  background: var(
-    --paper,
-    #f7f2e7
-  ); /* opaque paper fallback: sheet reads as real paper (PENECHO pivot, folded papercut) */
-  box-shadow:
-    inset 0 1px 0 var(--ink),
-    0 2px 8px rgba(0, 0, 0, 0.06),
-    var(--lift-shadow);
   transform: translateY(100%);
   transition: transform 240ms cubic-bezier(0.2, 0, 0, 1);
   box-shadow: var(--lift-shadow);
@@ -36,7 +28,7 @@
 .desk-scrim {
   position: absolute;
   inset: 0;
-  background: color-mix(in srgb, var(--paper) 74%, transparent);
+  background: color-mix(in srgb, var(--paper) 82%, transparent);
   pointer-events: none; /* the book is dimmed, not dismissed — clicks land on the desk */
 }
 [data-eink='true'] .desk-scrim {
@@ -99,24 +91,6 @@
 .desk-tail {
   min-height: 45vh; /* DESK_TAIL_MIN_VH — keep in sync with deskGeometry.ts */
   cursor: text;
-}
-
-.desk-tail-hint {
-  min-height: 2.4em;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--mute);
-  font-family: 'Special Elite', 'Courier New', monospace;
-  font-size: 0.75rem;
-  letter-spacing: 0.04em;
-  margin-top: 12px;
-  opacity: 0.55;
-  pointer-events: none;
-  user-select: none;
-}
-.desk-tail-hint[data-active='true'] {
-  display: none; /* hidden while composing */
 }
 
 /* ---------- the placed caret ghost ---------- */
