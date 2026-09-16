@@ -4,7 +4,7 @@ name: CI
 # tests. macOS runner so `cargo check` needs no extra system packages.
 on:
   push:
-    branches: [main]
+    branches: ['**'] # every branch — palimpsest is the working branch
   pull_request:
 
 permissions:
