@@ -123,6 +123,11 @@ const DeskCanvas = forwardRef<DeskCanvasHandle, { bookKey: string }>(({ bookKey 
     [bookKey, setBlocks],
   );
 
+  /** Edit stash: the block under edit is held here while the composer is
+   *  open. DISMISS restores it verbatim (CANVAS_UX caught the bug: cancel
+   *  after ✎ lost the original); SEND clears it (the new text replaces it). */
+  const editStashRef = useRef<TranscriptBlock | null>(null);
+
   /** Edit = reopen the text in the composer at the block's stored point and
    *  remove the old block; sending writes the new version. */
   const editBlock = useCallback(
@@ -131,6 +136,7 @@ const DeskCanvas = forwardRef<DeskCanvasHandle, { bookKey: string }>(({ bookKey 
       if (!b) return;
       const x = b.x ?? 32;
       const y = b.y ?? 32;
+      editStashRef.current = b;
       deleteBlock(id);
       dispatch({ type: 'PLACE', point: { x, y } });
       dispatch({ type: 'FOCUS' });
@@ -509,9 +515,16 @@ const DeskCanvas = forwardRef<DeskCanvasHandle, { bookKey: string }>(({ bookKey 
       : { left: 8, top: 8 };
 
   const handleDismiss = useCallback(() => {
+    const stash = editStashRef.current;
+    if (stash) {
+      // Cancelled edit: the original block returns unchanged.
+      editStashRef.current = null;
+      const cur = useWorkbenchChatStore.getState().blocks[bookKey] ?? [];
+      setBlocks(bookKey, [...cur, stash]);
+    }
     dispatch({ type: 'DISMISS' }); // clears the text (d2 §7.1 DISMISS)
     scrollRef.current?.focus(); // focus returns to the sheet container
-  }, []);
+  }, [bookKey, setBlocks]);
 
   const handleSend = useCallback(() => {
     if (composer.kind !== 'composing') return;
@@ -535,6 +548,7 @@ const DeskCanvas = forwardRef<DeskCanvasHandle, { bookKey: string }>(({ bookKey 
           }
         : undefined;
     dispatch({ type: 'SEND' });
+    editStashRef.current = null; // the sent text replaces the stashed original
     if (text.trim()) streaming.sendTurn(text, placement);
   }, [composer, streaming, platePosition]);
 
