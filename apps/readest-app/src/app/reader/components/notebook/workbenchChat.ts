@@ -119,6 +119,16 @@ export interface TranscriptBlock extends WorkbenchBlock {
    *  (d3 C2): the attempt still consumed the exchange's shape slot, so the
    *  count must see it. Additive metadata — renders as ordinary prose. */
   artifactMuted?: boolean;
+  /** Desk placement, sheet-content coordinates in px (top-left of the
+   *  block, relative to the column box's padding box). All optional, all
+   *  additive: absent means "flow in the single column" — a 2.x block
+   *  lacks them and renders exactly as today. Written by the desk
+   *  composer on the blocks it commits; read by no 2.x code path.
+   *  v1 stores x/width and ignores them at render; y is the commit-time
+   *  insertion hint only (d2 §2.1, audit R2). */
+  x?: number;
+  y?: number;
+  width?: number;
 }
 
 /** Silent-check state for one block. Chips derive from this. */
@@ -563,6 +573,64 @@ export const serializeTranscript = (blocks: TranscriptBlock[]): string =>
     2,
   );
 
+/** The learner's turn as a commit-ready block: answers the professor's
+ *  open teach-back ask, marks the honest "I don't know" signal, detects a
+ *  folio step-append, and carries the desk placement fields (d2 §2.1).
+ *  Pure — the caller owns store writes and the network turn. */
+export interface UserTurnInit {
+  content: string;
+  /** Desk placement (optional, additive — d2 §2.1). */
+  x?: number;
+  y?: number;
+  width?: number;
+}
+
+/**
+ * Build the learner's block for a turn, applying the same metadata rules
+ *  as the 2.x composer: answers the professor's open teach-back ask, marks
+ *  the honest "I don't know" signal, and detects a folio step-append.
+ *  Pure — the caller owns store writes and the network turn.
+ */
+export function buildUserBlock(
+  priorBlocks: TranscriptBlock[],
+  init: UserTurnInit,
+): { block: TranscriptBlock; associated: TranscriptBlock[] } {
+  const block: TranscriptBlock = {
+    id: newBlockId(),
+    author: 'user',
+    content: init.content,
+    at: new Date().toISOString(),
+    ...(init.x !== undefined ? { x: init.x } : {}),
+    ...(init.y !== undefined ? { y: init.y } : {}),
+    ...(init.width !== undefined ? { width: init.width } : {}),
+  };
+  const prior = priorBlocks[priorBlocks.length - 1];
+  if (prior?.author === 'professor' && prior.teachbackAsk && !prior.teachbackOf) {
+    block.teachbackAsk = prior.teachbackAsk;
+  }
+  if (isProbeSignal(block.content)) block.probeSignal = true;
+  const associated = associateLearnerStep(priorBlocks, block);
+  if (associated !== priorBlocks) {
+    const changed = associated.find((b, i) => b !== priorBlocks[i]);
+    if (changed) block.extendsDerivation = changed.id;
+  }
+  return { block, associated };
+}
+
+/** Placement fields survive the file round-trip only when finite numbers;
+ *  width must be positive. Anything else is stripped (the block still
+ *  loads — honest paper, never an erased-looking block). */
+export const sanitizePlacement = (b: TranscriptBlock): TranscriptBlock => {
+  const { x, y, width, ...rest } = b;
+  const num = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v);
+  return {
+    ...rest,
+    ...(num(x) ? { x } : {}),
+    ...(num(y) ? { y } : {}),
+    ...(num(width) && width > 0 ? { width } : {}),
+  };
+};
+
 const isBlock = (v: unknown): v is TranscriptBlock => {
   if (typeof v !== 'object' || v === null) return false;
   const b = v as Record<string, unknown>;
@@ -581,7 +649,9 @@ export function parseTranscript(json: string): TranscriptBlock[] | null {
     if (typeof parsed !== 'object' || parsed === null) return null;
     const blocks = (parsed as Record<string, unknown>)['blocks'];
     if (!Array.isArray(blocks) || !blocks.every(isBlock)) return null;
-    return blocks as TranscriptBlock[];
+    // Placement fields sanitize, never reject (d2 §2.2): a block carrying
+    // x: "oops" keeps its ink; only the malformed placement is stripped.
+    return (blocks as TranscriptBlock[]).map(sanitizePlacement);
   } catch {
     return null;
   }

@@ -1,9 +1,10 @@
 /**
  * blockBody — the per-block body of the workbench transcript, extracted
- * from WorkbenchTab.tsx (Desk campaign wave 2, d3 §A.2 + audit R5/R11).
+ * from the retired notebook tab (Desk campaign wave 2, d3 §A.2 + audit
+ * R5/R11).
  *
  * A pure move: BlockBody renders exactly the JSX that used to live inline
- * in WorkbenchTab's block loop (byline → content → voice → concept map →
+ * in the tab's block loop (byline → content → voice → concept map →
  * consult mark → probe row → figure → folio → learner folio → teach-back
  * captions → probe-signal marker → check chips → hairline), and
  * StreamingBody renders the professor's streaming ink-nib article. The
@@ -12,8 +13,8 @@
  * export with its nine-prop interface (audit R11); the player wiring that
  * builds VoiceControlProps lives in useDeskVoice (audit R5).
  *
- * DeskCanvas (wave 3) re-hosts these exports on the sheet; WorkbenchTab
- * re-imports them until it is harvested.
+ * DeskCanvas (wave 3) re-hosts these exports on the sheet; this module
+ * also owns the wb-* stylesheet (wb.css, audit R16).
  */
 import React from 'react';
 
@@ -32,6 +33,7 @@ import {
 import { Prose, Slip, VerdictChip } from './wbShared';
 import DerivationSlip from './DerivationSlip';
 import DiagramSlip from './DiagramSlip';
+import './wb.css';
 
 /** Split display markdown on the professor's `[Page N]` citations: the
  *  anchors become chips (evidence you can travel to), the rest stays prose. */
@@ -304,7 +306,8 @@ export const VoiceControl: React.FC<VoiceControlProps> = ({
 };
 
 /** `[Page N]` anchors become chips, the rest stays prose — moved verbatim
- *  from WorkbenchTab.tsx; the page callbacks are tab-level wiring passed in. */
+ *  from the retired tab; the page callbacks are surface-level wiring passed
+ *  in. */
 const renderContent = (
   text: string,
   quoteForPage: (page: number) => string | null,

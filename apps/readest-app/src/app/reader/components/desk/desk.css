@@ -40,13 +40,16 @@
   background: var(--paper-light);
 }
 /* The rail's positioning context: the rail rides beside the stage, fixed
- * against the sheet body, and never scrolls with the transcript. */
+ * against the sheet body, and never scrolls with the transcript. The stage
+ * itself is an overflow-hidden flex filler — the canvas inside it is the
+ * single scroll owner (audit R3(a)). */
 .desk-body {
   position: relative;
 }
 .desk-stage {
+  position: relative;
+  overflow: hidden;
   background: transparent;
-  scrollbar-width: thin;
 }
 
 /* ---------- focus ---------- */
@@ -60,5 +63,91 @@
   .desk-sheet {
     transition: none;
     transform: none; /* no entry slide; the sheet appears in place */
+  }
+}
+
+/* ---------- the sheet canvas (d2 §5, §12) ---------- */
+.desk-canvas {
+  position: relative;
+  height: 100%;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 24px;
+  outline: none;
+}
+.desk-canvas:focus-visible {
+  box-shadow: inset 0 0 0 1px var(--stamp);
+}
+
+/* ---------- the fluid column (constitution default 3) ---------- */
+.desk-column {
+  max-width: 720px;
+  margin-inline: auto;
+}
+/* Blocks inside reuse .wb-block/.wb-byline/.wb-content/.wb-sep — do not
+   fork their faces. */
+
+/* ---------- the endless tail ---------- */
+.desk-tail {
+  min-height: 45vh; /* DESK_TAIL_MIN_VH — keep in sync with deskGeometry.ts */
+  cursor: text;
+}
+
+/* ---------- the placed caret ghost ---------- */
+.desk-caret {
+  position: absolute;
+  width: 2px;
+  height: 1.1em;
+  background: var(--stamp);
+  animation: wb-nib-blink 1.1s steps(1) infinite;
+}
+/* reuse the existing @keyframes wb-nib-blink (wb.css) */
+
+/* ---------- the floating composer (d2 §7, §12) ---------- */
+.desk-composer {
+  position: absolute;
+  z-index: 41;
+  width: min(420px, 90%);
+  background: var(--paper);
+  border: 1px solid var(--ink);
+  border-radius: 2px;
+  box-shadow: var(--lift-shadow);
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.desk-composer textarea {
+  background: transparent;
+  border: none;
+  resize: none;
+  outline: none;
+  font-family: 'Newsreader', Georgia, serif;
+  font-size: 15px;
+  line-height: 1.5;
+  color: var(--ink);
+  min-height: 38px;
+}
+.desk-composer:focus-within {
+  border-color: var(--stamp);
+}
+.desk-composer-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+[data-eink='true'] .desk-composer {
+  box-shadow: none;
+}
+
+/* ---------- rail / column offset (audit R3(d)) ---------- */
+/* The rail's 96px spine + gutter steps the fluid column aside on wide
+ * sheets; the rail's own hide at 559px (DeskRail.css) and this padding are
+ * two halves of one 560px gate. RTL flips automatically (logical props). */
+@container (min-width: 560px) {
+  .desk-canvas {
+    padding-inline-start: 120px;
   }
 }

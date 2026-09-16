@@ -20,10 +20,10 @@ vi.mock('@/store/bookDataStore', () => ({
   }),
 }));
 
-// The lazy WorkbenchTab import is the desk's wave-1 body; stub it so the
-// test never pulls KaTeX/Streamdown. It renders one textarea so the
-// composer-safety case has a real input to focus.
-vi.mock('@/app/reader/components/notebook/WorkbenchTab', () => ({
+// The stage body is DeskCanvas (wave 3); stub it so the test never pulls
+// KaTeX/Streamdown. It renders one textarea so the composer-safety case
+// has a real input to focus.
+vi.mock('@/app/reader/components/desk/DeskCanvas', () => ({
   default: () => React.createElement('textarea', { 'data-testid': 'stub-composer-textarea' }),
 }));
 
@@ -87,7 +87,7 @@ describe('DeskSheet host', () => {
   test('Escape inside a textarea does NOT dismiss (composer safety)', async () => {
     useDeskStore.getState().setDeskVisible(true);
     render(React.createElement(DeskSheet, { bookKey: 'book-1' }));
-    const composer = await screen.findByTestId('stub-composer-textarea'); // stubbed WorkbenchTab textarea
+    const composer = await screen.findByTestId('stub-composer-textarea'); // stubbed stage textarea
     composer.focus();
     fireEvent.keyDown(window, { key: 'Escape' });
     expect(useDeskStore.getState().isDeskVisible).toBe(true);

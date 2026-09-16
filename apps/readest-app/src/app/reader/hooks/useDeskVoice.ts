@@ -1,13 +1,13 @@
 /**
  * useDeskVoice — the workbench voice player's wiring, extracted verbatim
- * from WorkbenchTab.tsx:427–505 (Desk campaign, audit R5).
+ * from the retired notebook tab's L427–505 (Desk campaign, audit R5).
  *
  * One player per desk mount; narration owns audio focus (the s4 precedence
  * law is unchanged: `voice-busy` refusal, `unit-change` instant yield,
- * stop-on-new-turn). Both the interim WorkbenchTab and wave 3's DeskCanvas
- * build per-block VoiceControl props through `voicePropsFor`; a new send
- * path calls `stop()` as its first statement so two voices never speak at
- * once (audit Risk 4).
+ * stop-on-new-turn). Both the interim tab and wave 3's DeskCanvas build
+ * per-block VoiceControl props through `voicePropsFor`; a new send path
+ * calls `stop()` as its first statement so two voices never speak at once
+ * (audit Risk 4).
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
 

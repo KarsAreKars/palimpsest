@@ -4,8 +4,8 @@
  *
  * HARD LOADING RULE (2026-09-06 lesson): this module imports 'mathlive',
  * which touches `window` at definition time. The consumer must therefore
- * mount it via next/dynamic with `ssr: false` (WorkbenchTab does) — never
- * import this file from a server-rendered path.
+ * mount it via next/dynamic with `ssr: false` (the workbench surfaces do)
+ * — never import this file from a server-rendered path.
  */
 import React, { useEffect, useRef } from 'react';
 import 'mathlive';

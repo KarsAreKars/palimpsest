@@ -1,8 +1,8 @@
 /**
  * wbShared — the shared presentational pieces of the workbench transcript
  * (audit R5). Prose, Slip, and VerdictChip were extracted UNCHANGED
- * (byte-identical props, markup, and class names) from WorkbenchTab.tsx so
- * the block renderers (DerivationSlip, DiagramSlip, the tab itself, and
+ * (byte-identical props, markup, and class names) from the retired notebook
+ * tab so the block renderers (DerivationSlip, DiagramSlip, DeskCanvas, and
  * later waves' controls) import them without reaching into a default-exported
  * tab. Pure move; no behavioral edit.
  */

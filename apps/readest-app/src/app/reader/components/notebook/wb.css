@@ -1,5 +1,6 @@
 /**
- * WorkbenchTab.css — Workbench 2.1, the block transcript.
+ * wb.css — Workbench 2.1, the block transcript (renamed from the retired
+ * tab's stylesheet, audit R16 — the wb-* grammar the desk reuses lives on).
  *
  * Design world: the paper itself is the surface. Blocks are type + hairline
  * on paper-bg — no bubbles, no cards, no buttons mid-session. Stamp is the

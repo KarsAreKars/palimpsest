@@ -11,21 +11,10 @@ import { useBookDataStore } from '@/store/bookDataStore';
 import { latestConceptMap, useWorkbenchChatStore } from '../notebook/workbenchChat';
 import DeskRail from '../notebook/DeskRail';
 import useShortcuts from '@/hooks/useShortcuts';
-import { lazy, Suspense } from 'react';
+
+import DeskCanvas, { type DeskCanvasHandle } from './DeskCanvas';
 
 import './desk.css';
-
-// Re-hosted, not rewritten: the workbench desk's mount contract moves here
-// verbatim from Notebook.tsx (2026-09-06 lesson: a chat-runtime crash must
-// never propagate past this panel).
-const WorkbenchTab = lazy(() => import('../notebook/WorkbenchTab'));
-
-/** True when the reader asked the motion to stop — glides collapse to
- *  instant jumps (the workbench's own helper, WorkbenchTab pattern). */
-const prefersReducedMotion = (): boolean =>
-  typeof window !== 'undefined' &&
-  typeof window.matchMedia === 'function' &&
-  window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 /** Quiet paper fallback when the workbench desk crashes. */
 const DeskFallback: React.FC = () => {
@@ -125,17 +114,14 @@ const DeskSheet: React.FC<DeskSheetProps> = ({ bookKey }) => {
   };
 
   // The traffic-light rail (d3 §B): a second, fixed view over
-  // latestConceptMap. The scroll root is the sheet's own stage — the book
-  // underneath must never scroll (law 7); a stale threadId is a quiet
-  // no-op (the chip is evidence, not a gate).
-  const stageRef = useRef<HTMLDivElement | null>(null);
+  // latestConceptMap. The scroll root is the canvas's own scroll element —
+  // the single scroll owner (audit R3); the book underneath must never
+  // scroll (law 7); a stale threadId is a quiet no-op (the chip is
+  // evidence, not a gate).
+  const canvasRef = useRef<DeskCanvasHandle | null>(null);
   const railMap = useWorkbenchChatStore((s) => latestConceptMap(s.blocks[bookKey] ?? []));
   const handleOpenThread = useCallback((threadId: string) => {
-    const target = stageRef.current?.querySelector(`article[data-bid="${threadId}"]`);
-    target?.scrollIntoView({
-      behavior: prefersReducedMotion() ? 'auto' : 'smooth',
-      block: 'center',
-    });
+    canvasRef.current?.scrollToBlock(threadId);
   }, []);
 
   if (!isDeskVisible || !bookData?.bookDoc || !bookData.book) return null;
@@ -190,12 +176,13 @@ const DeskSheet: React.FC<DeskSheetProps> = ({ bookKey }) => {
         </button>
       </header>
       <div className='desk-body min-h-0 flex-1'>
-        <DeskRail map={railMap} onOpenThread={handleOpenThread} />
-        <div className='desk-stage h-full overflow-y-auto' ref={stageRef}>
+        {/* R3: .desk-stage is an overflow-hidden flex filler and the rail's
+            positioning context; the canvas (DeskCanvas) is the single
+            scroll owner. */}
+        <div className='desk-stage h-full'>
+          <DeskRail map={railMap} onOpenThread={handleOpenThread} />
           <DeskErrorBoundary>
-            <Suspense fallback={null}>
-              <WorkbenchTab bookKey={bookKey} />
-            </Suspense>
+            <DeskCanvas ref={canvasRef} bookKey={bookKey} />
           </DeskErrorBoundary>
         </div>
       </div>

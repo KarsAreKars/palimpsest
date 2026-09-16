@@ -86,7 +86,7 @@ const prepareSpeakText = (raw: string): string => {
   return prepared.replace(/\s{2,}/g, ' ').trim();
 };
 
-/** The same cheap content hash WorkbenchTab.tsx uses for silent-check
+/** The same cheap content hash the workbench surfaces use for silent-check
  *  skipping, duplicated here (s4 §4.3 — it is not exported from the tab). */
 const contentHash = (s: string): string => {
   let h = 0;
