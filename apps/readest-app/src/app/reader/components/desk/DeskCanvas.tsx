@@ -108,6 +108,7 @@ const DeskCanvas = forwardRef<DeskCanvasHandle, { bookKey: string }>(({ bookKey 
   const _ = useTranslation();
   const blocks = useWorkbenchChatStore((s) => s.blocks[bookKey]) ?? EMPTY_BLOCKS;
   const checks = useWorkbenchChatStore((s) => s.checks[bookKey]) ?? EMPTY_CHECKS;
+  const updateBlock = useWorkbenchChatStore((s) => s.updateBlock);
 
   const aiSettings = useSettingsStore((s) => s.settings.aiSettings);
   const hasKey =
@@ -367,6 +368,91 @@ const DeskCanvas = forwardRef<DeskCanvasHandle, { bookKey: string }>(({ bookKey 
     dispatch({ type: 'PLACE', point });
   }, []);
 
+  // ── Drag to move / resize (penecho port P3/P5, owner dogfood): no
+  // threshold — the block follows the first pointermove; click-vs-drag is
+  // resolved retrospectively (a sub-4px release is a click, not a move).
+  const [drag, setDrag] = useState<{
+    id: string;
+    startX: number;
+    startY: number;
+    origX: number;
+    origY: number;
+    origW: number;
+    resize: boolean;
+    dx: number;
+    dy: number;
+  } | null>(null);
+
+  const startDrag = useCallback(
+    (
+      e: React.PointerEvent,
+      blockId: string,
+      slot: { x: number; y: number; width: number },
+      resize: boolean,
+    ) => {
+      // Word-style: move-drags start from the byline strip only — the body
+      // text stays selectable; the resize handle is exempt (it IS the grip).
+      if (!resize && !(e.target as HTMLElement).closest('.wb-byline')) return;
+      if ((e.target as HTMLElement).closest('button, a, input, textarea, select, math-field'))
+        return;
+      e.preventDefault();
+      const start = {
+        id: blockId,
+        startX: e.clientX,
+        startY: e.clientY,
+        origX: slot.x,
+        origY: slot.y,
+        origW: slot.width,
+        resize,
+        dx: 0,
+        dy: 0,
+      };
+      setDrag(start);
+      const onMove = (ev: PointerEvent) => {
+        setDrag((d) => (d ? { ...d, dx: ev.clientX - d.startX, dy: ev.clientY - d.startY } : d));
+      };
+      const onUp = (ev: PointerEvent) => {
+        window.removeEventListener('pointermove', onMove);
+        window.removeEventListener('pointerup', onUp);
+        setDrag((d) => {
+          if (d && Math.abs(ev.clientX - d.startX) + Math.abs(ev.clientY - d.startY) > 4) {
+            const dx = ev.clientX - d.startX;
+            const dy = ev.clientY - d.startY;
+            updateBlock(
+              bookKey,
+              d.id,
+              d.resize
+                ? { width: Math.max(240, Math.round(d.origW + dx)) }
+                : {
+                    x: Math.max(0, Math.round(d.origX + dx)),
+                    y: Math.max(0, Math.round(d.origY + dy)),
+                  },
+            );
+          }
+          return null;
+        });
+      };
+      window.addEventListener('pointermove', onMove);
+      window.addEventListener('pointerup', onUp);
+    },
+    [bookKey, updateBlock],
+  );
+
+  /** Live slot during a drag: the block follows the pointer before commit. */
+  const liveSlot = useCallback(
+    (id: string, slot: { x: number; y: number; width: number }) => {
+      if (!drag || drag.id !== id) return slot;
+      return drag.resize
+        ? { x: slot.x, y: slot.y, width: Math.max(240, drag.origW + drag.dx) }
+        : {
+            x: Math.max(0, drag.origX + drag.dx),
+            y: Math.max(0, drag.origY + drag.dy),
+            width: slot.width,
+          };
+    },
+    [drag],
+  );
+
   // ── The composer: clamp, dismiss, commit ──────────────────────────────
   const viewportBox = scrollRef.current
     ? { width: scrollRef.current.clientWidth, height: scrollRef.current.clientHeight }
@@ -505,13 +591,25 @@ const DeskCanvas = forwardRef<DeskCanvasHandle, { bookKey: string }>(({ bookKey 
             {blocks.map((b, i) => {
               const slot = sheetLayout.placements.get(b.id);
               if (!slot) return null;
+              const live = liveSlot(b.id, slot);
+              const mode: 'move' | 'resize' | null =
+                drag?.id === b.id ? (drag.resize ? 'resize' : 'move') : null;
               return (
                 <div
                   key={b.id}
-                  className='desk-cluster-item'
-                  style={{ left: slot.x, top: slot.y, width: slot.width }}
+                  className={`desk-cluster-item${mode ? ' desk-cluster-dragging' : ''}`}
+                  style={{ left: live.x, top: live.y, width: live.width }}
+                  onPointerDown={(e) => startDrag(e, b.id, slot, false)}
                 >
                   {renderBlock(b, i)}
+                  <span
+                    className='desk-resize'
+                    aria-hidden='true'
+                    onPointerDown={(e) => {
+                      e.stopPropagation();
+                      startDrag(e, b.id, slot, true);
+                    }}
+                  />
                 </div>
               );
             })}

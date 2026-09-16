@@ -113,7 +113,7 @@ export function layoutCluster(
   const placed = anchor != null && anchor.x != null && anchor.y != null;
   const anchorPos: ClusterPlacement | null = anchor
     ? placed
-      ? { x: anchor.x!, y: anchor.y!, width: STAGE.anchorWidth }
+      ? { x: anchor.x!, y: anchor.y!, width: anchor.width ?? STAGE.anchorWidth }
       : columnPlacement(stageWidth, flowY)
     : null;
 
@@ -133,6 +133,13 @@ export function layoutCluster(
   // column/below modes begin UNDER the anchor — never overlapping it.
   let cursorY = mode === 'beside' ? baseY : baseY + (anchor ? anchorH + STAGE.clusterGap : 0);
   for (const a of artifacts) {
+    // Dragged/moved blocks keep their hand-placed point (owner dogfood:
+    // "if you could get the responses and move them around").
+    if (a.x != null && a.y != null) {
+      artifactLayouts.push({ x: a.x, y: a.y, width: a.width ?? STAGE.artifactWidth });
+      cursorY += estimateHeight(a) + STAGE.clusterGap;
+      continue;
+    }
     const slot: ClusterPlacement =
       mode === 'beside'
         ? {

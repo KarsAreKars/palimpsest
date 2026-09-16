@@ -108,6 +108,28 @@
   position: absolute;
   /* left/top/width inline from the pure layout pass */
 }
+/* Word-style drag affordance: the byline strip is the move grip; the corner
+ * is the resize grip (penecho port P3/P5 — owner dogfood 2026-09-16). */
+.desk-cluster-item .wb-byline {
+  cursor: grab;
+  user-select: none;
+}
+.desk-cluster-dragging {
+  z-index: 2;
+  opacity: 0.92;
+}
+.desk-cluster-dragging .wb-byline {
+  cursor: grabbing;
+}
+.desk-resize {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 14px;
+  height: 14px;
+  cursor: nwse-resize;
+  touch-action: none;
+}
 
 /* ---------- the endless tail ---------- */
 .desk-tail {
