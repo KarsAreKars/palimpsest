@@ -103,6 +103,13 @@
 }
 /* reuse the existing @keyframes wb-nib-blink (wb.css) */
 
+/* reduced motion: a solid caret, no blink */
+@media (prefers-reduced-motion: reduce) {
+  .desk-caret {
+    animation: none;
+  }
+}
+
 /* ---------- the floating composer (d2 §7, §12) ---------- */
 .desk-composer {
   position: absolute;

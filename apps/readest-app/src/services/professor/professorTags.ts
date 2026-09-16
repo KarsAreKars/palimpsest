@@ -15,6 +15,10 @@
  *  - Tags are case-sensitive as spec'd: [CONCEPT:…] strips, [concept:…] is
  *    left untouched.
  *  - Unknown ALL-CAPS bracket tags are removed too, but capture nothing.
+ *    A colon body or bare name is stripped wherever it appears; a space
+ *    body ([NAME body…]) only in protocol position — the bracket on its
+ *    own line — so mid-prose brackets like [NOTE see: below] pass
+ *    through untouched.
  *  - Malformed brackets (no closing ], lowercase names) pass through intact.
  *  - $$ … $$ math blocks are never mangled: unknown-tag scanning skips
  *    them, so a matrix literal like [A] or an interval [0,1] inside math
@@ -56,8 +60,8 @@ export interface ParsedProfessorMessage {
   stepMarks?: { professorChecked?: 'ok' | 'bad' }[];
   /** [DIAGRAM claim:..] — a figure slip; the SVG rides in a ```svg fence. */
   diagram?: { claim?: string };
-  /** [LOOK page:N,M] — raw page list (numbers only; the desk caps it).
-   *  Malformed values capture nothing. */
+  /** [LOOK page:N,M] — page list (numbers only), capped at 4 at parse
+   *  time; malformed values capture nothing. */
   look?: number[];
   /** [VOICE] — the professor asked that this turn be heard (never
    *  displayed). Value ignored. */
@@ -78,6 +82,13 @@ const TAG_PATTERN = /\[([A-Z][A-Z0-9_-]*)(?::([^\]\n]*))?\]/g;
  *  still passes through untouched (R2's load-bearing rationale). */
 const PROTOCOL_TAG =
   /\[(CONCEPTS|TEACHBACK|DERIVE|DIAGRAM|LOOK)(?:[ \t]+[a-z][A-Za-z0-9_-]*:[^\]\n]*|:[^\]\n]*)?\]|\[(STEP)(?:[ \t]+\d+)?(?:[ \t]*\/CHECKED[ \t]+(?:ok|bad))?[ \t]*\]|\[(CONCEPT|QKIND|WORKBENCH|POINT|PROBE|EVALUATION|VOICE)(?::([^\]\n]*))?\]/g;
+
+/** Unknown space-bodied ALL-CAPS tag in protocol position: the bracket
+ *  occupies its own line (the "tags on their own lines" contract). The
+ *  name and body are captured positionally but recorded nowhere — the
+ *  strip is silent by design. Mid-prose ALL-CAPS brackets are prose
+ *  (see the doc comment above), so this pattern is line-anchored. */
+const LINE_TAG_PATTERN = /^[ \t]*\[([A-Z][A-Z0-9_-]*)[ \t]([^\]\n]*)\][ \t]*$/gm;
 
 /** Split out $$ … $$ display math (an unterminated $$ protects to end-of-
  *  string rather than leaking tag-stripping into the tail). */
@@ -161,7 +172,16 @@ export function parseProfessorTags(raw: string): ParsedProfessorMessage {
       case 'DERIVE': {
         // Split on the LAST ` goal:`; the head loses its leading `title:`.
         const goalIdx = v.lastIndexOf(' goal:');
-        const head = (goalIdx >= 0 ? v.slice(0, goalIdx) : v).replace(/^title:/, '').trim();
+        const pre = goalIdx >= 0 ? v.slice(0, goalIdx) : v;
+        // A goal-only folio ([DERIVE goal:x = 2]): the pre-split segment
+        // IS the goal, so no title was given — an empty title, not the
+        // whole `goal:x = 2` string as the title.
+        if (pre.startsWith('goal:')) {
+          const goalOnly = pre.slice('goal:'.length).trim();
+          derive = { ...(goalOnly ? { goal: goalOnly } : {}) };
+          break;
+        }
+        const head = pre.replace(/^title:/, '').trim();
         const goal = goalIdx >= 0 ? v.slice(goalIdx + ' goal:'.length).trim() : '';
         derive = {
           ...(head ? { title: head } : {}),
@@ -190,7 +210,13 @@ export function parseProfessorTags(raw: string): ParsedProfessorMessage {
       }
       case 'LOOK': {
         const m = /^page:(\d+(?:\s*,\s*\d+)*)$/.exec(v);
-        if (m?.[1]) look = m[1].split(/\s*,\s*/).map(Number); // malformed → nothing
+        // The parse caps the list at four pages; malformed values capture
+        // nothing.
+        if (m?.[1])
+          look = m[1]
+            .split(/\s*,\s*/)
+            .map(Number)
+            .slice(0, 4);
         break;
       }
       default:
@@ -204,9 +230,12 @@ export function parseProfessorTags(raw: string): ParsedProfessorMessage {
   const withoutProtocol = raw.replace(PROTOCOL_TAG, captureProtocol);
 
   // Pass 2 — unknown ALL-CAPS tags are stripped only OUTSIDE math shields,
-  // so real math like [0,1] stays protected.
+  // so real math like [0,1] stays protected. A space-bodied tag ([NAME body…])
+  // additionally must sit in protocol position (its own line): mid-prose
+  // ALL-CAPS brackets are prose, e.g. [NOTE see: below].
   const stripSegment = (segment: string): string =>
     segment
+      .replace(LINE_TAG_PATTERN, () => '') // space-bodied: protocol position only
       .replace(TAG_PATTERN, () => '') // protocol names are already gone: capture nothing
       .replace(/(?<=\S) {2,}(?=\S)/g, ' ') // a removed tag may leave a double space
       .replace(/[ \t]+\n/g, '\n'); // and trailing space on an emptied line

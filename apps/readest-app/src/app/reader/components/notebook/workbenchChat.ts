@@ -436,9 +436,10 @@ export function commitProfessorBlock(
     const extracted = extractDiagramSvg(parsed.display);
     if (artifactBudgetSpent(existing)) {
       // C2.i: the exchange's shape budget is spent — the payload is
-      // muted and the claim lands as clean prose; the attempt is marked
-      // so the count stays honest for anything later in the exchange.
-      block.content = `${extracted.display}\n\n${translate(BUDGET_MUTE_NOTE)}`;
+      // muted and the claim lands as clean prose before the note; the
+      // attempt is marked so the count stays honest for anything later
+      // in the exchange.
+      block.content = `${extracted.display}\n\n${parsed.diagram.claim}\n\n${translate(BUDGET_MUTE_NOTE)}`;
       block.artifactMuted = true;
     } else if (extracted.svg !== '' && !sanitizeDiagramSvg(extracted.svg)) {
       // C2.ii commit-time self-check: the figure would not hold its ink.
@@ -456,8 +457,9 @@ export function commitProfessorBlock(
   }
   if (parsed.derive) {
     if (artifactBudgetSpent(existing)) {
-      // C2.i: muted folio — the display math was already stripped by the
-      // tag parse, so the block lands as clean prose with the note.
+      // C2.i: muted folio — no DerivationStep[] is built, but
+      // parsed.display still carries the $$ steps as text, so the block
+      // lands as clean prose with the note.
       block.content = `${parsed.display}\n\n${translate(BUDGET_MUTE_NOTE)}`;
       block.artifactMuted = true;
     } else {

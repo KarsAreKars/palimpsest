@@ -65,14 +65,20 @@ const DerivationSlip: React.FC<{
 
   const closeReplay = () => setReplayStep(null);
 
+  // The replay owns its keys once open: stopPropagation keeps a bubbled
+  // keydown from reaching sheet/window-level shortcut listeners (mirrors
+  // the DeskComposer guard) — replay Escape must close the replay, not
+  // dismiss the whole desk.
   const handleReplayKey = (e: React.KeyboardEvent<HTMLDivElement>) => {
     if (replayStep === null) return;
     if (e.key === 'ArrowLeft') {
       e.preventDefault();
+      e.stopPropagation();
       if (replayStep === 0) closeReplay();
       else stepReplay(replayStep - 1);
     } else if (e.key === 'ArrowRight') {
       e.preventDefault();
+      e.stopPropagation();
       if (replayStep < total) stepReplay(replayStep + 1);
     } else if (e.key === 'Home') {
       e.preventDefault();
@@ -82,6 +88,7 @@ const DerivationSlip: React.FC<{
       stepReplay(total);
     } else if (e.key === 'Escape') {
       e.preventDefault();
+      e.stopPropagation();
       closeReplay();
     }
   };

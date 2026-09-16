@@ -111,6 +111,28 @@ describe('C2.i — the per-exchange artifact budget', () => {
 });
 
 describe('C2.ii — the commit-time diagram self-check', () => {
+  test('a budget-muted well-formed figure keeps its claim as clean prose before the note (r4 FIX 2)', () => {
+    // Three shapes in, the exchange's budget is spent — the fourth shape
+    // is muted even though its fence would have held its ink.
+    let blocks = [USER];
+    for (let i = 1; i <= 3; i++) {
+      blocks = [...blocks, commitProfessorBlock(folioRaw(i), blocks)];
+    }
+    expect(artifactBudgetSpent(blocks)).toBe(true);
+
+    const muted = commitProfessorBlock(realFigureRaw, blocks);
+    expect(muted.diagram).toBeUndefined(); // the payload is muted
+    expect(muted.artifactMuted).toBe(true);
+    expect(muted.content).toContain('A real figure'); // the claim survives as prose
+    expect(muted.content).toContain('one shape at a time');
+    expect(muted.content).not.toContain('<svg'); // the fence never reaches the eye
+    // The claim stands before the librarian's note, mirroring the
+    // failed-self-check sibling.
+    expect(muted.content.indexOf('A real figure')).toBeLessThan(
+      muted.content.indexOf('one shape at a time'),
+    );
+  });
+
   test('a figure whose fence holds script instead of a drawing drops the payload, keeps the claim as prose, and consumes the slot', () => {
     // The same vetted predicate DiagramSlip renders by: a fence that
     // sanitizes to nothing would have degraded at render time — at commit

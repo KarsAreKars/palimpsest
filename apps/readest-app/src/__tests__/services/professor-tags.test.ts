@@ -177,4 +177,59 @@ describe('workbench 2.x protocol tags', () => {
     expect(parsed.concept).toBeUndefined();
     expect(parsed.probe).toBeUndefined();
   });
+
+  test('unknown space-bodied ALL-CAPS tags in protocol position strip fully, capture nothing (r4 FIX 1)', () => {
+    const raw =
+      'A quiet paragraph.\n' +
+      "[TO_WORKBENCH prompt:'deep']\n" +
+      '[FROBNICATE see: x]\n' +
+      '[STEP 1 /CHECKED maybe]\n' +
+      'The closing line.';
+    const parsed = parseProfessorTags(raw);
+    expect(parsed.display).not.toContain('TO_WORKBENCH');
+    expect(parsed.display).not.toContain('prompt:');
+    expect(parsed.display).not.toContain('FROBNICATE');
+    expect(parsed.display).not.toContain('CHECKED');
+    expect(parsed.display).not.toContain('['); // nothing bracket-shaped survives
+    expect(parsed.display).not.toContain(']');
+    expect(parsed.display).toContain('A quiet paragraph.');
+    expect(parsed.display).toContain('The closing line.');
+    // The malformed instructed variant captured nothing either.
+    expect(parsed.stepMarks).toBeUndefined();
+  });
+
+  test('a well-formed [STEP 1 /CHECKED ok] still parses as a check next to a malformed sibling (r4 FIX 1)', () => {
+    const parsed = parseProfessorTags(
+      '$$a = b$$\nwhy\n[STEP 1 /CHECKED ok]\n[STEP 2 /CHECKED maybe]',
+    );
+    expect(parsed.stepMarks).toEqual([{ professorChecked: 'ok' }]);
+    expect(parsed.display).not.toContain('[STEP');
+  });
+
+  test('non-tag brackets [sic] and [Page 3] remain untouched, mid-prose and on their own line (r4 FIX 1)', () => {
+    const raw = 'A [sic] in the margin.\n[Page 3]\n[sic]\nThe end.';
+    const parsed = parseProfessorTags(raw);
+    expect(parsed.display).toContain('[sic]');
+    expect(parsed.display).toContain('[Page 3]');
+    expect(parsed.display).toContain('A [sic] in the margin.');
+  });
+
+  test('an INLINE space-bodied ALL-CAPS bracket renders raw — the deliberate position waiver (r4 FIX 1)', () => {
+    const raw = 'Inline [FROBNICATE see: x] prose stays, per the waiver.';
+    const parsed = parseProfessorTags(raw);
+    expect(parsed.display).toContain('[FROBNICATE see: x]');
+  });
+
+  test('[LOOK page:…] is capped at four pages at parse time (r4 FIX 4)', () => {
+    expect(parseProfessorTags('I will look.\n[LOOK page:1,2,3,4,5,6]').look).toEqual([1, 2, 3, 4]);
+    expect(parseProfessorTags('I will look.\n[LOOK page:7, 12, 3, 9, 44]').look).toEqual([
+      7, 12, 3, 9,
+    ]);
+  });
+
+  test('[DERIVE goal:…] without a title is a goal-only folio, not a titled one (r4 FIX 5)', () => {
+    const parsed = parseProfessorTags('$$x = 2$$\nthe goal, restated plain\n[DERIVE goal:x = 2]');
+    expect(parsed.derive).toEqual({ goal: 'x = 2' });
+    expect(parsed.display).not.toContain('[DERIVE');
+  });
 });
