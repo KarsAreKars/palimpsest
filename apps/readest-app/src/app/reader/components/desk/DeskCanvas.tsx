@@ -333,10 +333,13 @@ const DeskCanvas = forwardRef<DeskCanvasHandle, { bookKey: string }>(({ bookKey 
   //    tail OR a gap between blocks; clicking ON a block stays inert. ───
   const handleCanvasClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
     // Interactive children (chips, buttons, the composer plate) own their
-    // own clicks — placement is the empty paper's gesture alone.
+    // own clicks — placement is the empty paper's gesture alone. NOTE: the
+    // sheet root itself has role='dialog', so guard by the composer's class
+    // — guarding on [role="dialog"] swallows EVERY click on the sheet
+    // (owner dogfood: "nothing I type seems to be working").
     if (
       (e.target as HTMLElement).closest(
-        'button, a, input, textarea, select, math-field, [role="dialog"]',
+        'button, a, input, textarea, select, math-field, .desk-composer, .wb-math-popover',
       )
     ) {
       return;
