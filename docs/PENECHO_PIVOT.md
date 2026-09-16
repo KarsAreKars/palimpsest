@@ -34,6 +34,13 @@ paradigm: the user writes **anywhere** on the sheet; the professor works
 - **"He draws"**: the professor's drawings are SVG artifacts (diagram blocks,
   KaTeX) placed inside the cluster — the pen-down guard (max shapes per
   exchange) stays, counted per cluster.
+- **Function plots are CORE, not v1.1** (owner ruling 2026-09-16): visualizing
+  the underlying math is the point of the sheet. New artifact: a `plot` block
+  — LaTeX in (MathLive Compute Engine evaluates it offline), SVG axes + curve
+  out, stamp accent, placed in the cluster like any figure. The professor can
+  sketch the parabola beside `y = x²`. Ships in the pivot's final wave,
+  immediately after the spatial renderer lands (it reuses cluster placement).
+- **Freehand ink stays v1.1** (stroke capture is a separate input layer).
 - The chat transcript model stays as the document (TRANSCRIPT_VERSION stays
   1; placement already additive) — order remains for threading/voice/replay;
   rendering becomes spatial. Pure document-layout change.
