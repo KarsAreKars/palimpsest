@@ -373,13 +373,24 @@ const DeskCanvas = forwardRef<DeskCanvasHandle, { bookKey: string }>(({ bookKey 
     : null;
   const placedPoint =
     composer.kind === 'placed' || composer.kind === 'composing' ? composer.point : null;
+  // The plate rides INSIDE the scroll container (it must scroll with the
+  // paper), but clicks are viewport-relative — so clamp in viewport space,
+  // then translate into content space by adding the live scrollTop
+  // (owner dogfood: "where I click and where it goes is 2 separate places").
+  const liveScrollTop = scrollRef.current?.scrollTop ?? 0;
   const platePosition =
     placedPoint && viewportBox
-      ? clampComposerPosition(placedPoint, viewportBox, COMPOSER_ESTIMATE)
+      ? (() => {
+          const c = clampComposerPosition(placedPoint, viewportBox, COMPOSER_ESTIMATE);
+          return { left: c.left, top: c.top + liveScrollTop };
+        })()
       : { left: 8, top: 8 };
   const caretPosition =
     placedPoint && viewportBox
-      ? clampComposerPosition(placedPoint, viewportBox, { width: 2, height: 16 })
+      ? (() => {
+          const c = clampComposerPosition(placedPoint, viewportBox, { width: 2, height: 16 });
+          return { left: c.left, top: c.top + liveScrollTop };
+        })()
       : { left: 8, top: 8 };
 
   const handleDismiss = useCallback(() => {
