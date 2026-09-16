@@ -75,6 +75,7 @@ const useBookShortcuts = ({ sideBarBookKey, bookKeys }: UseBookShortcutsProps) =
   };
 
   const switchSideBar = () => {
+    if (isDeskVisible) return; // the desk owns the keys while it is open
     if (sideBarBookKey) setSideBarBookKey(getNextBookKey(sideBarBookKey));
   };
 
@@ -452,8 +453,14 @@ const useBookShortcuts = ({ sideBarBookKey, bookKeys }: UseBookShortcutsProps) =
       // page-navigation actions below can turn the page (#4728).
       onAdjustTextSelection: adjustTextSelection,
       onSwitchSideBar: switchSideBar,
-      onToggleSideBar: toggleSideBar,
-      onToggleNotebook: toggleNotebook,
+      onToggleSideBar: () => {
+        if (isDeskVisible) return; // the desk owns the keys while it is open
+        toggleSideBar();
+      },
+      onToggleNotebook: () => {
+        if (isDeskVisible) return;
+        toggleNotebook();
+      },
       onToggleScrollMode: toggleScrollMode,
       onToggleBookmark: toggleBookmark,
       onToggleParagraphMode: toggleParagraphMode,

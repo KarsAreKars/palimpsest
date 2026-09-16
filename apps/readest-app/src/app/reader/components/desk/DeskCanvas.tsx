@@ -349,10 +349,18 @@ const DeskCanvas = forwardRef<DeskCanvasHandle, { bookKey: string }>(({ bookKey 
       el.querySelectorAll<HTMLElement>('article[data-bid]'),
     ).map((a) => {
       const top = contentTop(el, a);
-      return { id: a.dataset['bid'] ?? '', top, bottom: top + a.getBoundingClientRect().height };
+      const bRect = a.getBoundingClientRect();
+      return {
+        id: a.dataset['bid'] ?? '',
+        top,
+        bottom: top + bRect.height,
+        left: bRect.left - rect.left,
+        right: bRect.right - rect.left,
+      };
     });
-    if (!isWritablePoint(rects, el.scrollHeight, pointY)) return;
-    const point: SheetPoint = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+    const pointX = e.clientX - rect.left;
+    if (!isWritablePoint(rects, el.scrollHeight, pointY, pointX)) return;
+    const point: SheetPoint = { x: pointX, y: e.clientY - rect.top };
     dispatch({ type: 'PLACE', point });
   }, []);
 

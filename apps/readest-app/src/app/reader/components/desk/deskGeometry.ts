@@ -27,6 +27,8 @@ export interface BlockRect {
   id: string;
   top: number; // px, content-box coordinates
   bottom: number;
+  left?: number; // px, canvas-relative — 2D writable test (owner dogfood)
+  right?: number;
 }
 
 /** True when the point lands on empty tail paper (below every block,
@@ -48,9 +50,15 @@ export function isWritablePoint(
   rects: BlockRect[],
   contentExtent: number, // measured scrollHeight
   pointY: number,
+  pointX?: number, // when given, the test is 2D: beside a block is writable
 ): boolean {
   if (pointY < 0 || pointY > contentExtent) return false;
-  return !rects.some((r) => pointY >= r.top && pointY <= r.bottom);
+  return !rects.some((r) => {
+    const vOverlap = pointY >= r.top && pointY <= r.bottom;
+    if (!vOverlap) return false;
+    if (pointX == null || r.left == null || r.right == null) return true; // Y-only fallback
+    return pointX >= r.left && pointX <= r.right;
+  });
 }
 
 /** Clamp the floating composer so it never leaves the visible sheet
