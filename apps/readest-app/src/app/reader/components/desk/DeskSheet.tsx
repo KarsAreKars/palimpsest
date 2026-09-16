@@ -8,6 +8,8 @@ import { useEnv } from '@/context/EnvContext';
 import { useDeskStore } from '@/store/deskStore';
 import { useReaderStore } from '@/store/readerStore';
 import { useBookDataStore } from '@/store/bookDataStore';
+import { latestConceptMap, useWorkbenchChatStore } from '../notebook/workbenchChat';
+import DeskRail from '../notebook/DeskRail';
 import useShortcuts from '@/hooks/useShortcuts';
 import { lazy, Suspense } from 'react';
 
@@ -17,6 +19,13 @@ import './desk.css';
 // verbatim from Notebook.tsx (2026-09-06 lesson: a chat-runtime crash must
 // never propagate past this panel).
 const WorkbenchTab = lazy(() => import('../notebook/WorkbenchTab'));
+
+/** True when the reader asked the motion to stop — glides collapse to
+ *  instant jumps (the workbench's own helper, WorkbenchTab pattern). */
+const prefersReducedMotion = (): boolean =>
+  typeof window !== 'undefined' &&
+  typeof window.matchMedia === 'function' &&
+  window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 /** Quiet paper fallback when the workbench desk crashes. */
 const DeskFallback: React.FC = () => {
@@ -115,6 +124,20 @@ const DeskSheet: React.FC<DeskSheetProps> = ({ bookKey }) => {
     }
   };
 
+  // The traffic-light rail (d3 §B): a second, fixed view over
+  // latestConceptMap. The scroll root is the sheet's own stage — the book
+  // underneath must never scroll (law 7); a stale threadId is a quiet
+  // no-op (the chip is evidence, not a gate).
+  const stageRef = useRef<HTMLDivElement | null>(null);
+  const railMap = useWorkbenchChatStore((s) => latestConceptMap(s.blocks[bookKey] ?? []));
+  const handleOpenThread = useCallback((threadId: string) => {
+    const target = stageRef.current?.querySelector(`article[data-bid="${threadId}"]`);
+    target?.scrollIntoView({
+      behavior: prefersReducedMotion() ? 'auto' : 'smooth',
+      block: 'center',
+    });
+  }, []);
+
   if (!isDeskVisible || !bookData?.bookDoc || !bookData.book) return null;
 
   const bookLanguage = bookData.bookDoc.metadata.language;
@@ -166,12 +189,15 @@ const DeskSheet: React.FC<DeskSheetProps> = ({ bookKey }) => {
           </svg>
         </button>
       </header>
-      <div className='desk-stage min-h-0 flex-1 overflow-y-auto'>
-        <DeskErrorBoundary>
-          <Suspense fallback={null}>
-            <WorkbenchTab bookKey={bookKey} />
-          </Suspense>
-        </DeskErrorBoundary>
+      <div className='desk-body min-h-0 flex-1'>
+        <DeskRail map={railMap} onOpenThread={handleOpenThread} />
+        <div className='desk-stage h-full overflow-y-auto' ref={stageRef}>
+          <DeskErrorBoundary>
+            <Suspense fallback={null}>
+              <WorkbenchTab bookKey={bookKey} />
+            </Suspense>
+          </DeskErrorBoundary>
+        </div>
       </div>
     </div>
   );

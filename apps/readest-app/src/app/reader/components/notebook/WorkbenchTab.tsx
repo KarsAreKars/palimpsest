@@ -32,6 +32,7 @@ import { useThemeStore } from '@/store/themeStore';
 import { useTranslation } from '@/hooks/useTranslation';
 import type { TranslationFunc } from '@/hooks/useTranslation';
 import { getDir } from '@/utils/book';
+import { useDeskVoice } from '@/app/reader/hooks/useDeskVoice';
 import { getNarration } from '@/services/narration/speakMode';
 import {
   startWorkbenchSession,
@@ -40,41 +41,28 @@ import {
   type WorkbenchErrorKind,
 } from '@/services/professor/workbenchSession';
 import { checkDerivation } from '@/services/professor/mathCheck';
-import { parseProfessorTags } from '@/services/professor/professorTags';
-import { extractDiagramSvg } from '@/services/professor/diagramSvg';
 import {
   consumeWorkbenchBridge,
   WORKBENCH_BRIDGE_EVENT,
   type WorkbenchBridgeRequest,
 } from '@/services/professor/bridge';
 import {
-  WorkbenchVoicePlayer,
-  type WorkbenchVoiceErrorKind,
-  type WorkbenchVoiceState,
-} from '@/services/professor/workbenchVoice';
-import type { ProfessorSpeechSource } from '@/services/professor/voice';
-import {
   WORKBENCH_TRANSCRIPT_FILENAME,
   MAX_STEPS_PER_CHECK,
   associateLearnerStep,
   commitProfessorBlock,
-  derivationOrdinal,
   extractMathSteps,
   isProbeSignal,
   newBlockId,
   parseTranscript,
   serializeTranscript,
-  stripPartialTagTail,
   summarizeChecks,
   useWorkbenchChatStore,
   type BlockCheck,
-  type ConceptMapData,
   type ProbeStance,
   type TranscriptBlock,
 } from './workbenchChat';
-import { Prose, Slip, VerdictChip } from './wbShared';
-import DerivationSlip from './DerivationSlip';
-import DiagramSlip from './DiagramSlip';
+import { BlockBody, StreamingBody } from './blockBody';
 import './WorkbenchTab.css';
 
 // MathLive touches `window` at definition time — the hard next/dynamic
@@ -120,50 +108,13 @@ const contentHash = (s: string): string => {
 // audit R5; Prose/Slip/VerdictChip are re-imported therefrom unchanged)
 // ---------------------------------------------------------------------------
 
-/** Split display markdown on the professor's `[Page N]` citations: the
- *  anchors become chips (evidence you can travel to), the rest stays prose. */
-const splitPageCites = (text: string): { text?: string; page?: number }[] => {
-  const out: { text?: string; page?: number }[] = [];
-  const re = /\[Page (\d+)\]/g;
-  let last = 0;
-  let m: RegExpExecArray | null;
-  while ((m = re.exec(text)) !== null) {
-    if (m.index > last) out.push({ text: text.slice(last, m.index) });
-    out.push({ page: Number(m[1]) });
-    last = m.index + m[0].length;
-  }
-  if (last < text.length) out.push({ text: text.slice(last) });
-  return out;
-};
-
-/** The silent checker's verdicts, rendered inside the student block. No
- *  verdict and no chip for plain prose; `unavailable` renders nothing at
- *  all (echo mode — no marks, no blame). */
-const BlockChips: React.FC<{ check?: BlockCheck }> = ({ check }) => {
-  const _ = useTranslation();
-  if (!check || check.status === 'unavailable') return null;
-  if (check.status === 'checking') {
-    return (
-      <div className='wb-chip-row'>
-        <span className='wb-chip wb-chip-muted' role='img' aria-label={_('Checking')}>
-          {_('CHECKING…')}
-          <span className='wb-dots' aria-hidden='true'>
-            <i />
-            <i />
-            <i />
-          </span>
-        </span>
-      </div>
-    );
-  }
-  return (
-    <div className='wb-chip-row'>
-      {check.verdicts.map((v) => (
-        <VerdictChip key={v.id} verdict={v} />
-      ))}
-    </div>
-  );
-};
+// ---------------------------------------------------------------------------
+// Small presentational pieces
+// ---------------------------------------------------------------------------
+// The per-block renderers (BlockChips, PageChip, ProbeRow, ConceptMapSlip,
+// ConsultMark, VoiceControl) moved to blockBody.tsx verbatim (d3 §A.2,
+// audit R5/R11); the tab re-imports them through <BlockBody>. What stays
+// here is the never-used state's guidance plate.
 
 const NoKeyGuidance: React.FC<{ _: TranslationFunc; onOpen: () => void }> = ({ _, onOpen }) => (
   <div className='wb-nokey plate'>
@@ -174,229 +125,6 @@ const NoKeyGuidance: React.FC<{ _: TranslationFunc; onOpen: () => void }> = ({ _
     </button>
   </div>
 );
-
-const PageChip: React.FC<{ page: number; quote: string | null; onGo: () => void }> = ({
-  page,
-  quote,
-  onGo,
-}) => {
-  const _ = useTranslation();
-  return (
-    <button
-      type='button'
-      className='wb-chip wb-page-chip'
-      aria-label={_('P. {{page}}', { page })}
-      onClick={onGo}
-    >
-      {_('P. {{page}}', { page })}
-      {quote && <Slip label={_('From the page')}>{quote}</Slip>}
-    </button>
-  );
-};
-
-const STANCES: { stance: ProbeStance; label: string }[] = [
-  { stance: 'lead', label: 'Lead me' },
-  { stance: 'ask', label: 'Ask me first' },
-  { stance: 'work', label: 'I will work it' },
-];
-
-/** The stance chip row under a [PROBE] block (s1 §5.2) — the sanctioned
- *  mid-session interaction: the chips replace a typed message and go inert
- *  after a pick. */
-const ProbeRow: React.FC<{
-  picked?: ProbeStance;
-  onPick: (stance: ProbeStance, message: string) => void;
-}> = ({ picked, onPick }) => {
-  const _ = useTranslation();
-  return (
-    <div
-      className='wb-probe-row'
-      role='group'
-      aria-label={_('Choose how the professor guides you')}
-    >
-      {STANCES.map(({ stance, label }) => (
-        <button
-          key={stance}
-          type='button'
-          className={`wb-chip wb-probe-chip${picked === stance ? ' wb-probe-picked' : ''}`}
-          disabled={picked !== undefined}
-          onClick={() => onPick(stance, _(label))}
-        >
-          {_(label)}
-          {picked === stance && (
-            <span className='wb-probe-tick' aria-hidden='true'>
-              {_('Chosen')}
-            </span>
-          )}
-        </button>
-      ))}
-    </div>
-  );
-};
-
-/** The concept-map slip (s1 §5.2) — the session's known/edge/unknown
- *  catalogue; every chip travels to the thread where the concept was last
- *  discussed. Names never yet discussed render as muted, inert chips. */
-const ConceptMapSlip: React.FC<{
-  map: ConceptMapData;
-  onOpen: (threadId: string) => void;
-}> = ({ map, onOpen }) => {
-  const _ = useTranslation();
-  const shelves: { head: string; entries: ConceptMapData['known'] }[] = [
-    { head: _('KNOWN'), entries: map.known },
-    { head: _('EDGE'), entries: map.edge },
-    { head: _('UNKNOWN'), entries: map.unknown },
-  ];
-  return (
-    <div className='wb-map'>
-      <p className='wb-map-caption'>{_('The catalogue so far')}</p>
-      <div className='wb-map-cols'>
-        {shelves.map(({ head, entries }) => (
-          <div className='wb-map-col' key={head}>
-            <span className='wb-map-head'>{head}</span>
-            {entries.length === 0 && (
-              <span className='wb-map-empty'>{_('Nothing filed here yet')}</span>
-            )}
-            {entries.map((entry) =>
-              entry.threadId ? (
-                <button
-                  key={entry.name}
-                  type='button'
-                  className='wb-chip wb-map-chip'
-                  aria-label={_('Open the thread on {{concept}}', { concept: entry.name })}
-                  onClick={() => onOpen(entry.threadId!)}
-                >
-                  {entry.name}
-                </button>
-              ) : (
-                <span key={entry.name} className='wb-chip wb-map-chip wb-map-chip-dim'>
-                  {entry.name}
-                </span>
-              ),
-            )}
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-};
-
-/** The "consulting the book" mark under a block whose professor consulted
- *  pages via [LOOK] (s2 §8 — landed with wave A per audit R7a). */
-const ConsultMark: React.FC<{ pages: number[] }> = ({ pages }) => {
-  const _ = useTranslation();
-  return (
-    <p className='wb-consult' role='status'>
-      <span className='wb-consult-mark' aria-hidden='true'>
-        ❧
-      </span>
-      {pages.length > 0
-        ? _('Consulted page {{pages}}', { pages: pages.join(', ') })
-        : _('The book had nothing on that page.')}
-    </p>
-  );
-};
-
-/** The read-aloud control under a PROFESSOR block only (asymmetric voice —
- *  learner blocks never speak, s4 §6). A [VOICE]-tagged block renders the
- *  control promoted, in the stamp accent, with the professor's slip. The
- *  control is a real button reached by Tab like every other control — no
- *  global shortcuts, no mid-session buttons. */
-const VoiceControl: React.FC<{
-  block: TranscriptBlock;
-  playerState: WorkbenchVoiceState;
-  notice: WorkbenchVoiceErrorKind | null;
-  speaking: boolean;
-  onSpeak: () => void;
-  onPause: () => void;
-  onResume: () => void;
-  onReplay: () => void;
-  onDismissNotice: () => void;
-}> = ({
-  block,
-  playerState,
-  notice,
-  speaking,
-  onSpeak,
-  onPause,
-  onResume,
-  onReplay,
-  onDismissNotice,
-}) => {
-  const _ = useTranslation();
-  const promoted = Boolean(block.voice?.requested);
-  const heard = Boolean(block.voice?.lastHeardAt);
-  const btnClass = `wb-chip wb-voice-btn${promoted ? ' wb-voice-promoted' : ''}`;
-  return (
-    <div className='wb-voice'>
-      {speaking && playerState === 'synthesizing' && (
-        <span className='wb-chip wb-voice-speaking' role='status'>
-          {_('Speaking…')}
-          <span className='wb-dots' aria-hidden='true'>
-            <i />
-            <i />
-            <i />
-          </span>
-        </span>
-      )}
-      {speaking && playerState === 'playing' && (
-        <button
-          type='button'
-          className='wb-chip wb-voice-btn wb-voice-speaking'
-          aria-pressed='true'
-          onClick={onPause}
-        >
-          {_('Pause reading')}
-        </button>
-      )}
-      {speaking && playerState === 'paused' && (
-        <button
-          type='button'
-          className='wb-chip wb-voice-btn'
-          aria-pressed='false'
-          onClick={onResume}
-        >
-          {_('Resume reading')}
-        </button>
-      )}
-      {!speaking && (
-        <>
-          <button type='button' className={btnClass} onClick={onSpeak}>
-            {_('Read this aloud')}
-            {promoted && <Slip>{_('The professor asks that this be heard.')}</Slip>}
-          </button>
-          {heard && (
-            <button
-              type='button'
-              className='wb-chip wb-voice-btn wb-voice-muted'
-              onClick={onReplay}
-            >
-              {_('Read again')}
-            </button>
-          )}
-        </>
-      )}
-      {notice && (
-        <p className='wb-voice-notice' role='note'>
-          {notice === 'voice-busy' &&
-            _('The book is still reading aloud. The desk waits its turn.')}
-          {notice === 'voice-unavailable' && _('The reading voice is away.')}
-          {notice === 'voice-failed' && _("The professor's voice faltered. Nothing was lost.")}
-          {notice === 'voice-busy' && (
-            <button type='button' className='ink-btn' onClick={onDismissNotice}>
-              {_('Dismiss')}
-            </button>
-          )}
-          {notice === 'voice-failed' && (
-            <button type='button' className='ink-btn' onClick={onSpeak}>
-              {_('Try again')}
-            </button>
-          )}
-        </p>
-      )}
-    </div>
-  );
-};
 
 // ---------------------------------------------------------------------------
 // The tab
@@ -414,7 +142,6 @@ const WorkbenchTab: React.FC<{ bookKey: string }> = ({ bookKey }) => {
   const appendBlock = useWorkbenchChatStore((s) => s.appendBlock);
   const setCheck = useWorkbenchChatStore((s) => s.setCheck);
   const markProbePicked = useWorkbenchChatStore((s) => s.markProbePicked);
-  const updateBlock = useWorkbenchChatStore((s) => s.updateBlock);
 
   const hasKey =
     Boolean(aiSettings?.enabled) &&
@@ -423,78 +150,9 @@ const WorkbenchTab: React.FC<{ bookKey: string }> = ({ bookKey }) => {
         ? Boolean(aiSettings.aiGatewayApiKey)
         : Boolean(aiSettings?.openrouterApiKey)));
 
-  // ── Voice answers (s4): one player per tab; narration owns audio focus ──
-  const voiceRef = useRef<WorkbenchVoicePlayer | null>(null);
-  const [voiceState, setVoiceState] = useState<WorkbenchVoiceState>('idle');
-  const [voiceActiveId, setVoiceActiveId] = useState<string | null>(null);
-  const [voiceNotice, setVoiceNotice] = useState<{
-    blockId: string | null;
-    kind: WorkbenchVoiceErrorKind;
-  } | null>(null);
-
-  const getVoicePlayer = useCallback((): WorkbenchVoicePlayer => {
-    voiceRef.current ??= new WorkbenchVoicePlayer({
-      // HP-3: voice id + rate resolve from the narration controller's
-      // speech identity, read live — no new settings.
-      getSpeech: () => getNarration(bookKey)?.controller?.speech ?? null,
-      isNarrationActive: () => getNarration(bookKey)?.controller?.active ?? false,
-      onState: (s) => {
-        setVoiceState(s);
-        setVoiceActiveId(voiceRef.current?.activeBlockId ?? null);
-      },
-      onError: (kind) => setVoiceNotice({ blockId: voiceRef.current?.activeBlockId ?? null, kind }),
-    });
-    return voiceRef.current;
-  }, [bookKey]);
-
-  /** A natural completion writes which voice spoke back into the block, so
-   *  a restored sitting remembers (s4 §4.4 — metadata only, never audio). */
-  const recordHeard = useCallback(
-    (block: TranscriptBlock, speech: ProfessorSpeechSource | null) => {
-      if (!speech) return;
-      updateBlock(bookKey, block.id, {
-        voice: {
-          requested: block.voice?.requested ?? false,
-          voiceId: speech.voice,
-          lastHeardAt: new Date().toISOString(),
-        },
-      });
-    },
-    [bookKey, updateBlock],
-  );
-
-  const handleVoiceSpeak = useCallback(
-    (block: TranscriptBlock) => {
-      setVoiceNotice(null);
-      void getVoicePlayer()
-        .speak(block.id, block.content)
-        .then((speech) => recordHeard(block, speech));
-    },
-    [getVoicePlayer, recordHeard],
-  );
-
-  const handleVoiceReplay = useCallback(
-    (block: TranscriptBlock) => {
-      setVoiceNotice(null);
-      void getVoicePlayer()
-        .replay(block.id)
-        .then((speech) => recordHeard(block, speech));
-    },
-    [getVoicePlayer, recordHeard],
-  );
-
-  // Focus law (s4 §5): the narration controller owns audio focus. When it
-  // takes focus (unit-change fires at every playFrom), workbench playback
-  // yields instantly. A narration session that appears later (the reader
-  // opened the book after the tab) un-mutes the controls via reset().
-  useEffect(() => {
-    const controller = getNarration(bookKey)?.controller;
-    if (!controller) return;
-    if (voiceRef.current?.state === 'unavailable') voiceRef.current.reset();
-    const onUnitChange = () => voiceRef.current?.stop();
-    controller.addEventListener('unit-change', onUnitChange);
-    return () => controller.removeEventListener('unit-change', onUnitChange);
-  }, [blocks, bookKey]);
+  // ── Voice answers (s4): the player wiring lives in useDeskVoice (audit
+  //    R5) — one player per desk mount, narration owns audio focus.
+  const { voicePropsFor, stop: stopVoice } = useDeskVoice(bookKey);
 
   const openIntegrations = useCallback(() => {
     useSettingsStore.getState().setRequestedPanel('Integrations');
@@ -612,8 +270,8 @@ const WorkbenchTab: React.FC<{ bookKey: string }> = ({ bookKey }) => {
     () => () => {
       abortRef.current?.abort();
       clearDelayTimers();
-      // A new sitting gesture silences the old voice; so does leaving.
-      voiceRef.current?.stop();
+      // A new sitting gesture silences the old voice; so does leaving —
+      // the voice stop itself is useDeskVoice's unmount cleanup (audit R5).
     },
     [clearDelayTimers],
   );
@@ -640,7 +298,7 @@ const WorkbenchTab: React.FC<{ bookKey: string }> = ({ bookKey }) => {
   // user block; the opening composition carries it via the history summary.
   useEffect(() => {
     const seedAndStart = (question: string) => {
-      voiceRef.current?.stop();
+      stopVoice();
       appendBlock(bookKey, {
         id: newBlockId(),
         author: 'user',
@@ -823,7 +481,7 @@ const WorkbenchTab: React.FC<{ bookKey: string }> = ({ bookKey }) => {
     (override?: string) => {
       // Stop-on-new-turn (s4 §5 law 3): the FIRST statement — a probe-chip
       // pick rides send() too, so it inherits silence (audit Risk 5).
-      voiceRef.current?.stop();
+      stopVoice();
       const text = (override ?? value).trim();
       if (!text) return; // a quiet no-op — no disabled state, no error
       if (phaseRef.current !== 'idle') commitPartialIfAny();
@@ -855,7 +513,7 @@ const WorkbenchTab: React.FC<{ bookKey: string }> = ({ bookKey }) => {
       const history = [...(useWorkbenchChatStore.getState().blocks[bookKey] ?? [])];
       void respond(history, userBlock.content);
     },
-    [value, bookKey, appendBlock, respond, commitPartialIfAny, setBlocks],
+    [value, bookKey, appendBlock, respond, commitPartialIfAny, setBlocks, stopVoice],
   );
 
   /** The probe chip pick is an ordinary student message through send() —
@@ -1184,17 +842,6 @@ const WorkbenchTab: React.FC<{ bookKey: string }> = ({ bookKey }) => {
     });
   }, []);
 
-  const renderContent = (text: string) =>
-    splitPageCites(text).map((seg, i) => {
-      if (seg.page !== undefined) {
-        const page = seg.page;
-        return (
-          <PageChip key={i} page={page} quote={quoteForPage(page)} onGo={() => goToPage(page)} />
-        );
-      }
-      return seg.text?.trim() ? <Prose key={i} text={seg.text} /> : null;
-    });
-
   // ── Render ─────────────────────────────────────────────────────────────
   const sessionActive = blocks.length > 0 || phase !== 'idle';
   const showScrollChip = !pinned && growth;
@@ -1226,122 +873,28 @@ const WorkbenchTab: React.FC<{ bookKey: string }> = ({ bookKey }) => {
             )}
 
             {blocks.map((b, i) => (
-              <article
-                className={`wb-block${i === 0 && !resumeNotice ? ' wb-block-first' : ''}`}
+              <BlockBody
                 key={b.id}
-                data-bid={b.id}
-              >
-                <p className='wb-byline'>{_(b.author === 'professor' ? 'THE PROFESSOR' : 'YOU')}</p>
-                <div className='wb-content'>{renderContent(b.content)}</div>
-                {b.author === 'professor' && (
-                  <VoiceControl
-                    block={b}
-                    playerState={voiceState}
-                    notice={voiceNotice?.blockId === b.id ? voiceNotice.kind : null}
-                    speaking={voiceActiveId === b.id}
-                    onSpeak={() => handleVoiceSpeak(b)}
-                    onPause={() => voiceRef.current?.pause()}
-                    onResume={() => voiceRef.current?.resume()}
-                    onReplay={() => handleVoiceReplay(b)}
-                    onDismissNotice={() => setVoiceNotice(null)}
-                  />
-                )}
-                {b.author === 'professor' && b.conceptMap && (
-                  <ConceptMapSlip map={b.conceptMap} onOpen={scrollToBlock} />
-                )}
-                {b.author === 'professor' && b.lookedUp && <ConsultMark pages={b.lookedUp} />}
-                {b.author === 'professor' && b.probe && (
-                  <ProbeRow picked={b.probePicked} onPick={(s, m) => pickProbe(b.id, s, m)} />
-                )}
-                {b.diagram && <DiagramSlip block={b} />}
-                {b.author === 'professor' && b.derivation && b.derivation.steps.length > 0 && (
-                  <DerivationSlip
-                    block={b}
-                    ordinalBase={derivationOrdinal(blocks, b.id, 0) - 1}
-                    check={checks[b.id]}
-                  />
-                )}
-                {b.author === 'user' &&
-                  b.extendsDerivation &&
-                  (() => {
-                    const folio = blocks.find((f) => f.id === b.extendsDerivation);
-                    if (!folio?.derivation) return null;
-                    const stepCount = folio.derivation.steps.length;
-                    const learnerStepCount = (b.content.match(/\$\$[\s\S]*?\$\$/g) ?? []).length;
-                    if (learnerStepCount === 0 || learnerStepCount > stepCount) return null;
-                    // The folio already carries these steps (associate-
-                    // LearnerStep appended them); render the learner's paper
-                    // compactly with the folio's own step ids and ordinals.
-                    const base =
-                      derivationOrdinal(blocks, folio.id, 0) - 1 + stepCount - learnerStepCount;
-                    const learnerBlock: TranscriptBlock = {
-                      ...b,
-                      derivation: {
-                        steps: folio.derivation.steps.slice(stepCount - learnerStepCount),
-                      },
-                    };
-                    return (
-                      <DerivationSlip
-                        compact
-                        block={learnerBlock}
-                        ordinalBase={base}
-                        check={checks[folio.id]}
-                      />
-                    );
-                  })()}
-                {b.author === 'user' && b.teachbackAsk && (
-                  <p className='wb-teachback-caption'>
-                    {_('The professor asked you to restate it — in your own words')}
-                    <span className='wb-teachback-ask'>
-                      {_('His question: {{ask}}', { ask: b.teachbackAsk })}
-                    </span>
-                  </p>
-                )}
-                {b.author === 'professor' && b.teachbackOf && (
-                  <p className='wb-teachback-caption'>{_('His reading of your restatement')}</p>
-                )}
-                {b.author === 'user' && b.probeSignal && (
-                  <div className='wb-chip-row'>
-                    <span
-                      className='wb-chip wb-chip-muted wb-idk'
-                      role='img'
-                      aria-label={_('Said honestly: not yet known')}
-                    >
-                      {_('Said honestly: not yet known')}
-                    </span>
-                  </div>
-                )}
-                {b.author === 'user' && <BlockChips check={checks[b.id]} />}
-                <hr className='wb-sep' />
-              </article>
+                b={b}
+                blocks={blocks}
+                check={checks[b.id]}
+                checks={checks}
+                resumeFirst={i === 0 && !resumeNotice}
+                voice={voicePropsFor(b)}
+                onOpenThread={scrollToBlock}
+                onPickProbe={pickProbe}
+                quoteForPage={quoteForPage}
+                onGoPage={goToPage}
+              />
             ))}
 
             {phase !== 'idle' && showPlaceholder && (
-              <article className='wb-block'>
-                <p className='wb-byline'>{_('THE PROFESSOR')}</p>
-                <div className='wb-prose wb-streaming'>
-                  {partial.trim()
-                    ? (() => {
-                        const disp = parseProfessorTags(stripPartialTagTail(partial)).display;
-                        // Raw SVG never streams into the DOM uncommitted:
-                        // a complete fence mid-stream holds a muted
-                        // placeholder instead (s3 §3.2).
-                        const { svg, display } = extractDiagramSvg(disp);
-                        return (
-                          <>
-                            {renderContent(display)}
-                            {svg !== '' && (
-                              <p className='wb-figure-pending'>{_('The professor is drawing.')}</p>
-                            )}
-                          </>
-                        );
-                      })()
-                    : null}
-                  <span className='wb-nib' aria-hidden='true' />
-                </div>
-                {thinking && <p className='wb-thinking'>{_('The professor is writing.')}</p>}
-                <hr className='wb-sep' />
-              </article>
+              <StreamingBody
+                partial={partial}
+                thinking={thinking}
+                quoteForPage={quoteForPage}
+                onGoPage={goToPage}
+              />
             )}
 
             {error && (

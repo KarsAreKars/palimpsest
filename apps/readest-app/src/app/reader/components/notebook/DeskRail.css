@@ -1,0 +1,80 @@
+/* DeskRail.css — the traffic-light spine (d3). Fixed left margin of the
+ * sheet; a second view over latestConceptMap. Tones: sage = known,
+ * muted = edge, stamp = unknown. Unlayered, existing vars only, corners
+ * ≤ 2px; chips composite the existing .wb-chip face (the .wb-voice-btn
+ * pattern). The rail has no animation of its own; the only motion is the
+ * scroll glide, governed by prefersReducedMotion() in JS. */
+.desk-rail {
+  position: absolute;
+  inset-inline-start: 0;
+  top: 0;
+  bottom: 0;
+  width: 96px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  border-inline-end: 1px solid color-mix(in srgb, var(--ink) 12%, transparent);
+  padding: 12px 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 3px;
+}
+
+.desk-rail-head {
+  font-family: 'Special Elite', 'Courier New', monospace;
+  font-size: 8.5px;
+  line-height: 1;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+  user-select: none;
+  margin-top: 8px;
+}
+
+.desk-rail-head:first-child {
+  margin-top: 0;
+}
+
+/* Chips composite the existing .wb-chip face (see .wb-voice-btn for the pattern). */
+.desk-rail-chip {
+  border-color: color-mix(in srgb, var(--ink) 25%, transparent);
+  text-transform: none;
+  letter-spacing: normal;
+  font-size: 9.5px;
+  padding: 2px 6px 1px;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+button.desk-rail-chip:hover {
+  color: var(--stamp);
+  border-color: var(--stamp);
+}
+
+.desk-rail-known {
+  color: var(--sage);
+  border-color: var(--sage);
+}
+
+.desk-rail-edge {
+  color: var(--muted);
+  border-color: var(--muted);
+}
+
+.desk-rail-unknown {
+  color: var(--stamp);
+  border-color: var(--stamp);
+}
+
+.desk-rail-dim {
+  opacity: 0.7;
+}
+
+/* The sheet's fluid column keeps the measure; the rail steps aside on
+ * narrow sheets. Pairs with .desk-sheet's container-type at 560px (R3(d)). */
+@container (max-width: 559px) {
+  .desk-rail {
+    display: none;
+  }
+}

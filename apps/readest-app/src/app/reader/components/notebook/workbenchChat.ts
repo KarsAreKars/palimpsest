@@ -15,10 +15,16 @@
  * workbench subtree.
  */
 import { create } from 'zustand';
+import i18n from '@/i18n/i18n';
 import type { WorkbenchBlock } from '@/services/professor/workbenchSession';
 import type { CheckStepVerdict } from '@/services/professor/mathCheck';
 import { parseProfessorTags, type ConceptMapShelves } from '@/services/professor/professorTags';
-import { extractDiagramSvg } from '@/services/professor/diagramSvg';
+import { extractDiagramSvg, sanitizeDiagramSvg } from '@/services/professor/diagramSvg';
+
+/** The commit path writes librarian prose onto the paper itself, so the
+ *  locale resolves outside React. English source strings are the keys
+ *  (defaultValue: key — the useTranslation contract, useTranslation.ts). */
+const translate = (key: string): string => i18n.t(key, { defaultValue: key });
 
 /** The three stances on the probe chip row, in display order. */
 export type ProbeStance = 'lead' | 'ask' | 'work';
@@ -108,6 +114,11 @@ export interface TranscriptBlock extends WorkbenchBlock {
     voiceId?: string;
     lastHeardAt?: string; // ISO timestamp
   };
+  /** Set at commit time when the per-exchange artifact budget muted a
+   *  folio/figure payload, or a figure failed its commit-time self-check
+   *  (d3 C2): the attempt still consumed the exchange's shape slot, so the
+   *  count must see it. Additive metadata — renders as ordinary prose. */
+  artifactMuted?: boolean;
 }
 
 /** Silent-check state for one block. Chips derive from this. */
@@ -257,6 +268,106 @@ export function resolveConceptThreads(
   };
 }
 
+// ---------------------------------------------------------------------------
+// Desk rail (d3 §B) — the traffic-light spine's row model. Pure,
+// side-effect free: the rail renders exclusively from
+// latestConceptMap(blocks) and never writes state.
+// ---------------------------------------------------------------------------
+
+export type DeskShelf = 'known' | 'edge' | 'unknown';
+
+export interface DeskRailEntry {
+  name: string;
+  shelf: DeskShelf;
+  /** Transcript block id to scroll to; null → inert chip. */
+  threadId: string | null;
+}
+
+/** The rail's row model: shelves in catalogue order (known, edge,
+ *  unknown), names in shelf order, threadId carried through. null map → []. */
+export function buildDeskRail(map: ConceptMapData | null): DeskRailEntry[] {
+  if (!map) return [];
+  const fromShelf =
+    (shelf: DeskShelf) =>
+    (entries: ConceptMapEntry[]): DeskRailEntry[] =>
+      entries.map((e) => ({ name: e.name, shelf, threadId: e.threadId }));
+  return [
+    ...fromShelf('known')(map.known),
+    ...fromShelf('edge')(map.edge),
+    ...fromShelf('unknown')(map.unknown),
+  ];
+}
+
+// ---------------------------------------------------------------------------
+// Penecho guards (folded 2.5, d3 C2) — enforced outside the model at the
+// commit seam, exactly where the raw stream becomes a block.
+// ---------------------------------------------------------------------------
+
+/** Penecho M4 port: at most this many folio/figure (artifact) blocks per
+ *  exchange. The exchange boundary is the most recent learner block. */
+export const MAX_ARTIFACT_BLOCKS_PER_EXCHANGE = 3;
+
+const BUDGET_MUTE_NOTE = 'The professor sets down his pen — one shape at a time.';
+const FIGURE_FAILED_NOTE = 'The figure would not hold its ink; the claim stands as words.';
+
+/** Artifact blocks (carrying a derivation or a diagram) since the last user
+ *  block — the exchange's running shape count. Muted attempts count too:
+ *  a failed figure consumed its slot (d3 C2.ii). */
+export function professorArtifactCount(blocks: TranscriptBlock[]): number {
+  let count = 0;
+  for (const b of blocks) {
+    if (b.author === 'user') count = 0;
+    else if (b.derivation || b.diagram || b.artifactMuted) count += 1;
+  }
+  return count;
+}
+
+/** True when the budget is spent: another artifact this exchange must be
+ *  muted. Prose never consults this. */
+export const artifactBudgetSpent = (blocks: TranscriptBlock[]): boolean =>
+  professorArtifactCount(blocks) >= MAX_ARTIFACT_BLOCKS_PER_EXCHANGE;
+
+/** Shelf order for the one-step rule. */
+const SHELF_ORDER: Record<DeskShelf, number> = { known: 0, edge: 1, unknown: 2 };
+const SHELVES_IN_ORDER: DeskShelf[] = ['known', 'edge', 'unknown'];
+
+/** Inverse: the shelf one step toward `toward` (3×3, written plain). */
+const stepShelf = (from: DeskShelf, toward: DeskShelf): DeskShelf => {
+  if (from === toward) return from;
+  const delta = Math.sign(SHELF_ORDER[toward] - SHELF_ORDER[from]);
+  return SHELVES_IN_ORDER[SHELF_ORDER[from] + delta]!;
+};
+
+/** Penecho M5 port (the evaluation cursor): relative to the shelves the
+ *  latest concept map filed, a concept may move at most ONE shelf per
+ *  professor commit. Names new to the map file where the professor puts
+ *  them (first filing is not a move); a name aimed two shelves away lands
+ *  one step along, in the shelf list it actually reached. Pure. */
+export function clampConceptShelves(
+  prev: ConceptMapData | null,
+  next: ConceptMapShelves,
+): ConceptMapShelves {
+  if (!prev) return { known: [...next.known], edge: [...next.edge], unknown: [...next.unknown] };
+  const prevShelf = new Map<string, DeskShelf>();
+  for (const e of prev.known) prevShelf.set(e.name, 'known');
+  for (const e of prev.edge) prevShelf.set(e.name, 'edge');
+  for (const e of prev.unknown) prevShelf.set(e.name, 'unknown');
+  const placed = new Set<string>();
+  const result: Record<DeskShelf, string[]> = { known: [], edge: [], unknown: [] };
+  const file = (names: string[], toward: DeskShelf) => {
+    for (const name of names) {
+      if (placed.has(name)) continue; // one landing per name
+      placed.add(name);
+      const from = prevShelf.get(name);
+      result[from ? stepShelf(from, toward) : toward].push(name);
+    }
+  };
+  file(next.known, 'known');
+  file(next.edge, 'edge');
+  file(next.unknown, 'unknown');
+  return result;
+}
+
 /** Steps in derivation blocks are numbered with one running ordinal across
  *  the whole transcript — no two "step 1"s in the sitting. The ordinal is
  *  DERIVED from block order at render time, never stored (a stored ordinal
@@ -295,7 +406,10 @@ export function commitProfessorBlock(
   if (parsed.end) block.ended = true;
   if (parsed.probe) block.probe = true;
   if (parsed.conceptMap) {
-    block.conceptMap = resolveConceptThreads(existing, parsed.conceptMap);
+    // Penecho M5: shelves move at most one step per commit vs the latest
+    // filed map; new names file freely (d3 C2.iii).
+    const shelves = clampConceptShelves(latestConceptMap(existing), parsed.conceptMap);
+    block.conceptMap = resolveConceptThreads(existing, shelves);
   }
   if (parsed.teachbackAsk) block.teachbackAsk = parsed.teachbackAsk;
   if (parsed.evaluation) {
@@ -310,35 +424,59 @@ export function commitProfessorBlock(
     // The fence never reaches the eye; a missing fence degrades to the
     // claim printed as prose (svg: '' — §3.5 graceful degradation).
     const extracted = extractDiagramSvg(parsed.display);
-    block.diagram = { claim: parsed.diagram.claim, svg: extracted.svg };
-    block.content = extracted.display;
+    if (artifactBudgetSpent(existing)) {
+      // C2.i: the exchange's shape budget is spent — the payload is
+      // muted and the claim lands as clean prose; the attempt is marked
+      // so the count stays honest for anything later in the exchange.
+      block.content = `${extracted.display}\n\n${translate(BUDGET_MUTE_NOTE)}`;
+      block.artifactMuted = true;
+    } else if (extracted.svg !== '' && !sanitizeDiagramSvg(extracted.svg)) {
+      // C2.ii commit-time self-check: the figure would not hold its ink.
+      // The claim stands as words (printed, since the tag never reaches
+      // the display); the exchange's figure slot is consumed — the retry
+      // reopens at the next learner block. An EMPTY fence is an authoring
+      // slip, not a failed drawing — it takes the plain degrade path below
+      // and does not consume the stop.
+      block.content = `${extracted.display}\n\n${parsed.diagram.claim}\n\n${translate(FIGURE_FAILED_NOTE)}`;
+      block.artifactMuted = true;
+    } else {
+      block.diagram = { claim: parsed.diagram.claim, svg: extracted.svg };
+      block.content = extracted.display;
+    }
   }
   if (parsed.derive) {
-    // The desk numbers steps itself — the professor's numeral is ignored.
-    const steps: DerivationStep[] = [];
-    const parts = parsed.display.split(/(\$\$[\s\S]*?\$\$)/);
-    for (let pi = 1; pi < parts.length; pi += 2) {
-      const latex = (parts[pi] ?? '').replace(/^\$\$|\$\$$/g, '').trim();
-      if (!latex) continue;
-      const idx = steps.length;
-      const after = parts[pi + 1] ?? '';
-      const justificationLine = after
-        .split('\n')
-        .map((l) => l.trim())
-        .find(Boolean);
-      const mark = parsed.stepMarks?.[idx];
-      steps.push({
-        id: `${block.id}:${idx}`,
-        latex,
-        ...(justificationLine ? { justification: justificationLine } : {}),
-        ...(mark?.professorChecked ? { professorChecked: mark.professorChecked } : {}),
-      });
+    if (artifactBudgetSpent(existing)) {
+      // C2.i: muted folio — the display math was already stripped by the
+      // tag parse, so the block lands as clean prose with the note.
+      block.content = `${parsed.display}\n\n${translate(BUDGET_MUTE_NOTE)}`;
+      block.artifactMuted = true;
+    } else {
+      // The desk numbers steps itself — the professor's numeral is ignored.
+      const steps: DerivationStep[] = [];
+      const parts = parsed.display.split(/(\$\$[\s\S]*?\$\$)/);
+      for (let pi = 1; pi < parts.length; pi += 2) {
+        const latex = (parts[pi] ?? '').replace(/^\$\$|\$\$$/g, '').trim();
+        if (!latex) continue;
+        const idx = steps.length;
+        const after = parts[pi + 1] ?? '';
+        const justificationLine = after
+          .split('\n')
+          .map((l) => l.trim())
+          .find(Boolean);
+        const mark = parsed.stepMarks?.[idx];
+        steps.push({
+          id: `${block.id}:${idx}`,
+          latex,
+          ...(justificationLine ? { justification: justificationLine } : {}),
+          ...(mark?.professorChecked ? { professorChecked: mark.professorChecked } : {}),
+        });
+      }
+      block.derivation = {
+        ...(parsed.derive.title ? { title: parsed.derive.title } : {}),
+        ...(parsed.derive.goal ? { goalLatex: parsed.derive.goal } : {}),
+        steps,
+      };
     }
-    block.derivation = {
-      ...(parsed.derive.title ? { title: parsed.derive.title } : {}),
-      ...(parsed.derive.goal ? { goalLatex: parsed.derive.goal } : {}),
-      steps,
-    };
   }
   // A greeting is only the first professor block of a fresh transcript.
   if (existing.filter((b) => b.author === 'professor').length === 0) block.kind = 'greeting';

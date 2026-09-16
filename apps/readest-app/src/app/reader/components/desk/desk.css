@@ -39,6 +39,11 @@
 .desk-head {
   background: var(--paper-light);
 }
+/* The rail's positioning context: the rail rides beside the stage, fixed
+ * against the sheet body, and never scrolls with the transcript. */
+.desk-body {
+  position: relative;
+}
 .desk-stage {
   background: transparent;
   scrollbar-width: thin;

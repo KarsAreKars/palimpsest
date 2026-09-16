@@ -553,6 +553,12 @@ math-field.workbench-math-field[read-only] {
     align-items: flex-start;
   }
 
+  /* The replay controls stack like the probe row. */
+  .wb-replay {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
   /* Math display scrolls horizontally as the LAST resort, with a faint
      fade mask on the trailing edge (eink: masks off — flat is honest). */
   .wb-prose .katex-display {
@@ -916,4 +922,59 @@ math-field.workbench-math-field-compact {
 
 .wb-voice-notice .ink-btn {
   margin-left: 8px;
+}
+
+/* ---------- folio replay (d3, wigglystuff Route C) ---------- */
+/* The single motion: 420ms ease-out on transform+opacity. Hidden rows are
+ * display:none, so the transition is the ghost↔active crossfade — calm, not
+ * flashy. Stamp appears only on the framed goal (the Q.E.D. gesture). */
+.wb-replay {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.wb-replay-btn:focus-visible {
+  border-color: var(--stamp);
+  box-shadow: 0 0 0 1px var(--stamp);
+}
+
+.wb-replay-count {
+  font-family: 'Special Elite', 'Courier New', monospace;
+  font-size: 8.5px;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+  user-select: none;
+}
+
+.wb-step-row.wb-replay-ghost {
+  opacity: 0.35;
+  transform: translateY(-1px);
+}
+
+.wb-step-row.wb-replay-hidden {
+  display: none;
+}
+
+.wb-step-row.wb-replay-ghost,
+.wb-step-row.wb-replay-active {
+  transition:
+    opacity 420ms cubic-bezier(0.22, 1, 0.36, 1),
+    transform 420ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.wb-goal-line.wb-replay-goal,
+.wb-step-row.wb-replay-goal {
+  border: 1px solid var(--stamp);
+  border-radius: 2px;
+  padding: 6px 8px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wb-step-row.wb-replay-ghost,
+  .wb-step-row.wb-replay-active {
+    transition: none;
+  }
 }
