@@ -822,6 +822,26 @@ math-field.workbench-math-field[read-only] {
   margin-top: 4px;
 }
 
+/* ---------- the chart slip (charts-and-data wave) ---------- */
+.wb-chart {
+  margin: 8px 0 0;
+}
+.wb-chart svg {
+  width: 100%;
+  height: auto;
+  background: var(--paper-light);
+  border: 1px solid color-mix(in srgb, var(--ink) 25%, transparent);
+  border-radius: 2px;
+  padding: 6px;
+}
+.wb-chart-title {
+  font-family: 'Newsreader', Georgia, serif;
+  font-style: italic;
+  font-size: 12px;
+  color: var(--muted);
+  margin-top: 4px;
+}
+
 .wb-figure-missing {
   font-family: 'Special Elite', 'Courier New', monospace;
   font-size: 9px;

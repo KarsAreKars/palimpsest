@@ -21,6 +21,7 @@ import type { CheckStepVerdict } from '@/services/professor/mathCheck';
 import { parseProfessorTags, type ConceptMapShelves } from '@/services/professor/professorTags';
 import { extractDiagramSvg, sanitizeDiagramSvg } from '@/services/professor/diagramSvg';
 import { evaluatePlotSpec, type PlotSpec } from './plotCompute';
+import type { ChartSpec } from '@/services/professor/professorTags';
 
 /** The commit path writes librarian prose onto the paper itself, so the
  *  locale resolves outside React. English source strings are the keys
@@ -104,6 +105,11 @@ export interface TranscriptBlock extends WorkbenchBlock {
    *  itself (plotCompute), never model-drawn data. Additive, after
    *  diagram; counts toward the exchange's artifact budget. */
   plot?: PlotSpec;
+  /** [CHART …] — a data chart slip: the desk draws the emitted rows
+   *  faithfully (bar|line); the accuracy law governs the DATA. */
+  chart?: ChartSpec;
+  /** The style panel (tldraw reskin): per-block ink + size, learner-set. */
+  style?: { color?: 'ink' | 'stamp' | 'sage' | 'muted'; size?: 's' | 'm' | 'l' | 'xl' };
   /** Set on a learner block that appends steps to an open folio: the
    *  folio's block id (s3 §7.3). */
   extendsDerivation?: string;
@@ -333,7 +339,7 @@ export function professorArtifactCount(blocks: TranscriptBlock[]): number {
   let count = 0;
   for (const b of blocks) {
     if (b.author === 'user') count = 0;
-    else if (b.derivation || b.diagram || b.plot || b.artifactMuted) count += 1;
+    else if (b.derivation || b.diagram || b.plot || b.chart || b.artifactMuted) count += 1;
   }
   return count;
 }
@@ -481,6 +487,16 @@ export function commitProfessorBlock(
         fns: parsed.plot.fns,
         ...(parsed.plot.range ? { range: parsed.plot.range } : {}),
       };
+    }
+  }
+  if (parsed.chart) {
+    if (artifactBudgetSpent(existing)) {
+      block.content = `${block.content}\n\n${translate(BUDGET_MUTE_NOTE)}`;
+      block.artifactMuted = true;
+    } else {
+      // The rows are the payload — already validated by the tag parse
+      // (non-empty, finite numbers); the desk draws them faithfully.
+      block.chart = parsed.chart;
     }
   }
   if (parsed.derive) {
@@ -661,6 +677,45 @@ export const sanitizePlacement = (b: TranscriptBlock): TranscriptBlock => {
   };
 };
 
+/** Style payloads survive the file round-trip only when well-formed:
+ *  color in the ink set, size in the scale; unknown values are dropped. */
+export const sanitizeStyle = (b: TranscriptBlock): TranscriptBlock => {
+  if (!b.style) return b;
+  const { style, ...rest } = b;
+  const color = ['ink', 'stamp', 'sage', 'muted'].includes(String(style.color))
+    ? (style.color as 'ink' | 'stamp' | 'sage' | 'muted')
+    : undefined;
+  const size = ['s', 'm', 'l', 'xl'].includes(String(style.size))
+    ? (style.size as 's' | 'm' | 'l' | 'xl')
+    : undefined;
+  if (!color && !size) return rest;
+  return { ...rest, style: { ...(color ? { color } : {}), ...(size ? { size } : {}) } };
+};
+
+/** Chart specs survive the file round-trip only when well-formed: kind
+ *  bar|line, at least one row with a string label and a finite number.
+ *  Malformed payloads are STRIPPED, never fatal — same policy as plot. */
+export const sanitizeChart = (b: TranscriptBlock): TranscriptBlock => {
+  if (!b.chart) return b;
+  const { chart, ...rest } = b;
+  const kind = chart.kind === 'line' ? 'line' : chart.kind === 'bar' ? 'bar' : undefined;
+  const rows = Array.isArray(chart.rows)
+    ? chart.rows.filter(
+        (r): r is { label: string; value: number } =>
+          typeof r === 'object' &&
+          r !== null &&
+          typeof (r as { label?: unknown }).label === 'string' &&
+          typeof (r as { value?: unknown }).value === 'number' &&
+          Number.isFinite((r as { value: number }).value),
+      )
+    : [];
+  if (!kind || rows.length === 0) return rest;
+  return {
+    ...rest,
+    chart: { kind, rows, ...(chart.title ? { title: String(chart.title) } : {}) },
+  };
+};
+
 /** Plot specs survive the file round-trip only when well-formed: fns a
  *  non-empty string list, range two finite ascending numbers. A malformed
  *  plot payload is STRIPPED, never fatal — same policy as placement
@@ -704,7 +759,11 @@ export function parseTranscript(json: string): TranscriptBlock[] | null {
     // Placement fields sanitize, never reject (d2 §2.2): a block carrying
     // x: "oops" keeps its ink; only the malformed placement is stripped.
     // The plot payload follows the same policy (sanitize, never reject).
-    return (blocks as TranscriptBlock[]).map(sanitizePlacement).map(sanitizePlot);
+    return (blocks as TranscriptBlock[])
+      .map(sanitizePlacement)
+      .map(sanitizePlot)
+      .map(sanitizeChart)
+      .map(sanitizeStyle);
   } catch {
     return null;
   }

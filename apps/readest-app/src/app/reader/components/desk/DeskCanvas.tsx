@@ -678,7 +678,24 @@ const DeskCanvas = forwardRef<DeskCanvasHandle, { bookKey: string }>(({ bookKey 
                 <div
                   key={b.id}
                   className={`desk-cluster-item${mode ? ' desk-cluster-dragging' : ''}${selectedId === b.id ? ' desk-cluster-selected' : ''}`}
-                  style={{ left: live.x, top: live.y, width: live.width }}
+                  style={{
+                    left: live.x,
+                    top: live.y,
+                    width: live.width,
+                    ...(b.style?.color ? { color: `var(--${b.style.color})` } : {}),
+                    ...(b.style?.size
+                      ? {
+                          fontSize:
+                            b.style.size === 's'
+                              ? '0.82em'
+                              : b.style.size === 'l'
+                                ? '1.18em'
+                                : b.style.size === 'xl'
+                                  ? '1.4em'
+                                  : undefined,
+                        }
+                      : {}),
+                  }}
                   onPointerDown={(e) => startDrag(e, b.id, slot, false)}
                   onClick={(e) => handleBlockClick(e, b.id)}
                 >
@@ -814,6 +831,53 @@ const DeskCanvas = forwardRef<DeskCanvasHandle, { bookKey: string }>(({ bookKey 
           <PiCaretDown size={10} aria-hidden='true' />
         </button>
       )}
+
+      {/* The style panel (tldraw reskin): shown when a block is selected —
+          ink + size for the selected block, persisted via updateBlock. */}
+      {selectedId &&
+        (() => {
+          const sel = blocks.find((b) => b.id === selectedId);
+          if (!sel) return null;
+          const setStyle = (patch: {
+            color?: 'ink' | 'stamp' | 'sage' | 'muted';
+            size?: 's' | 'm' | 'l' | 'xl';
+          }) => updateBlock(bookKey, sel.id, { style: { ...sel.style, ...patch } });
+          const colors = ['ink', 'stamp', 'sage', 'muted'] as const;
+          const sizes = ['s', 'm', 'l', 'xl'] as const;
+          return (
+            <div
+              className='desk-style-panel'
+              role='group'
+              aria-label={_('Style the selected block')}
+            >
+              <div className='desk-style-row'>
+                {colors.map((c) => (
+                  <button
+                    key={c}
+                    type='button'
+                    className={`desk-style-swatch${sel.style?.color === c ? ' desk-style-on' : ''}`}
+                    style={{ background: `var(--${c})` }}
+                    aria-label={_('Ink: {{color}}', { color: c })}
+                    onClick={() => setStyle({ color: c })}
+                  />
+                ))}
+              </div>
+              <div className='desk-style-row'>
+                {sizes.map((s) => (
+                  <button
+                    key={s}
+                    type='button'
+                    className={`desk-style-size${(sel.style?.size ?? 'm') === s ? ' desk-style-on' : ''}`}
+                    aria-label={_('Size: {{size}}', { size: s.toUpperCase() })}
+                    onClick={() => setStyle({ size: s })}
+                  >
+                    {s.toUpperCase()}
+                  </button>
+                ))}
+              </div>
+            </div>
+          );
+        })()}
 
       {/* The tldraw pill (owner ruling: tldraw geometry, Antiquarian
           palette) — select / text / math. Anchored bottom-center of the

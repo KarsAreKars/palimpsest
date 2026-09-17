@@ -88,6 +88,7 @@ export function estimateHeight(b: TranscriptBlock): number {
   if (b.derivation) return 320 + b.derivation.steps.length * 56;
   if (b.diagram) return 300;
   if (b.plot) return 340;
+  if (b.chart) return 300;
   const chars = b.content.length;
   return Math.max(88, Math.ceil(chars / 48) * 24 + 64);
 }

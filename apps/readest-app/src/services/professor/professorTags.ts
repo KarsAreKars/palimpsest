@@ -64,6 +64,10 @@ export interface ParsedProfessorMessage {
    *  evaluates (never model-drawn data), optional `range:a,b`. Space-
    *  bodied and position-bound: the bracket must sit on its own line. */
   plot?: { fns: string[]; range?: [number, number] };
+  /** [CHART bar title:.. | label,val …] — a data chart: the desk draws the
+   *  emitted rows faithfully; the accuracy law governs the DATA. Same
+   *  position-bound own-line rule as PLOT. */
+  chart?: ChartSpec;
   /** [LOOK page:N,M] — page list (numbers only), capped at 4 at parse
    *  time; malformed values capture nothing. */
   look?: number[];
@@ -94,9 +98,45 @@ const PROTOCOL_TAG =
  *  nothing (same fate the unknown-tag strip would give it). */
 const PLOT_LINE_TAG = /^[ \t]*\[PLOT[ \t]+(f:[^\]\n]*)\][ \t]*$/gm;
 
+/** [CHART …] — position-bound like PLOT. Body grammar:
+ *  `bar title:Sizes | STM,3 | MT,7`  or  `line | Jan,1 | Feb,4`
+ *  kind is bar|line (default bar); title: is optional; rows are label,val. */
+const CHART_LINE_TAG = /^[ \t]*\[CHART[ \t]+([^\]\n]*)\][ \t]*$/gm;
+
+export interface ChartSpec {
+  kind: 'bar' | 'line';
+  title?: string;
+  rows: { label: string; value: number }[];
+}
+
+/** Parse a CHART body: `kind title:.. | label,val | …` — splits on `|` at
+ *  top level; the first section carries kind + optional title:. */
+const parseChartBody = (body: string): ChartSpec | undefined => {
+  const sections = splitTopLevel(body, '|')
+    .map((s) => s.trim())
+    .filter(Boolean);
+  if (sections.length === 0) return undefined;
+  const head = sections[0]!;
+  const kind: 'bar' | 'line' | undefined = head.startsWith('line')
+    ? 'line'
+    : head.startsWith('bar')
+      ? 'bar'
+      : undefined;
+  if (!kind) return undefined;
+  const tm = /title:([^|]+?)(?:\s*$)/.exec(head.slice(kind.length));
+  const title = tm?.[1]?.trim() || undefined;
+  const rows: { label: string; value: number }[] = [];
+  for (const sec of sections.slice(1)) {
+    const m = /^(.+?),\s*(-?\d+(?:\.\d+)?)$/.exec(sec);
+    if (m) rows.push({ label: m[1]!.trim(), value: Number(m[2]) });
+  }
+  if (rows.length === 0) return undefined;
+  return { kind, ...(title ? { title } : {}), rows };
+};
+
 /** Split on a separator at paren/brace depth 0 only — a comma inside
  *  `g(1, x)` or `\frac{1}{2}` never splits a function list. */
-const splitTopLevel = (s: string, sep: ';' | ','): string[] => {
+const splitTopLevel = (s: string, sep: ';' | ',' | '|'): string[] => {
   const out: string[] = [];
   let depth = 0;
   let start = 0;
@@ -161,6 +201,7 @@ export function parseProfessorTags(raw: string): ParsedProfessorMessage {
   let stepMarks: { professorChecked?: 'ok' | 'bad' }[] | undefined;
   let diagram: { claim?: string } | undefined;
   let plot: { fns: string[]; range?: [number, number] } | undefined;
+  let chart: ChartSpec | undefined;
   let look: number[] | undefined;
   let voice = false;
 
@@ -171,6 +212,13 @@ export function parseProfessorTags(raw: string): ParsedProfessorMessage {
   const withoutPlot = raw.replace(PLOT_LINE_TAG, (_match, body: string) => {
     const parsedPlot = parsePlotBody(body);
     if (parsedPlot) plot = parsedPlot;
+    return '';
+  });
+
+  // Pass 0b — [CHART …] rides the same own-line rule.
+  const withoutChart = withoutPlot.replace(CHART_LINE_TAG, (_match, body: string) => {
+    const parsedChart = parseChartBody(body);
+    if (parsedChart) chart = parsedChart;
     return '';
   });
 
@@ -292,7 +340,7 @@ export function parseProfessorTags(raw: string): ParsedProfessorMessage {
 
   // Pass 1 — protocol tags are captured wherever they appear, even inside
   // an unterminated $$ shield ("$$x^2 + 1\n[CONCEPT:leak]" must not leak).
-  const withoutProtocol = withoutPlot.replace(PROTOCOL_TAG, captureProtocol);
+  const withoutProtocol = withoutChart.replace(PROTOCOL_TAG, captureProtocol);
 
   // Pass 2 — unknown ALL-CAPS tags are stripped only OUTSIDE math shields,
   // so real math like [0,1] stays protected. A space-bodied tag ([NAME body…])
@@ -324,6 +372,7 @@ export function parseProfessorTags(raw: string): ParsedProfessorMessage {
   if (stepMarks) parsed.stepMarks = stepMarks;
   if (diagram) parsed.diagram = diagram;
   if (plot) parsed.plot = plot;
+  if (chart) parsed.chart = chart;
   if (look !== undefined) parsed.look = look;
   if (voice) parsed.voice = true;
   return parsed;

@@ -90,3 +90,51 @@ describe('plot blocks in the document', () => {
     expect(parsed![0]?.plot).toBeUndefined();
   });
 });
+
+describe('[CHART] tag grammar + document', () => {
+  test('bar chart with title and rows parses', () => {
+    const r = parseProfessorTags('[CHART bar title:Sizes | STM,3 | MT,7]');
+    expect(r.chart?.kind).toBe('bar');
+    expect(r.chart?.title).toBe('Sizes');
+    expect(r.chart?.rows).toEqual([
+      { label: 'STM', value: 3 },
+      { label: 'MT', value: 7 },
+    ]);
+  });
+
+  test('line chart without title parses; mid-prose is prose', () => {
+    const r = parseProfessorTags('[CHART line | Jan,1 | Feb,-2]');
+    expect(r.chart?.kind).toBe('line');
+    expect(r.chart?.rows).toEqual([
+      { label: 'Jan', value: 1 },
+      { label: 'Feb', value: -2 },
+    ]);
+    const prose = parseProfessorTags('see [CHART bar | A,1] here');
+    expect(prose.chart).toBeUndefined();
+  });
+
+  test('chart field round-trips; malformed rows are stripped by sanitize', () => {
+    const blocks = [
+      profBlock({ id: 'c1', chart: { kind: 'bar', rows: [{ label: 'A', value: 2 }] } }),
+      profBlock({
+        id: 'c2',
+        chart: { kind: 'bar', rows: [] } as never, // malformed: no rows
+      }),
+    ];
+    const parsed = parseTranscript(serializeTranscript(blocks));
+    expect(parsed![0]?.chart?.rows).toEqual([{ label: 'A', value: 2 }]);
+    expect(parsed![1]?.chart).toBeUndefined();
+  });
+});
+
+describe('block style payloads', () => {
+  test('style round-trips; unknown color/size values are dropped', () => {
+    const blocks = [
+      profBlock({ id: 's1', style: { color: 'stamp', size: 'xl' } }),
+      profBlock({ id: 's2', style: { color: 'chartreuse' as never, size: 'm' } }),
+    ];
+    const parsed = parseTranscript(serializeTranscript(blocks));
+    expect(parsed![0]?.style).toEqual({ color: 'stamp', size: 'xl' });
+    expect(parsed![1]?.style).toEqual({ size: 'm' });
+  });
+});
