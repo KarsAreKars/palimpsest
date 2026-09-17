@@ -33,6 +33,7 @@ import {
 import { Prose, Slip, VerdictChip } from './wbShared';
 import DerivationSlip from './DerivationSlip';
 import DiagramSlip from './DiagramSlip';
+import PlotSlip from './PlotSlip';
 import './wb.css';
 
 /** Split display markdown on the professor's `[Page N]` citations: the
@@ -373,6 +374,7 @@ export const BlockBody: React.FC<BlockBodyProps> = ({
         <ProbeRow picked={b.probePicked} onPick={(s, m) => onPickProbe(b.id, s, m)} />
       )}
       {b.diagram && <DiagramSlip block={b} />}
+      {b.plot && <PlotSlip spec={b.plot} />}
       {b.author === 'professor' && b.derivation && b.derivation.steps.length > 0 && (
         <DerivationSlip
           block={b}

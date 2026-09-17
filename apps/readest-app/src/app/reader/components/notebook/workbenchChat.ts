@@ -20,6 +20,7 @@ import type { WorkbenchBlock } from '@/services/professor/workbenchSession';
 import type { CheckStepVerdict } from '@/services/professor/mathCheck';
 import { parseProfessorTags, type ConceptMapShelves } from '@/services/professor/professorTags';
 import { extractDiagramSvg, sanitizeDiagramSvg } from '@/services/professor/diagramSvg';
+import { evaluatePlotSpec, type PlotSpec } from './plotCompute';
 
 /** The commit path writes librarian prose onto the paper itself, so the
  *  locale resolves outside React. English source strings are the keys
@@ -99,6 +100,10 @@ export interface TranscriptBlock extends WorkbenchBlock {
   derivation?: DerivationData;
   /** [DIAGRAM ..] + ```svg fence — a figure slip. */
   diagram?: DiagramData;
+  /** [PLOT f:..] — a computed plot slip: LaTeX rules the desk evaluates
+   *  itself (plotCompute), never model-drawn data. Additive, after
+   *  diagram; counts toward the exchange's artifact budget. */
+  plot?: PlotSpec;
   /** Set on a learner block that appends steps to an open folio: the
    *  folio's block id (s3 §7.3). */
   extendsDerivation?: string;
@@ -319,15 +324,16 @@ export const MAX_ARTIFACT_BLOCKS_PER_EXCHANGE = 3;
 
 const BUDGET_MUTE_NOTE = 'The professor sets down his pen — one shape at a time.';
 const FIGURE_FAILED_NOTE = 'The figure would not hold its ink; the claim stands as words.';
+const PLOT_FAILED_NOTE = 'The plot would not hold its ink; the rule stands as words.';
 
-/** Artifact blocks (carrying a derivation or a diagram) since the last user
+/** Artifact blocks (carrying a derivation, a diagram, or a plot) since the last user
  *  block — the exchange's running shape count. Muted attempts count too:
  *  a failed figure consumed its slot (d3 C2.ii). */
 export function professorArtifactCount(blocks: TranscriptBlock[]): number {
   let count = 0;
   for (const b of blocks) {
     if (b.author === 'user') count = 0;
-    else if (b.derivation || b.diagram || b.artifactMuted) count += 1;
+    else if (b.derivation || b.diagram || b.plot || b.artifactMuted) count += 1;
   }
   return count;
 }
@@ -453,6 +459,28 @@ export function commitProfessorBlock(
     } else {
       block.diagram = { claim: parsed.diagram.claim, svg: extracted.svg };
       block.content = extracted.display;
+    }
+  }
+  if (parsed.plot) {
+    if (artifactBudgetSpent(existing)) {
+      // C2.i: budget spent — the plot payload is muted; the block lands as
+      // clean prose with the note; the attempt stays counted.
+      block.content = `${block.content}\n\n${translate(BUDGET_MUTE_NOTE)}`;
+      block.artifactMuted = true;
+    } else if (!evaluatePlotSpec(parsed.plot)) {
+      // C2.ii for computed plots, mirroring the figure self-check: the
+      // rule would not evaluate — NaN everywhere. The rules stand as
+      // typeset words; the exchange's slot is consumed (the librarian
+      // note pattern). An unplottable spec is a failed drawing, not an
+      // authoring slip — there is no empty-fence equivalent.
+      const rules = parsed.plot.fns.map((f) => `$$${f}$$`).join('\n');
+      block.content = `${block.content}\n\n${rules}\n\n${translate(PLOT_FAILED_NOTE)}`;
+      block.artifactMuted = true;
+    } else {
+      block.plot = {
+        fns: parsed.plot.fns,
+        ...(parsed.plot.range ? { range: parsed.plot.range } : {}),
+      };
     }
   }
   if (parsed.derive) {
@@ -633,6 +661,28 @@ export const sanitizePlacement = (b: TranscriptBlock): TranscriptBlock => {
   };
 };
 
+/** Plot specs survive the file round-trip only when well-formed: fns a
+ *  non-empty string list, range two finite ascending numbers. A malformed
+ *  plot payload is STRIPPED, never fatal — same policy as placement
+ *  (honest paper, never an erased-looking block). */
+export const sanitizePlot = (b: TranscriptBlock): TranscriptBlock => {
+  if (!b.plot) return b;
+  const { plot, ...rest } = b;
+  const fns = Array.isArray(plot.fns)
+    ? plot.fns.filter((f): f is string => typeof f === 'string' && f.trim() !== '')
+    : [];
+  const r: unknown = plot.range;
+  const range =
+    Array.isArray(r) &&
+    r.length === 2 &&
+    r.every((v) => typeof v === 'number' && Number.isFinite(v)) &&
+    (r[0] as number) < (r[1] as number)
+      ? ([r[0], r[1]] as [number, number])
+      : undefined;
+  if (fns.length === 0) return rest;
+  return { ...rest, plot: { fns, ...(range ? { range } : {}) } };
+};
+
 const isBlock = (v: unknown): v is TranscriptBlock => {
   if (typeof v !== 'object' || v === null) return false;
   const b = v as Record<string, unknown>;
@@ -653,7 +703,8 @@ export function parseTranscript(json: string): TranscriptBlock[] | null {
     if (!Array.isArray(blocks) || !blocks.every(isBlock)) return null;
     // Placement fields sanitize, never reject (d2 §2.2): a block carrying
     // x: "oops" keeps its ink; only the malformed placement is stripped.
-    return (blocks as TranscriptBlock[]).map(sanitizePlacement);
+    // The plot payload follows the same policy (sanitize, never reject).
+    return (blocks as TranscriptBlock[]).map(sanitizePlacement).map(sanitizePlot);
   } catch {
     return null;
   }

@@ -60,6 +60,10 @@ export interface ParsedProfessorMessage {
   stepMarks?: { professorChecked?: 'ok' | 'bad' }[];
   /** [DIAGRAM claim:..] — a figure slip; the SVG rides in a ```svg fence. */
   diagram?: { claim?: string };
+  /** [PLOT f:..] — a computed function plot: LaTeX rules the DESK
+   *  evaluates (never model-drawn data), optional `range:a,b`. Space-
+   *  bodied and position-bound: the bracket must sit on its own line. */
+  plot?: { fns: string[]; range?: [number, number] };
   /** [LOOK page:N,M] — page list (numbers only), capped at 4 at parse
    *  time; malformed values capture nothing. */
   look?: number[];
@@ -82,6 +86,56 @@ const TAG_PATTERN = /\[([A-Z][A-Z0-9_-]*)(?::([^\]\n]*))?\]/g;
  *  still passes through untouched (R2's load-bearing rationale). */
 const PROTOCOL_TAG =
   /\[(CONCEPTS|TEACHBACK|DERIVE|DIAGRAM|LOOK)(?:[ \t]+[a-z][A-Za-z0-9_-]*:[^\]\n]*|:[^\]\n]*)?\]|\[(STEP)(?:[ \t]+\d+)?(?:[ \t]*\/CHECKED[ \t]+(?:ok|bad))?[ \t]*\]|\[(CONCEPT|QKIND|WORKBENCH|POINT|PROBE|EVALUATION|VOICE)(?::([^\]\n]*))?\]/g;
+
+/** [PLOT …] — the computed-plot tag. Unlike DERIVE/DIAGRAM it is
+ *  POSITION-BOUND: the bracket must occupy its own line (the task's
+ *  own-line rule). Mid-prose [PLOT f:…] is prose and passes through
+ *  untouched; a malformed own-line body is consumed silently, capturing
+ *  nothing (same fate the unknown-tag strip would give it). */
+const PLOT_LINE_TAG = /^[ \t]*\[PLOT[ \t]+(f:[^\]\n]*)\][ \t]*$/gm;
+
+/** Split on a separator at paren/brace depth 0 only — a comma inside
+ *  `g(1, x)` or `\frac{1}{2}` never splits a function list. */
+const splitTopLevel = (s: string, sep: ';' | ','): string[] => {
+  const out: string[] = [];
+  let depth = 0;
+  let start = 0;
+  for (let i = 0; i < s.length; i += 1) {
+    const c = s[i];
+    if (c === '(' || c === '{' || c === '[') depth += 1;
+    else if (c === ')' || c === '}' || c === ']') depth = Math.max(0, depth - 1);
+    else if (c === sep && depth === 0) {
+      out.push(s.slice(start, i));
+      start = i + 1;
+    }
+  }
+  out.push(s.slice(start));
+  return out;
+};
+
+/** Body grammar: `f:rule, rule` sections split on top-level `;`, with an
+ *  optional `range:a,b` (finite, ascending). No fns → nothing built. */
+const parsePlotBody = (body: string): { fns: string[]; range?: [number, number] } | undefined => {
+  let fns: string[] = [];
+  let range: [number, number] | undefined;
+  for (const section of splitTopLevel(body, ';')) {
+    const s = section.trim();
+    if (s.startsWith('f:')) {
+      fns = splitTopLevel(s.slice(2), ',')
+        .map((f) => f.trim())
+        .filter(Boolean);
+    } else if (s.startsWith('range:')) {
+      const m = /^range:\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*$/.exec(s);
+      if (m) {
+        const a = Number(m[1]);
+        const b = Number(m[2]);
+        if (Number.isFinite(a) && Number.isFinite(b) && a < b) range = [a, b];
+      }
+    }
+  }
+  if (fns.length === 0) return undefined;
+  return { fns, ...(range ? { range } : {}) };
+};
 
 /** Unknown space-bodied ALL-CAPS tag in protocol position: the bracket
  *  occupies its own line (the "tags on their own lines" contract). The
@@ -106,8 +160,19 @@ export function parseProfessorTags(raw: string): ParsedProfessorMessage {
   let derive: { title?: string; goal?: string } | undefined;
   let stepMarks: { professorChecked?: 'ok' | 'bad' }[] | undefined;
   let diagram: { claim?: string } | undefined;
+  let plot: { fns: string[]; range?: [number, number] } | undefined;
   let look: number[] | undefined;
   let voice = false;
+
+  // Pass 0 — [PLOT …] is line-anchored (protocol position only): captured
+  // here, before the everywhere-scan, so a mid-prose [PLOT f:…] survives
+  // as prose. Scanned first like the other protocol tags, so an
+  // unterminated $$ cannot shield it.
+  const withoutPlot = raw.replace(PLOT_LINE_TAG, (_match, body: string) => {
+    const parsedPlot = parsePlotBody(body);
+    if (parsedPlot) plot = parsedPlot;
+    return '';
+  });
 
   // The regex carries four groups — (CONCEPTS|TEACHBACK), (STEP),
   // (CONCEPT|…|VOICE), and its colon value — so the callback receives them
@@ -227,7 +292,7 @@ export function parseProfessorTags(raw: string): ParsedProfessorMessage {
 
   // Pass 1 — protocol tags are captured wherever they appear, even inside
   // an unterminated $$ shield ("$$x^2 + 1\n[CONCEPT:leak]" must not leak).
-  const withoutProtocol = raw.replace(PROTOCOL_TAG, captureProtocol);
+  const withoutProtocol = withoutPlot.replace(PROTOCOL_TAG, captureProtocol);
 
   // Pass 2 — unknown ALL-CAPS tags are stripped only OUTSIDE math shields,
   // so real math like [0,1] stays protected. A space-bodied tag ([NAME body…])
@@ -258,6 +323,7 @@ export function parseProfessorTags(raw: string): ParsedProfessorMessage {
   if (derive) parsed.derive = derive;
   if (stepMarks) parsed.stepMarks = stepMarks;
   if (diagram) parsed.diagram = diagram;
+  if (plot) parsed.plot = plot;
   if (look !== undefined) parsed.look = look;
   if (voice) parsed.voice = true;
   return parsed;

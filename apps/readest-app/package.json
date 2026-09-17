@@ -187,6 +187,7 @@
     "katex": "^0.16.45",
     "lucide-react": "^0.562.0",
     "lunr": "^2.3.9",
+    "@cortex-js/compute-engine": "^0.58.0",
     "mammoth": "^1.12.0",
     "marked": "^15.0.12",
     "marked-footnote": "^1.4.0",
