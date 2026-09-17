@@ -167,6 +167,13 @@ const DeskCanvas = forwardRef<DeskCanvasHandle, { bookKey: string }>(({ bookKey 
   // ── The floating composer state machine (d2 §7.1) ─────────────────────
   const [composer, dispatch] = useReducer(deskComposerReducer, idleComposer);
 
+  // ── The tldraw reskin (owner ruling 2026-09-16): tldraw's geometry, the
+  // Antiquarian palette. Tool pill bottom-center (select/text/math), a
+  // selection model with a stamp outline + floating action bar. Default is
+  // 'text' — the desk's first verb is writing; 'select' is for arranging.
+  const [tool, setTool] = useState<'select' | 'text' | 'math'>('text');
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+
   // ── Scroll policy (§8): pinned follow, no yank, one quiet stamp chip ───
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const columnRef = useRef<HTMLDivElement | null>(null);
@@ -367,40 +374,53 @@ const DeskCanvas = forwardRef<DeskCanvasHandle, { bookKey: string }>(({ bookKey 
 
   // ── Click-to-place (PENECHO R1): any empty paper accepts ink — the
   //    tail OR a gap between blocks; clicking ON a block stays inert. ───
-  const handleCanvasClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
-    // Interactive children (chips, buttons, the composer plate) own their
-    // own clicks — placement is the empty paper's gesture alone. NOTE: the
-    // sheet root itself has role='dialog', so guard by the composer's class
-    // — guarding on [role="dialog"] swallows EVERY click on the sheet
-    // (owner dogfood: "nothing I type seems to be working").
-    if (
-      (e.target as HTMLElement).closest(
-        'button, a, input, textarea, select, math-field, .desk-composer, .wb-math-popover',
-      )
-    ) {
-      return;
-    }
-    const el = scrollRef.current;
-    if (!el) return;
-    const rect = el.getBoundingClientRect();
-    const pointY = e.clientY - rect.top + el.scrollTop;
-    const rects: BlockRect[] = Array.from(
-      el.querySelectorAll<HTMLElement>('article[data-bid]'),
-    ).map((a) => {
-      const top = contentTop(el, a);
-      const bRect = a.getBoundingClientRect();
-      return {
-        id: a.dataset['bid'] ?? '',
-        top,
-        bottom: top + bRect.height,
-        left: bRect.left - rect.left,
-        right: bRect.right - rect.left,
-      };
-    });
-    const pointX = e.clientX - rect.left;
-    if (!isWritablePoint(rects, el.scrollHeight, pointY, pointX)) return;
-    const point: SheetPoint = { x: pointX, y: e.clientY - rect.top };
-    dispatch({ type: 'PLACE', point });
+  const handleCanvasClick = useCallback(
+    (e: React.MouseEvent<HTMLDivElement>) => {
+      // Interactive children (chips, buttons, the composer plate) own their
+      // own clicks — placement is the empty paper's gesture alone. NOTE: the
+      // sheet root itself has role='dialog', so guard by the composer's class
+      // — guarding on [role="dialog"] swallows EVERY click on the sheet
+      // (owner dogfood: "nothing I type seems to be working").
+      if (
+        (e.target as HTMLElement).closest(
+          'button, a, input, textarea, select, math-field, .desk-composer, .wb-math-popover',
+        )
+      ) {
+        return;
+      }
+      const el = scrollRef.current;
+      if (!el) return;
+      const rect = el.getBoundingClientRect();
+      const pointY = e.clientY - rect.top + el.scrollTop;
+      const rects: BlockRect[] = Array.from(
+        el.querySelectorAll<HTMLElement>('article[data-bid]'),
+      ).map((a) => {
+        const top = contentTop(el, a);
+        const bRect = a.getBoundingClientRect();
+        return {
+          id: a.dataset['bid'] ?? '',
+          top,
+          bottom: top + bRect.height,
+          left: bRect.left - rect.left,
+          right: bRect.right - rect.left,
+        };
+      });
+      const pointX = e.clientX - rect.left;
+      if (!isWritablePoint(rects, el.scrollHeight, pointY, pointX)) return;
+      if (tool === 'select') return; // select mode: paper clicks never place ink
+      const point: SheetPoint = { x: pointX, y: e.clientY - rect.top };
+      dispatch({ type: 'PLACE', point });
+      setSelectedId(null); // placing new ink clears the selection
+    },
+    [tool],
+  );
+
+  // Select tool: clicking a block selects it (stamp outline + action bar);
+  // clicking empty paper clears the selection. Text/math tools place ink.
+  const handleBlockClick = useCallback((e: React.MouseEvent, blockId: string) => {
+    if ((e.target as HTMLElement).closest('button, a, input, textarea, select, math-field')) return;
+    e.stopPropagation();
+    setSelectedId((cur) => (cur === blockId ? null : blockId));
   }, []);
 
   // ── Drag to move / resize (penecho port P3/P5, owner dogfood): no
@@ -598,12 +618,29 @@ const DeskCanvas = forwardRef<DeskCanvasHandle, { bookKey: string }>(({ bookKey 
   );
   const streamingOn = streaming.phase !== 'idle' && streaming.showPlaceholder;
 
+  // Keyboard for the selection model (tldraw discipline): Delete removes,
+  // Escape clears — input fields keep their keys (the interactive guard).
+  const handleCanvasKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    if ((e.target as HTMLElement).closest('input, textarea, select, math-field')) return;
+    if (e.key === 'Delete' || e.key === 'Backspace') {
+      if (selectedId) {
+        e.preventDefault();
+        deleteBlock(selectedId);
+        setSelectedId(null);
+      }
+    } else if (e.key === 'Escape' && selectedId) {
+      e.preventDefault();
+      setSelectedId(null);
+    }
+  };
+
   return (
     <div
       className='desk-canvas'
       ref={scrollRef}
       onScroll={handleScroll}
       onClick={handleCanvasClick}
+      onKeyDown={handleCanvasKeyDown}
       role='log'
       aria-live='polite'
       aria-relevant='additions'
@@ -640,31 +677,34 @@ const DeskCanvas = forwardRef<DeskCanvasHandle, { bookKey: string }>(({ bookKey 
               return (
                 <div
                   key={b.id}
-                  className={`desk-cluster-item${mode ? ' desk-cluster-dragging' : ''}`}
+                  className={`desk-cluster-item${mode ? ' desk-cluster-dragging' : ''}${selectedId === b.id ? ' desk-cluster-selected' : ''}`}
                   style={{ left: live.x, top: live.y, width: live.width }}
                   onPointerDown={(e) => startDrag(e, b.id, slot, false)}
+                  onClick={(e) => handleBlockClick(e, b.id)}
                 >
                   {renderBlock(b, i)}
-                  <span className='desk-block-tools'>
-                    {b.author === 'user' && (
+                  {selectedId === b.id && (
+                    <span className='desk-block-tools desk-block-tools-selected'>
+                      {b.author === 'user' && (
+                        <button
+                          type='button'
+                          className='desk-block-tool'
+                          aria-label={_('Edit this note')}
+                          onClick={() => editBlock(b.id)}
+                        >
+                          ✎
+                        </button>
+                      )}
                       <button
                         type='button'
                         className='desk-block-tool'
-                        aria-label={_('Edit this note')}
-                        onClick={() => editBlock(b.id)}
+                        aria-label={_('Remove this from the sheet')}
+                        onClick={() => deleteBlock(b.id)}
                       >
-                        ✎
+                        ×
                       </button>
-                    )}
-                    <button
-                      type='button'
-                      className='desk-block-tool'
-                      aria-label={_('Remove this from the sheet')}
-                      onClick={() => deleteBlock(b.id)}
-                    >
-                      ×
-                    </button>
-                  </span>
+                    </span>
+                  )}
                   <span
                     className='desk-resize'
                     aria-hidden='true'
@@ -774,6 +814,39 @@ const DeskCanvas = forwardRef<DeskCanvasHandle, { bookKey: string }>(({ bookKey 
           <PiCaretDown size={10} aria-hidden='true' />
         </button>
       )}
+
+      {/* The tldraw pill (owner ruling: tldraw geometry, Antiquarian
+          palette) — select / text / math. Anchored bottom-center of the
+          sheet, never scrolls with the paper. */}
+      <div className='desk-toolbar' role='toolbar' aria-label={_('Desk tools')}>
+        <button
+          type='button'
+          className={`desk-tool${tool === 'select' ? ' desk-tool-active' : ''}`}
+          aria-label={_('Select')}
+          title={_('Select')}
+          onClick={() => setTool('select')}
+        >
+          ➤
+        </button>
+        <button
+          type='button'
+          className={`desk-tool${tool === 'text' ? ' desk-tool-active' : ''}`}
+          aria-label={_('Text')}
+          title={_('Text')}
+          onClick={() => setTool('text')}
+        >
+          T
+        </button>
+        <button
+          type='button'
+          className={`desk-tool${tool === 'math' ? ' desk-tool-active' : ''}`}
+          aria-label={_('Math')}
+          title={_('Math')}
+          onClick={() => setTool('math')}
+        >
+          ƒx
+        </button>
+      </div>
     </div>
   );
 });
