@@ -14,6 +14,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 
 import { useTranslation } from '@/hooks/useTranslation';
 import {
+  evaluateFunctionAt,
   evaluatePlotSpec,
   PLOT_SAMPLE_COUNT,
   sampleFunction,
@@ -96,6 +97,9 @@ const PlotSlip: React.FC<{ spec: PlotSpec }> = ({ spec }) => {
   const base = useMemo(() => initialView(spec), [specKey]); // eslint-disable-line react-hooks/exhaustive-deps
   const [view, setView] = useState<View | null>(null);
   const [dragging, setDragging] = useState(false);
+  // Desmos-style hover: a crosshair at the pointer's x and the nearest
+  // curve point's coordinates (the desk already holds the true samples).
+  const [hover, setHover] = useState<{ x: number; y: number } | null>(null);
   useEffect(() => setView(null), [specKey]);
   const v = view ?? base;
 
@@ -134,6 +138,7 @@ const PlotSlip: React.FC<{ spec: PlotSpec }> = ({ spec }) => {
   const onPointerDown = (e: React.PointerEvent<SVGSVGElement>) => {
     if (!v) return;
     e.preventDefault();
+    setHover(null);
     const start = { x: e.clientX, y: e.clientY, view: v };
     const el = e.currentTarget;
     el.setPointerCapture(e.pointerId);
@@ -160,9 +165,18 @@ const PlotSlip: React.FC<{ spec: PlotSpec }> = ({ spec }) => {
     el.addEventListener('pointercancel', onUp);
   };
 
-  // Degraded mount (belt and braces — the commit path already filters):
-  // the rules stand as typeset words with a muted note, never an empty
-  // box, never a crash (the DiagramSlip pattern).
+  // Hover → data-space x under the pointer; null leaves the crosshair.
+  // The desk evaluates the FIRST rule exactly at that x (evaluateFunctionAt
+  // — cheaper and exact vs resampling the window).
+  const onPointerHover = (e: React.PointerEvent<SVGSVGElement>) => {
+    if (!v || dragging) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    const fx = (e.clientX - rect.left) / rect.width;
+    const gx = v.xMin + fx * (v.xMax - v.xMin);
+    if (!Number.isFinite(gx)) return setHover(null);
+    const gy = evaluateFunctionAt(spec.fns[0]!, gx);
+    setHover(gy === null ? null : { x: gx, y: gy });
+  };
   if (!v) {
     return (
       <div className='wb-figure-degraded'>
@@ -210,7 +224,30 @@ const PlotSlip: React.FC<{ spec: PlotSpec }> = ({ spec }) => {
           viewBox={`0 0 ${W} ${H}`}
           className={dragging ? 'wb-plot-dragging' : undefined}
           onPointerDown={onPointerDown}
+          onPointerMove={onPointerHover}
+          onPointerLeave={() => setHover(null)}
         >
+          {/* Desmos-style grid: light lines at every tick, both axes. */}
+          {xTicks.map((t) => (
+            <line
+              key={`gx${t.v}`}
+              className='wb-plot-grid'
+              x1={sx(t.v)}
+              y1={PAD}
+              x2={sx(t.v)}
+              y2={H - PAD}
+            />
+          ))}
+          {yTicks.map((t) => (
+            <line
+              key={`gy${t.v}`}
+              className='wb-plot-grid'
+              x1={PAD}
+              y1={sy(t.v)}
+              x2={W - PAD}
+              y2={sy(t.v)}
+            />
+          ))}
           <line className='wb-plot-axis' x1={PAD} y1={axisY} x2={W - PAD} y2={axisY} />
           <line className='wb-plot-axis' x1={axisX} y1={PAD} x2={axisX} y2={H - PAD} />
           {xTicks.map((t) => (
@@ -256,6 +293,21 @@ const PlotSlip: React.FC<{ spec: PlotSpec }> = ({ spec }) => {
               />
             );
           })}
+          {hover &&
+            Number.isFinite(hover.y) &&
+            hover.y >= v.yMin - (v.yMax - v.yMin) * 4 &&
+            hover.y <= v.yMax + (v.yMax - v.yMin) * 4 && (
+              <g className='wb-plot-hover'>
+                <line x1={sx(hover.x)} y1={PAD} x2={sx(hover.x)} y2={H - PAD} />
+                <circle cx={sx(hover.x)} cy={sy(hover.y)} r='3' />
+                <text
+                  x={Math.min(W - PAD - 4, sx(hover.x) + 6)}
+                  y={Math.max(PAD + 10, sy(hover.y) - 8)}
+                >
+                  {`(${Number(hover.x.toPrecision(4))}, ${Number(hover.y.toPrecision(4))})`}
+                </text>
+              </g>
+            )}
         </svg>
       </div>
       <figcaption className='wb-figure-caption'>
