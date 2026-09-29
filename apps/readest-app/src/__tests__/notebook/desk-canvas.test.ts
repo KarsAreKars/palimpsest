@@ -33,6 +33,7 @@ import {
   isSpatialSheet,
   layoutCluster,
   layoutSheet,
+  snapDrag,
 } from '@/app/reader/components/desk/deskLayout';
 
 const userBlock = (over: Partial<TranscriptBlock> = {}): TranscriptBlock => ({
@@ -438,6 +439,59 @@ describe('layoutCluster — spatial layout pure cases (e2 §2, e4 R5)', () => {
     expect(layout.mode).toBe('column');
     expect(layout.anchor).toBeNull();
     expect(layout.artifacts[0]).toEqual({ x: 140, y: 0, width: STAGE.columnWidth });
+  });
+});
+
+describe('layoutSheet — collision resolution (owner dogfood round 2)', () => {
+  test('an auto-placed professor block flows below a hand-placed obstacle', () => {
+    const blocks = [
+      // A tall hand-placed note sitting exactly where the reply would land.
+      userBlock({ id: 'o1', x: 444, y: 60, content: 'x'.repeat(500) }),
+      userBlock({ id: 'u1', x: 40, y: 60, content: 'Why?' }),
+      profBlock({ id: 'p1' }), // beside u1 at x=444 — under o1
+    ];
+    const layout = layoutSheet(blocks, 1600);
+    const obs = layout.placements.get('o1')!;
+    const art = layout.placements.get('p1')!;
+    expect(obs.y).toBe(60); // hand-placed: verbatim
+    const obsH = estimateHeight(blocks[0]!);
+    expect(art.y).toBeGreaterThanOrEqual(60 + obsH + 24 - 1);
+  });
+
+  test('two auto clusters stack without overlap', () => {
+    const blocks = [
+      userBlock({ id: 'u1', x: 40, y: 50 }),
+      profBlock({ id: 'p1' }),
+      userBlock({ id: 'u2', x: 40, y: 60 }), // overlapping anchor forces flow
+      profBlock({ id: 'p2' }),
+    ];
+    const layout = layoutSheet(blocks, 1600);
+    const p1 = layout.placements.get('p1')!;
+    const p2 = layout.placements.get('p2')!;
+    const p1H = estimateHeight(blocks[1]!);
+    // p2 must not overlap p1 (gap-inflated).
+    expect(p2.y >= p1.y + p1H + 24 - 1 || p2.y + estimateHeight(blocks[3]!) <= p1.y - 24 + 1).toBe(
+      true,
+    );
+  });
+});
+
+describe('snapDrag — alignment snapping (tldraw port)', () => {
+  const o = { x: 100, y: 100, w: 380, h: 120 };
+  test('snaps a nearby left edge to the obstacle left edge and returns the guide', () => {
+    const r = snapDrag({ x: 105, y: 400, w: 380, h: 100 }, [o]);
+    expect(r.x).toBe(100);
+    expect(r.vGuide).toBe(100);
+    expect(r.hGuide).toBeUndefined();
+  });
+  test('snaps a centre line and reports the horizontal guide', () => {
+    const r = snapDrag({ x: 287, y: 100, w: 10, h: 10 }, [o], 8); // centre 292 vs 290
+    expect(r.vGuide).toBe(290);
+  });
+  test('beyond the threshold: no snap', () => {
+    const r = snapDrag({ x: 130, y: 400, w: 380, h: 100 }, [o]);
+    expect(r.x).toBe(130);
+    expect(r.vGuide).toBeUndefined();
   });
 });
 

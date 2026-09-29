@@ -59,7 +59,7 @@ import {
   type BlockRect,
   type SheetPoint,
 } from './deskGeometry';
-import { isSpatialSheet, layoutSheet } from './deskLayout';
+import { isSpatialSheet, layoutSheet, estimateHeight, snapDrag, type SnapRect } from './deskLayout';
 import { useDeskStreaming } from './useDeskStreaming';
 import { useTranscriptPersistence } from './useTranscriptPersistence';
 import DeskComposer from './DeskComposer';
@@ -436,7 +436,26 @@ const DeskCanvas = forwardRef<DeskCanvasHandle, { bookKey: string }>(({ bookKey 
     resize: boolean;
     dx: number;
     dy: number;
+    /** snap guides (stage coords) painted while dragging */
+    vGuide?: number;
+    hGuide?: number;
   } | null>(null);
+
+  // Snap targets: every other block's laid-out rect (stage coords). The
+  // dragged block pulls toward their edges/centres (tldraw port).
+  const snapTargets = useCallback(
+    (excludeId: string): SnapRect[] => {
+      if (!sheetLayout) return [];
+      const out: SnapRect[] = [];
+      for (const b of blocks) {
+        if (b.id === excludeId) continue;
+        const p = sheetLayout.placements.get(b.id);
+        if (p) out.push({ x: p.x, y: p.y, w: p.width, h: estimateHeight(b) });
+      }
+      return out;
+    },
+    [blocks, sheetLayout],
+  );
 
   const startDrag = useCallback(
     (
@@ -463,8 +482,31 @@ const DeskCanvas = forwardRef<DeskCanvasHandle, { bookKey: string }>(({ bookKey 
         dy: 0,
       };
       setDrag(start);
+      const dragH = estimateHeight(
+        (useWorkbenchChatStore.getState().blocks[bookKey] ?? []).find((b) => b.id === blockId)!,
+      );
       const onMove = (ev: PointerEvent) => {
-        setDrag((d) => (d ? { ...d, dx: ev.clientX - d.startX, dy: ev.clientY - d.startY } : d));
+        setDrag((d) => {
+          if (!d) return d;
+          const raw = { ...d, dx: ev.clientX - d.startX, dy: ev.clientY - d.startY };
+          if (d.resize) return raw;
+          const snapped = snapDrag(
+            {
+              x: Math.max(0, d.origX + raw.dx),
+              y: Math.max(0, d.origY + raw.dy),
+              w: d.origW,
+              h: dragH,
+            },
+            snapTargets(d.id),
+          );
+          return {
+            ...raw,
+            dx: snapped.x - d.origX,
+            dy: snapped.y - d.origY,
+            ...(snapped.vGuide !== undefined ? { vGuide: snapped.vGuide } : {}),
+            ...(snapped.hGuide !== undefined ? { hGuide: snapped.hGuide } : {}),
+          };
+        });
       };
       const onUp = (ev: PointerEvent) => {
         window.removeEventListener('pointermove', onMove);
@@ -490,7 +532,7 @@ const DeskCanvas = forwardRef<DeskCanvasHandle, { bookKey: string }>(({ bookKey 
       window.addEventListener('pointermove', onMove);
       window.addEventListener('pointerup', onUp);
     },
-    [bookKey, updateBlock],
+    [bookKey, updateBlock, snapTargets],
   );
 
   /** Live slot during a drag: the block follows the pointer before commit. */
@@ -744,6 +786,22 @@ const DeskCanvas = forwardRef<DeskCanvasHandle, { bookKey: string }>(({ bookKey 
               >
                 {streamingBody}
               </div>
+            )}
+            {/* Alignment guides while dragging (tldraw port) — the stamp
+                hairlines at the snapped edge/centre. */}
+            {drag?.vGuide !== undefined && (
+              <span
+                className='desk-align-guide desk-align-guide-v'
+                style={{ left: drag.vGuide }}
+                aria-hidden='true'
+              />
+            )}
+            {drag?.hGuide !== undefined && (
+              <span
+                className='desk-align-guide desk-align-guide-h'
+                style={{ top: drag.hGuide }}
+                aria-hidden='true'
+              />
             )}
           </div>
         ) : (

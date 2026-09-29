@@ -172,6 +172,25 @@
   cursor: text;
 }
 
+/* Alignment guides while dragging (tldraw port) — stamp hairlines. */
+.desk-align-guide {
+  position: absolute;
+  background: var(--stamp);
+  opacity: 0.6;
+  pointer-events: none;
+  z-index: 4;
+}
+.desk-align-guide-v {
+  top: 0;
+  bottom: 0;
+  width: 1px;
+}
+.desk-align-guide-h {
+  left: 0;
+  right: 0;
+  height: 1px;
+}
+
 /* ---------- the tldraw pill (tldraw geometry, Antiquarian palette) ---------- */
 .desk-toolbar {
   position: sticky;

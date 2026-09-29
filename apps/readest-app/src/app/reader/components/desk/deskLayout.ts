@@ -190,11 +190,49 @@ const STREAM_SENTINEL: TranscriptBlock = {
   at: '',
 };
 
+/** Push an auto-placed rect (the streaming slot) below every gap-inflated
+ *  obstacle. Extracted from layoutSheet: a parameter typed here is immune
+ *  to the closure-assignment narrowing that collapses `streamSlot` to
+ *  `never` in TS 5.9's CFA. */
+const resolveStreamSlot = (
+  slot: ClusterPlacement,
+  occupied: { x: number; y: number; w: number; h: number }[],
+  gap: number,
+): ClusterPlacement => {
+  const h = 120;
+  let y = slot.y;
+  let guard = 0;
+  const hit = (yy: number) =>
+    occupied.some(
+      (o) =>
+        slot.x < o.x + o.w + gap &&
+        slot.x + slot.width + gap > o.x &&
+        yy < o.y + o.h + gap &&
+        yy + h + gap > o.y,
+    );
+  while (hit(y) && guard < 64) {
+    const blocker = occupied
+      .filter(
+        (o) =>
+          slot.x < o.x + o.w + gap &&
+          slot.x + slot.width + gap > o.x &&
+          y < o.y + o.h + gap &&
+          y + h + gap > o.y,
+      )
+      .reduce((m, o) => (o.y + o.h > m ? o.y + o.h : m), 0);
+    y = blocker + gap;
+    guard += 1;
+  }
+  return y !== slot.y ? { x: slot.x, y, width: slot.width } : slot;
+};
+
 /**
  * Reconcile the whole sheet (e3 §2 mixed-transcript rule). OWNER RULING
- * (2026-09-16 dogfood): a hand-placed point is respected VERBATIM — no
- * downward clamp. The sheet is the user's to arrange; overlap is theirs
- * to fix by dragging, not ours to prevent by moving their ink.
+ * (2026-09-16 dogfood): a hand-placed point is respected VERBATIM — the
+ * sheet is the user's to arrange. Collision policy (2026-09-16 dogfood
+ * round 2): hand-placed blocks are OBSTACLES, never moved; AUTO-placed
+ * blocks (professor artifacts without a stored point) flow DOWN past any
+ * occupied rect, gap-inflated — his drawings never land on your ink.
  */
 export function layoutSheet(blocks: TranscriptBlock[], stageWidth: number): SheetLayout {
   const clusters = buildClusters(blocks);
@@ -231,5 +269,130 @@ export function layoutSheet(blocks: TranscriptBlock[], stageWidth: number): Shee
     }
   });
 
+  // ── Collision pass, document order ──────────────────────────────────
+  // Hand-placed blocks keep their point verbatim and become obstacles.
+  // Auto-placed blocks are pushed DOWN (never sideways) past every
+  // gap-inflated intersection. Pure; heights are the same estimates the
+  // reservation uses.
+  const gap = STAGE.clusterGap;
+  const occupied: { x: number; y: number; w: number; h: number }[] = [];
+  const overlaps = (x: number, y: number, w: number, h: number) =>
+    occupied.some(
+      (o) => x < o.x + o.w + gap && x + w + gap > o.x && y < o.y + o.h + gap && y + h + gap > o.y,
+    );
+  for (const b of blocks) {
+    const p = placements.get(b.id);
+    if (!p) continue;
+    const h = estimateHeight(b);
+    if (b.x != null && b.y != null) {
+      // Hand-placed: verbatim, recorded as an obstacle.
+      occupied.push({ x: p.x, y: p.y, w: p.width, h });
+      continue;
+    }
+    let y = p.y;
+    let guard = 0;
+    while (overlaps(p.x, y, p.width, h) && guard < 64) {
+      const blocker = occupied
+        .filter(
+          (o) =>
+            p.x < o.x + o.w + gap &&
+            p.x + p.width + gap > o.x &&
+            y < o.y + o.h + gap &&
+            y + h + gap > o.y,
+        )
+        .reduce((m, o) => (o.y + o.h > m ? o.y + o.h : m), 0);
+      y = blocker + gap;
+      guard += 1;
+    }
+    if (y !== p.y) placements.set(b.id, { ...p, y });
+    occupied.push({ x: p.x, y, w: p.width, h });
+  }
+
+  // The streaming slot flows around the same obstacles.
+  streamSlot = streamSlot ? resolveStreamSlot(streamSlot, occupied, gap) : null;
+
   return { placements, streamSlot, extent: cursor };
+}
+
+// ---------------------------------------------------------------------------
+// Drag snapping (tldraw/excalidraw port) — the dragged block's edges and
+// centre pull toward nearby blocks' edges/centres within a small threshold;
+// the winning lines are returned as alignment guides for the canvas to
+// paint. Pure; no DOM.
+// ---------------------------------------------------------------------------
+
+export interface SnapRect {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
+export interface SnapResult {
+  x: number;
+  y: number;
+  /** vertical guide x (a snapped left/right/centre line), if any */
+  vGuide?: number;
+  /** horizontal guide y, if any */
+  hGuide?: number;
+}
+
+/** Snap a dragged rect against the given obstacles (other blocks). Only
+ *  the BEST (smallest) adjustment under `threshold` wins per axis — the
+ *  behaviour tldraw/excalidraw converge on. */
+export function snapDrag(pos: SnapRect, others: SnapRect[], threshold = 8): SnapResult {
+  let x = pos.x;
+  let y = pos.y;
+  let vGuide: number | undefined;
+  let hGuide: number | undefined;
+  let bestX = threshold;
+  let bestY = threshold;
+  const xs: [number, number][] = [
+    [pos.x, pos.x],
+    [pos.x + pos.w / 2, pos.x + pos.w / 2],
+    [pos.x + pos.w, pos.x + pos.w],
+  ];
+  const ys: [number, number][] = [
+    [pos.y, pos.y],
+    [pos.y + pos.h / 2, pos.y + pos.h / 2],
+    [pos.y + pos.h, pos.y + pos.h],
+  ];
+  for (const o of others) {
+    const lines: [number, number][] = [
+      [o.x, o.x],
+      [o.x + o.w / 2, o.x + o.w / 2],
+      [o.x + o.w, o.x + o.w],
+    ];
+    for (const [from, to] of xs) {
+      for (const [lf, lt] of lines) {
+        const d = Math.abs(from - lf);
+        if (d < bestX) {
+          bestX = d;
+          x = pos.x + (lt - to);
+          vGuide = lt;
+        }
+      }
+    }
+    const hLines: [number, number][] = [
+      [o.y, o.y],
+      [o.y + o.h / 2, o.y + o.h / 2],
+      [o.y + o.h, o.y + o.h],
+    ];
+    for (const [from, to] of ys) {
+      for (const [lf, lt] of hLines) {
+        const d = Math.abs(from - lf);
+        if (d < bestY) {
+          bestY = d;
+          y = pos.y + (lt - to);
+          hGuide = lt;
+        }
+      }
+    }
+  }
+  return {
+    x,
+    y,
+    ...(vGuide !== undefined ? { vGuide } : {}),
+    ...(hGuide !== undefined ? { hGuide } : {}),
+  };
 }
