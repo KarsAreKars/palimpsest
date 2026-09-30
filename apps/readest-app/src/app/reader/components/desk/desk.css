@@ -281,14 +281,24 @@
   color: var(--paper);
 }
 .desk-canvas {
-  background-image: repeating-linear-gradient(
-    to bottom,
-    transparent 0,
-    transparent 27px,
-    color-mix(in srgb, var(--ink, #2e2a26) 9%, transparent) 27px,
-    color-mix(in srgb, var(--ink, #2e2a26) 9%, transparent) 28px
-  );
-  background-attachment: local; /* lines scroll with the writing */
+  /* Graph-paper grid: horizontal + vertical rules at the same 28px
+   * pitch make squares (owner ruling: squares, not ruled lines). */
+  background-image:
+    repeating-linear-gradient(
+      to right,
+      transparent 0,
+      transparent 27px,
+      color-mix(in srgb, var(--ink, #2e2a26) 7%, transparent) 27px,
+      color-mix(in srgb, var(--ink, #2e2a26) 7%, transparent) 28px
+    ),
+    repeating-linear-gradient(
+      to bottom,
+      transparent 0,
+      transparent 27px,
+      color-mix(in srgb, var(--ink, #2e2a26) 9%, transparent) 27px,
+      color-mix(in srgb, var(--ink, #2e2a26) 9%, transparent) 28px
+    );
+  background-attachment: local; /* the grid scrolls with the writing */
 }
 
 /* ---------- the placed caret ghost ---------- */
