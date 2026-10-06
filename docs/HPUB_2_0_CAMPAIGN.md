@@ -61,3 +61,15 @@ I6. **No speculative generality**: every mechanism traces to a named failure mod
 
 Audit r5 arbitrates conflicts and issues the wave plan. Tiers: T1 no-hangs, T2 smart
 gate/anchoring, T3 coverage (scans), T4 progress UX.
+
+## King's rulings on the audit's open questions (2026-10-01, binding)
+
+K1. CJK stretch inside T2: ACCEPTED (script-aware tokenizer, one hell case).
+K2. Warning flags manifest-only in T2, in-app badge in T4: ACCEPTED.
+K3. Pin marker-pdf 2.0.0 / surya-ocr 0.22.1 for the campaign: ACCEPTED.
+K4. Scans on machines without llama-server reject loudly with install hint: ACCEPTED.
+K5. T1 full-lane marker chunk = 200 pages: ACCEPTED.
+K6. HF_TOKEN env passthrough only, no Settings UI this campaign: ACCEPTED.
+K7. Real-book fixtures: the original broken Goodfellow PDF (lying text layer, in
+    ~/Documents/books) + one math-heavy book from the existing library: CONFIRMED.
+K8. Harness home: apps/readest-app/src-tauri/resources/hpub/tests/hell/: ACCEPTED.
