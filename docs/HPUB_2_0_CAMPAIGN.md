@@ -73,3 +73,14 @@ K6. HF_TOKEN env passthrough only, no Settings UI this campaign: ACCEPTED.
 K7. Real-book fixtures: the original broken Goodfellow PDF (lying text layer, in
     ~/Documents/books) + one math-heavy book from the existing library: CONFIRMED.
 K8. Harness home: apps/readest-app/src-tauri/resources/hpub/tests/hell/: ACCEPTED.
+
+## Discovered during T2 verification (2026-10-06, binding)
+
+D1. **Fastpath-lane wedge (P20 live)**: on the real 800-page Goodfellow book, the
+    fastpath lane's single marker call wedged twice at ~17 min in — make_hpub at
+    0% CPU, llama-server alive but silent, log frozen, no client-side request
+    timeout around marker's page batches (T1's watchdog covers only the chunked
+    full-lane path). With SURYA_INFERENCE_PARALLEL=6 there were no inference
+    errors, still wedged. T1's full-lane chunking must extend to fastpath flagged
+    batches (T2.5, first item of the T3 wave), and the Goodfellow conversion
+    completing is that fix's green gate.
