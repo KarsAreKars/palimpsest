@@ -253,6 +253,71 @@ def build_lying_cmap(rng):
     return finish(pdf, kids), truth_from_pages(pages), {}
 
 
+CJK_CLAUSES = (
+    "静かな貯水池は岸の灯りをすべて映し",
+    "読者は波紋を二度数える",
+    "古い桜の木は石垣の影で眠る",
+    "旅人は谷を越えて灯りを探す",
+    "雨后の街は硝子のように光る",
+    "図書館の蔵書は三千巻を数える",
+    "火山の裾野に牧場が広がる",
+    "時計塔の針は真夜中を指す",
+    "漁師は網を繕いながら舟を待つ",
+    "雪原に狐の足跡が一列に続く",
+    "庭の柿子は霜に甘くなる",
+    "砕石道は峠へと曲がる",
+    "雲の切れ間から月が覗く",
+    "鍛冶屋の槌の音が朝霧に響く",
+    "梅の花は冬の終わりを告げる",
+    "渡し舟は霧の中へ静かに滑る",
+    "茶室の窓は庭の松を額縁にする",
+    "秋の祭りは太鼓の音で始まる",
+    "薬草摘みは早朝の露に始まる",
+    "炭焼きの煙が山腹を這う",
+    "北の港では鯖の季節が来た",
+)
+
+
+def make_cjk_prose(rng, n_pages: int, lines_per_page: int = 24) -> list[list[str]]:
+    """Distinctive Japanese prose: the '第{p}頁 行{li}' prefix carries latin
+    digits (anchorable uniqueness, same trick as make_prose) and the body
+    samples content-script clauses — every line unique across the book."""
+    pages: list[list[str]] = []
+    for p in range(n_pages):
+        lines = []
+        for li in range(lines_per_page):
+            body = "。".join(rng.sample(CJK_CLAUSES, 3)) + "。"
+            lines.append(f"第{p + 1}頁 行{li + 1}：{body}")
+        pages.append(lines)
+    return pages
+
+
+def build_cjk(rng):
+    """K1: an honest Japanese book (Type0/Identity-H, truthful ToUnicode).
+    Pre-K1 the pipeline scored it ZERO tokens ([a-z0-9]+ only) and it died
+    at the alignment backstop / coverage 'scanned' rejection. Green = the
+    pdftext lane anchors and contains it like prose, exit 0."""
+    pdf = PDF()
+    pages = make_cjk_prose(rng, 3)
+    code_of, cmap = {}, {}
+    code = 1
+    for ch in set("".join("".join(ls) for ls in pages)):
+        code_of[ch] = code
+        cmap[code] = ord(ch)  # honest map: code -> the char itself
+        code += 1
+    f1 = cid_font(pdf, cmap, base="AAAAAA+CJKHonest")
+    kids = []
+    for lines in pages:
+        hexlines = [
+            "<" + "".join(f"{code_of[ch]:04X}" for ch in l) + "> Tj T*"
+            for l in lines
+        ]
+        stream = "BT /F1 11 Tf 72 740 Td 16 TL\n" + "\n".join(hexlines) + "\nET"
+        c = pdf.stream("", stream.encode("latin-1"))
+        kids.append(page(pdf, kids, 612, 792, c, f"<< /Font << /F1 {f1} 0 R >> >>"))
+    return finish(pdf, kids), truth_from_pages(pages), {}
+
+
 def build_no_tounicode(rng):
     """Subset font, NO ToUnicode CMap at all. pypdf gets nothing; the page
     looks like a scan to naive coverage even though it renders as prose."""
@@ -449,6 +514,10 @@ def build_extreme_long(rng):
 
 
 CASES = {
+    "cjk-3p": (build_cjk, {"tier": "T2", "receipt": "K1",
+        "expect": {"exit_in": [0], "min_anchored_fraction": 0.9,
+                   "note": "K1 goal: script-aware tokenizers anchor+contain a Japanese "
+                   "book like prose; pre-T2 it died with ZERO tokens (exit 2/3)"}}),
     "sanity-5p": (build_sanity, {"tier": "T1", "receipt": None,
         "expect": {"exit_in": [0], "min_anchored_fraction": 0.9,
                    "grounding": {"tolerance_pages": 0}}}),
@@ -456,8 +525,12 @@ CASES = {
         "expect": {"exit_in": [0], "min_anchored_fraction": 0.9,
                    "grounding": {"tolerance_pages": 0}}}),
     "lying-cmap-5p": (build_lying_cmap, {"tier": "T2", "receipt": "R2",
-        "expect": {"exit_in": [2, 3],  # must NOT ship ok (status 0) today;
-                   "note": "T2 goal: detect lie -> VLM rescue -> ok with provenance=vlm"}}),
+        "expect": {"exit_in": [3],  # T2 FLIPPED (was [2,3] pre-T2): the font-cmap
+                   "note": "audit flags all 5 pages (ToUnicode maps 54% of codes to "
+                   "shared chars); the fixture font has no embedded program so VLM "
+                   "rescue cannot re-OCR — the gate rejects reason=font_lie naming "
+                   "AAAAAA+HelvSub and every page. Shipping ok (exit 0) here would "
+                   "be garbage shipping — a hard FAIL, not a pin."}}),
     "no-tounicode-4p": (build_no_tounicode, {"tier": "T2", "receipt": "R2",
         "expect": {"exit_in": [2, 3]}}),
     "pua-mapped-4p": (build_pua_mapped, {"tier": "T2", "receipt": "R2",

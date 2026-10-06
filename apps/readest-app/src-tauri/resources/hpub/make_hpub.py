@@ -137,6 +137,14 @@ def emit(result: dict, code: int) -> None:
 
 # ─── 1. coverage ─────────────────────────────────────────────────────────────
 
+def _text_layer_chars(text: str) -> int:
+    """Chars that count as a usable text layer: latin alnum + CJK scripts
+    (K1 — the old [^a-z0-9] count read every CJK page as no-text/'scanned',
+    r1 P18). Latin behaviour is byte-identical to the old char count;
+    each CJK char is one token of length one."""
+    return sum(len(t) for t in _TOKEN_RE.findall(text.lower()))
+
+
 def extract_page_texts(pdf_path: str) -> list[str]:
     """Per-page text-layer text. Uses pypdf (the extractor phase-0 alignment
     was validated with); pypdfium2's reading order differs on table-heavy
@@ -176,9 +184,7 @@ def despace_page_text(text: str) -> tuple[str, bool]:
 
 
 def coverage_check(page_texts: list[str]) -> None:
-    no_text = sum(
-        1 for t in page_texts if len(re.sub(r"[^a-z0-9]", "", t.lower())) < MIN_PAGE_TEXT_CHARS
-    )
+    no_text = sum(1 for t in page_texts if _text_layer_chars(t) < MIN_PAGE_TEXT_CHARS)
     fraction = no_text / max(len(page_texts), 1)
     log(f"coverage: {no_text}/{len(page_texts)} no-text pages ({fraction:.0%})")
     if fraction > MAX_NOTEXT_FRACTION:
@@ -432,24 +438,293 @@ def _glyph_garbage(text: str) -> int:
     return text.count("\ufffd") + sum(1 for c in text if 0xE000 <= ord(c) <= 0xF8FF)
 
 
+# ─── font-cmap audit (E2, R2 — deterministic, no model) ─────────────────────
+#
+# r5 E2: R2 is bidirectional. Goodfellow: a good book rejected because the
+# lying layer scores 0 against itself. lying-cmap: a garbage book SHIPPED
+# with confidence 1.0 — the lie is perfectly self-consistent (extraction,
+# anchoring AND containment all agree on the wrong letters; r5 probe:
+# anchored 1.000, prose_mean 0.993). Nothing downstream of extraction can
+# catch it; the fonts themselves are the only honest witness. Per page, per
+# font, from pypdf /Resources (no rendering, no model, no deps — Ruling 5):
+#   * CID/Type0 font without ToUnicode -> cannot be decoded, untrusted
+#     (no-tounicode-4p).
+#   * ToUnicode whose targets are many-to-one (>= half the mapped codes
+#     share a target char) -> a manufactured/shuffled map, untrusted
+#     (lying-cmap-5p: 54% collisions; a real font maps one code per glyph).
+#   * Simple Type1/TrueType with a standard encoding needs no ToUnicode —
+#     trusted (sanity-5p must flag NOTHING).
+# Flagged pages are routed to the VLM lane IN ADDITION to the math-font /
+# glyph-garbage / low-text flags, and pages whose lie still ships are
+# rejected at the gate with reason naming the font (ship-garbage direction).
+
+FONT_LIE_MIN_CODES = 8  # below this many mapped codes, collision stats are noise
+FONT_LIE_MIN_COLLISION_FRACTION = 0.5  # >=half the codes share a target = lie
+# A font-lie page whose lying text is still >= this contained in its shipped
+# md window was NOT recovered (the VLM re-used the lying layer) — the lie
+# ships, so the book is rejected. Measured on lying-cmap-5p: 0.96-1.0 when
+# the lie ships; a genuinely rescued page lands near 0.
+FONT_LIE_SHIPPED_THRESHOLD = 0.8
+# Simple-font encodings pdfium/pypdf decode natively without a ToUnicode map.
+_TRUSTED_SIMPLE_ENCODINGS = {
+    "/StandardEncoding",
+    "/WinAnsiEncoding",
+    "/MacRomanEncoding",
+    "/PDFDocEncoding",
+}
+
+
+def _tounicode_codepoints(stream) -> list[int]:
+    """Parse an Adobe-Identity-UCS CMap stream into its target codepoints —
+    one entry per SOURCE code (bfrange spans expand), so a manufactured map
+    that points many codes at one letter shows up as duplicate targets."""
+    data = stream.get_object().get_data().decode("latin-1", "ignore")
+    targets: list[int] = []
+    section: str | None = None
+    for line in data.splitlines():
+        line = line.strip()
+        if re.match(r"\d*\s*beginbfchar", line):
+            section = "bfchar"
+            continue
+        if re.match(r"\d*\s*endbfchar", line):
+            section = None
+            continue
+        if re.match(r"\d*\s*beginbfrange", line):
+            section = "bfrange"
+            continue
+        if re.match(r"\d*\s*endbfrange", line):
+            section = None
+            continue
+        if section == "bfchar":
+            m = re.match(r"<([0-9A-Fa-f]+)>\s*<([0-9A-Fa-f]+)>\s*$", line)
+            if m:
+                targets.append(int(m.group(2), 16))
+        elif section == "bfrange":
+            m = re.match(r"<([0-9A-Fa-f]+)>\s*<([0-9A-Fa-f]+)>\s*<([0-9A-Fa-f]+)>\s*$", line)
+            if m:
+                lo, hi, dst = (int(g, 16) for g in m.groups())
+                if 0 <= hi - lo <= 65536:
+                    targets.extend(range(dst, dst + hi - lo + 1))
+    return targets
+
+
+def _cmap_lying_fraction(targets: list[int]) -> float:
+    """Fraction of mapped codes whose target char is shared with another
+    code. Real fonts: one glyph per code, near zero. A shuffled/manufactured
+    map collapses onto a small letter set: lying-cmap measures 54%."""
+    if len(targets) < FONT_LIE_MIN_CODES:
+        return 0.0  # tiny maps: collision stats are noise, trust the font
+    from collections import Counter
+
+    counts = Counter(targets)
+    dup = sum(1 for t in targets if counts[t] > 1)
+    return dup / len(targets)
+
+
+def _font_trustworthy(font) -> tuple[bool, str | None]:
+    """One font's verdict: (trusted?, reason when not)."""
+    from pypdf.generic import IndirectObject
+
+    sub = str(font.get("/Subtype") or "")
+    name = str(font.get("/BaseFont") or "unnamed")
+    simple = sub in ("/Type1", "/TrueType", "/MMType1")
+    cid = sub in ("/Type0", "/CIDFontType0", "/CIDFontType2")
+    if not (simple or cid):
+        return True, None  # unknown subtype: not a named failure class (I6)
+    touni = font.get("/ToUnicode")
+    if touni is None:
+        if cid:
+            return False, f"{name}: CID font without ToUnicode — undecodable"
+        enc = font.get("/Encoding")
+        if enc is None:
+            return True, None  # no /Encoding means StandardEncoding
+        enc_obj = enc.get_object() if isinstance(enc, IndirectObject) else enc
+        if str(enc_obj) in _TRUSTED_SIMPLE_ENCODINGS:
+            return True, None
+        return False, f"{name}: nonstandard encoding without ToUnicode"
+    if not cid:
+        return True, None  # simple font with a map: the map wins
+    try:
+        frac = _cmap_lying_fraction(_tounicode_codepoints(touni))
+    except Exception:  # noqa: BLE001 — an unreadable map proves nothing
+        return True, None
+    if frac >= FONT_LIE_MIN_COLLISION_FRACTION:
+        return (
+            False,
+            f"{name}: ToUnicode maps {frac:.0%} of codes to shared chars "
+            "(manufactured/lie)",
+        )
+    return True, None
+
+
+def splice_witnesses(
+    n_pages: int,
+    page_texts: list[str],
+    provider_parts: dict[int, str],
+    default_src: str = "pdftext",
+) -> tuple[list[str], list[str]]:
+    """R2 multi-witness: per-page scoring text + witness identity. Pages the
+    router sent to the VLM lane are scored against the provider text (the
+    md the VLM lane spliced for that page) — never the lying page text,
+    which would zero a recovered book's anchor score. Other pages score
+    against the text layer (pdftext, or epub in the fusion lane)."""
+    texts: list[str] = []
+    src: list[str] = []
+    for i in range(n_pages):
+        if i in provider_parts:
+            texts.append(provider_parts[i])
+            src.append("vlm")
+        else:
+            texts.append(page_texts[i])
+            src.append(default_src)
+    return texts, src
+
+
+def build_splice_spans(parts: list[tuple[int, str, str]]) -> tuple[list[dict], str]:
+    """I3 splice-time provenance (r2 steal #1, r5 ruling 1.3): (0-based page,
+    source, md text) in page order -> (spans, md). The returned md is exactly
+    '\n\n'.join(non-empty parts) — the same join the pipeline ships — so every
+    span's char range is exact by construction and content.md needs NO inline
+    tags (ruling 4.3: offsets must stay valid)."""
+    spans: list[dict] = []
+    out: list[str] = []
+    pos = 0
+    for pno, source, text in parts:
+        if not text:
+            continue  # empty part: the join drops it, so it gets no span
+        start = pos
+        out.append(text)
+        pos += len(text) + 2  # the '\n\n' separator before the next kept part
+        spans.append(
+            {"page": pno + 1, "md_char_start": start, "md_char_end": start + len(text), "source": source}
+        )
+    return spans, "\n\n".join(out)
+
+
+def attach_span_confidence(spans: list[dict], manifest: dict) -> None:
+    """Confidence comes from the offset authority (the shingle alignment),
+    which knows quality; splice time knows only position."""
+    conf = {p["page"]: p["confidence"] for p in manifest["alignment"]}
+    for s in spans:
+        s["confidence"] = conf.get(s["page"], 0.0)
+
+
+def alignment_spans(manifest: dict, witness_src: list[str]) -> list[dict]:
+    """Provenance for lanes without splice-time parts (full marker, fusion):
+    spans derive from the alignment windows, source from the witness."""
+    return [
+        {
+            "page": p["page"],
+            "md_char_start": p["md_char_start"],
+            "md_char_end": p["md_char_end"],
+            "source": witness_src[p["page"] - 1],
+            "confidence": p["confidence"],
+        }
+        for p in manifest["alignment"]
+        if p["md_char_start"] is not None
+    ]
+
+
+def stamp_witness(manifest: dict, witness_src: list[str]) -> None:
+    """Record witness identity per page in the manifest (R2 observability)."""
+    for p in manifest["alignment"]:
+        p["witness"] = witness_src[p["page"] - 1]
+
+
+def _token_contained_fraction(page_tokens: list[str], window_tokens: list[str]) -> float:
+    """Multiset containment: what fraction of page_tokens appears in
+    window_tokens. Shared by the gate containment checks and the font-lie
+    shipped check."""
+    from collections import Counter
+
+    counts = Counter(window_tokens)
+    contained = 0
+    for t in page_tokens:
+        if counts.get(t, 0) > 0:
+            counts[t] -= 1
+            contained += 1
+    return contained / max(len(page_tokens), 1)
+
+
+def shipped_font_lies(
+    font_lie_pages: dict[int, list[str]],
+    page_texts: list[str],
+    alignment: list[dict],
+    md_text: str,
+) -> dict[int, float]:
+    """E2, ship-garbage direction. For every page the font audit flagged,
+    ask: is the LYING page text still what's in the shipped md window? If
+    yes, the lie shipped (the VLM lane re-used the text layer, as full-lane
+    marker does on lying-cmap) — {1-based page: containment fraction}.
+    Pages whose text was honestly recovered score near zero here and are
+    left to the gate (they ship with provenance vlm + a warning record)."""
+    shipped: dict[int, float] = {}
+    for pno, _fonts in font_lie_pages.items():
+        if pno >= len(alignment) or pno >= len(page_texts):
+            continue
+        p = alignment[pno]
+        if p["md_char_start"] is None:
+            continue  # no window: the lie cannot be in the shipped text here
+        window = md_text[p["md_char_start"] : p["md_char_end"]]
+        frac = _token_contained_fraction(
+            containment_tokens(page_texts[pno], is_md=False),
+            containment_tokens(window, is_md=True),
+        )
+        if frac >= FONT_LIE_SHIPPED_THRESHOLD:
+            shipped[pno + 1] = round(frac, 3)
+    return shipped
+
+
+def font_cmap_audit(pdf_path: str) -> dict[int, list[str]]:
+    """Per-page font census from pypdf resources. Returns {0-based page:
+    [untrusted-font reasons]} for pages whose fonts cannot honestly decode.
+    A page we cannot census is left to the gate, never a crash (I1)."""
+    from pypdf import PdfReader
+
+    lying: dict[int, list[str]] = {}
+    try:
+        reader = PdfReader(pdf_path)
+    except Exception:  # noqa: BLE001 — unreadable PDFs are stage-1's class
+        return {}
+    for i, page in enumerate(reader.pages):
+        try:
+            resources = page.get("/Resources")
+            resources = resources.get_object() if resources is not None else {}
+            fonts = resources.get("/Font", {})
+            fonts = fonts.get_object() if hasattr(fonts, "get_object") else fonts
+            bad = []
+            for ref in fonts.values():
+                ok, why = _font_trustworthy(ref.get_object())
+                if not ok:
+                    bad.append(why)
+        except Exception:  # noqa: BLE001 — census failure is not a crash class
+            continue
+        if bad:
+            lying[i] = bad
+    return lying
+
+
 def fastpath_scan(pdf_path: str) -> tuple[list[int], set[int], list[dict], dict]:
     """Return (flagged 0-based page indices, low-text set, raw pdftext page
     dicts, scan stats for the conversion report).
 
     Flagged = math-font span present OR glyph garbage (U+FFFD/PUA, >=2 chars)
-    OR low-text page (<400 chars — plates, figures, chapter openers are all
-    cheap for the VLM and pypdfium's get_objects() returned 0 objects on
-    plate pages here, so image-area detection is a dead end; tuned on the
-    golden Tadelis tree: 99.3% recall, the 2 misses degrade gracefully — a
-    table linearizes, a captioned figure keeps its caption)."""
+    OR a font the cmap audit cannot trust (E2: lying/missing ToUnicode — the
+    deterministic R2 detector) OR low-text page (<400 chars — plates,
+    figures, chapter openers are all cheap for the VLM and pypdfium's
+    get_objects() returned 0 objects on plate pages here, so image-area
+    detection is a dead end; tuned on the golden Tadelis tree: 99.3% recall,
+    the 2 misses degrade gracefully — a table linearizes, a captioned
+    figure keeps its caption)."""
     from pdftext.extraction import dictionary_output
 
+    font_lies = font_cmap_audit(pdf_path)
     pages = dictionary_output(pdf_path, sort=True, workers=None)
     n = len(pages)
     edge = max(2, int(0.05 * n))  # covers/title/copyright/ads live at the edges
     flagged: set[int] = set()
     low_text: set[int] = set()
-    reasons: dict[str, int] = {"math_font": 0, "glyph_garbage": 0, "low_text": 0}
+    reasons: dict[str, int] = {"math_font": 0, "glyph_garbage": 0, "low_text": 0, "font_lie": 0}
     font_census: dict[str, int] = {}
     garbage_pages: list[dict] = []
     for i, p in enumerate(pages):
@@ -475,9 +750,12 @@ def fastpath_scan(pdf_path: str) -> tuple[list[int], set[int], list[dict], dict]
             garbage_pages.append(
                 {"page": i + 1, "bad_chars": bad, "fonts": sorted(fonts_here)[:8]}
             )
+        font_hit = i in font_lies
         why = (
             "math_font"
             if hit
+            else "font_lie"
+            if font_hit
             else "glyph_garbage"
             if bad >= 2
             else "low_text"
@@ -497,12 +775,20 @@ def fastpath_scan(pdf_path: str) -> tuple[list[int], set[int], list[dict], dict]
         "flag_reasons": reasons,
         "garbage_pages": garbage_pages[:50],
         "font_census_top": sorted(font_census.items(), key=lambda kv: -kv[1])[:20],
+        # E2: pages whose fonts the audit cannot trust, with reasons — the
+        # gate's ship-garbage check reads this to reject an unrecovered lie.
+        "font_lie": {str(k): v for k, v in sorted(font_lies.items())},
     }
     log(
         f"fastpath scan: {n} pages, {len(flagged)} flagged "
         f"(math-font {reasons['math_font']}, glyph-garbage {reasons['glyph_garbage']}, "
-        f"low-text {reasons['low_text']})"
+        f"font-lie {reasons['font_lie']}, low-text {reasons['low_text']})"
     )
+    if font_lies:
+        log(
+            f"font-cmap audit: {len(font_lies)} pages with untrustworthy fonts "
+            f"(pages {sorted(font_lies)[:12]}{'…' if len(font_lies) > 12 else ''})"
+        )
     if garbage_pages:
         log(
             f"glyph garbage on pages {[g['page'] for g in garbage_pages][:12]}"
@@ -533,9 +819,12 @@ def hybrid_marker_extract(
     low_text: set[int],
     raw_pages: list[dict],
     cache_dir: Path | None = None,
-) -> tuple[str, dict, dict]:
+) -> tuple[str, dict, dict, dict]:
     """Marker on flagged pages only; pdftext prose for the rest. Returns the
-    same (md_text, tree, images) triple as marker_extract."""
+    same (md_text, tree, images) triple as marker_extract, plus splice_parts:
+    {0-based page: the md text spliced for that page} — exact by construction
+    (r2 steal #1). VLM-lane pages are the R2 witness; the whole map is the I3
+    provenance span source."""
     from fusion import pdf_geometry_tree
     from marker.renderers.markdown import Markdownify
 
@@ -606,11 +895,14 @@ def hybrid_marker_extract(
     geo_pages = geo_tree["children"]
     merged_children: list[dict] = []
     md_parts: list[str] = []
+    splice_parts: dict[int, str] = {}
     marginals_dropped = 0
     for i in range(n_pages):
         if i in marker_pages:
             merged_children.append(marker_pages[i])
-            md_parts.append(marker_page_md(marker_pages[i]))
+            part = marker_page_md(marker_pages[i])
+            md_parts.append(part)
+            splice_parts[i] = part
             continue
         geo = geo_pages[i]
         if i in low_text:
@@ -652,7 +944,9 @@ def hybrid_marker_extract(
                 marginals_dropped += 1
                 continue
             paras.append(text)
-        md_parts.append("\n\n".join(paras))
+        md_part = "\n\n".join(paras)
+        md_parts.append(md_part)
+        splice_parts[i] = md_part
 
     md_text = "\n\n".join(t for t in md_parts if t)
     tree = {"children": merged_children, "body_font_size": geo_tree.get("body_font_size", 10.0)}
@@ -660,7 +954,7 @@ def hybrid_marker_extract(
         f"fast path: VLM on {len(flagged)}/{n_pages} pages "
         f"({len(flagged) / max(n_pages, 1):.0%}), {marginals_dropped} marginals dropped"
     )
-    return md_text, tree, images
+    return md_text, tree, images, splice_parts
 
 
 # ─── 2c. chunked full-lane marker (K5) ──────────────────────────────────────
@@ -715,9 +1009,23 @@ def marker_extract_chunked(
 
 # ─── 3. alignment (shingle anchoring, from phase-0 align.py) ─────────────────
 
+# K1 (CJK stretch, r1 P18): CJK ideographs, kana, hangul and fullwidth
+# forms are tokens in their own right — [a-z0-9]+ alone gave a Japanese
+# novel ZERO tokens, so every CJK book died at the alignment backstop.
+_CJK_CHAR_CLASS = r"\u2E80-\u9FFF\uF900-\uFAFF\uFF00-\uFFEF"
+_TOKEN_RE = re.compile(rf"[a-z0-9]+|[{_CJK_CHAR_CLASS}]")
+# The containment/gate tokenizer is deliberately narrower: content-bearing
+# scripts only (ideographs, hangul syllables, compat ideographs). Kana and
+# CJK punctuation are grammatical glue whose surface form swings with
+# extraction artifacts — matching on content chars is the robust signal,
+# and a pure-kana page degrades to the gate's class-aware path, not a crash.
+_CJK_CONTENT_CLASS = r"\u4E00-\u9FFF\uAC00-\uD7AF\uF900-\uFAFF"
+_CONTENT_TOKEN_RE = re.compile(rf"[a-z]+|[0-9]+|[{_CJK_CONTENT_CLASS}]")
+
+
 def norm_tokens_with_offsets(text: str):
     tokens, offsets = [], []
-    for m in re.finditer(r"[a-z0-9]+", text.lower()):
+    for m in _TOKEN_RE.finditer(text.lower()):
         t = m.group(0)
         if _GLYPH_NAME_RE.match(t):
             continue  # math-font glyph-name leaks ('bracehtipupleft') — furniture
@@ -1299,6 +1607,39 @@ def containment_check_chars(md_text: str, page_texts: list[str], alignment: list
     }
 
 
+# ─── 2d. best-of selector (R3 / r5 E1) ──────────────────────────────────────
+#
+# R3/I4: when a fallback runs, the BEST result wins — never the last. Both
+# manifests (token + char shingles) are built and scored; the max ships.
+# Score: anchored fraction x containment prose_mean (the gate's headline
+# metric). E1: the gate's backstop counts the SELECTED manifest's anchors —
+# 'anchored' and 'anchored-chars' both — a char-fallback book is no longer
+# unconditionally rejected at 0 anchored.
+
+
+def _anchored_count(alignment: list[dict]) -> int:
+    """Anchored pages of a manifest, both alignment families (E1)."""
+    return sum(1 for p in alignment if p["method"].startswith("anchored"))
+
+
+def manifest_score(manifest: dict, containment: dict) -> float:
+    n = max(len(manifest["alignment"]), 1)
+    return round(_anchored_count(manifest["alignment"]) / n * containment["prose_mean"], 4)
+
+
+def select_best_manifest(
+    token: tuple[dict, dict], chars: tuple[dict, dict]
+) -> tuple[dict, dict, dict]:
+    """Score both (manifest, containment) pairs, keep the max. Returns
+    (winner_manifest, winner_containment, record) where record carries the
+    scores and the selection for the manifest (observability + tests)."""
+    (tm, tc), (cm, cc) = token, chars
+    st, sc = manifest_score(tm, tc), manifest_score(cm, cc)
+    if sc > st:
+        return cm, cc, {"selected": "chars", "scores": {"token": st, "chars": sc}}
+    return tm, tc, {"selected": "token", "scores": {"token": st, "chars": sc}}
+
+
 # ─── 4. quality gate: token containment ──────────────────────────────────────
 
 _LATEX_COMMAND_RE = re.compile(r"\\[a-zA-Z]+")
@@ -1353,15 +1694,13 @@ def containment_tokens(text: str, is_md: bool) -> list[str]:
     if is_md:
         text = flatten_math_spans(text)
     return [
-        t for t in re.findall(r"[a-z]+|[0-9]+", text.lower()) if not _GLYPH_NAME_RE.match(t)
+        t for t in _CONTENT_TOKEN_RE.findall(text.lower()) if not _GLYPH_NAME_RE.match(t)
     ]
 
 
 def containment_check(md_text: str, page_texts: list[str], alignment: list[dict]) -> dict:
     """Per-page token containment, then the class-aware gate (amendment A2).
     Returns stats; `verdicts` carries per-page pass/fail/None(excluded)."""
-    from collections import Counter
-
     scores = []
     for p, text in zip(alignment, page_texts):
         if p["md_char_start"] is None:
@@ -1370,13 +1709,7 @@ def containment_check(md_text: str, page_texts: list[str], alignment: list[dict]
         page_tokens = containment_tokens(text, is_md=False)
         window = md_text[p["md_char_start"] : p["md_char_end"]]
         win_tokens = containment_tokens(window, is_md=True)
-        win_counts = Counter(win_tokens)
-        contained = 0
-        for t in page_tokens:
-            if win_counts.get(t, 0) > 0:
-                win_counts[t] -= 1
-                contained += 1
-        scores.append(contained / max(len(page_tokens), 1))
+        scores.append(_token_contained_fraction(page_tokens, win_tokens))
 
     verdicts: list[bool | None] = []
     for p, score in zip(alignment, scores):
@@ -1420,7 +1753,10 @@ def gate_book(manifest: dict, md_text: str, tree: dict, containment: dict) -> No
     """The full import gate (constraint #2 + amendment A2). Emits a rejection
     and exits on failure; returns silently on pass."""
     alignment = manifest["alignment"]
-    anchored = sum(1 for p in alignment if p["method"] == "anchored")
+    # E1: count the selected manifest's real anchors — token ('anchored') and
+    # char ('anchored-chars') both. Counting only 'anchored' scored every
+    # char-fallback book 0 and rejected it here unconditionally (r5 E1).
+    anchored = _anchored_count(alignment)
     anchored_fraction = anchored / max(len(alignment), 1)
 
     # Backstop: under 50% anchored = failed extraction, reject outright.
@@ -1592,6 +1928,8 @@ def _main_impl() -> None:
     coverage_check(page_texts)
 
     images: dict = {}
+    splice_parts: dict[int, str] = {}
+    flagged: list[int] | None = None
     if args.epub:
         # Fusion lane (A7): EPUB supplies clean text, PDF supplies geometry.
         # No Marker, no llama-server, no GPU grind.
@@ -1617,7 +1955,7 @@ def _main_impl() -> None:
     else:
         log(f"2/6 marker extraction ({len(page_texts)} pages — this is the slow part)")
         try:
-            flagged: list[int] | None = None
+            flagged = None
             scan_stats: dict | None = None
             if not args.use_llm and not args.no_fastpath:
                 flagged, low_text, raw_pages, scan_stats = fastpath_scan(str(pdf_path))
@@ -1635,7 +1973,7 @@ def _main_impl() -> None:
                     )
                     flagged = None
             if flagged is not None:
-                md_text, tree, images = hybrid_marker_extract(
+                md_text, tree, images, splice_parts = hybrid_marker_extract(
                     str(pdf_path),
                     len(page_texts),
                     flagged,
@@ -1679,6 +2017,23 @@ def _main_impl() -> None:
     # alignment and artifact write, so content.md is the expanded text and
     # manifest spans stay consistent with it.
     md_text = md_text.translate(_LIGATURES)
+
+    # R2 multi-witness + I3 provenance plumbing: bring the hybrid lane's
+    # per-page splice parts into the final md's coordinate space (the same
+    # transforms md_text just went through: asset rename is boundary-safe —
+    # the pattern never straddles a '\n\n' part join — and the ligature
+    # translate is per-char, so transforms commute with the join).
+    for i, part in splice_parts.items():
+        if not args.epub:
+            for name in images:
+                part = part.replace(f"]({name})", f"](assets/{name})")
+        splice_parts[i] = part.translate(_LIGATURES)
+    # The VLM-lane witness is the splice part of a page the router flagged
+    # (flagged is None/[] in the full and fusion lanes -> all pdftext/epub).
+    provider_parts = {i: splice_parts[i] for i in (flagged or []) if splice_parts.get(i)}
+    witness_texts, witness_src = splice_witnesses(
+        len(page_texts), page_texts, provider_parts, "epub" if args.epub else "pdftext"
+    )
 
     cfg = llm_config() if not args.epub else None
     if cfg:
@@ -1766,19 +2121,41 @@ def _main_impl() -> None:
         log(f"report write failed (non-fatal): {e}")
 
 
-    log("4/6 page alignment + manifest")
-    manifest = build_manifest(title, md_text, page_texts, tree)
-    anchored_frac = sum(1 for p in manifest["alignment"] if p["method"] == "anchored") / max(
-        len(page_texts), 1
+    log("4/6 page alignment + manifest (best-of: token vs char)")
+    token_manifest = build_manifest(title, md_text, witness_texts, tree)
+    token_containment = containment_check(md_text, witness_texts, token_manifest["alignment"])
+    char_manifest = build_manifest_chars(title, md_text, witness_texts, tree)
+    char_containment = containment_check_chars(
+        md_text, witness_texts, char_manifest["alignment"]
     )
-    if anchored_frac < MIN_ANCHORED_FRACTION:
-        # Boundary-invariant fallback: degenerate word geometry (letter-spaced
-        # text layers, zero word gaps) breaks token shingles on BOTH sides.
-        log(
-            f"token alignment weak ({anchored_frac:.0%} anchored) — retrying with "
-            "boundary-invariant char alignment"
+    # R3/I4 best-of: both manifests are scored, the max is judged — never
+    # the last-run lane (r1 P26: the 0.45/0.93 token manifest must beat the
+    # 0.52/0.61 char retry).
+    manifest, containment, best_of = select_best_manifest(
+        (token_manifest, token_containment), (char_manifest, char_containment)
+    )
+    stamp_witness(manifest, witness_src)
+    manifest["best_of"] = best_of
+    # I3 provenance: hybrid lane -> exact splice-time spans; other lanes ->
+    # alignment-derived spans. Either way every span names its source and
+    # its confidence, and content.md carries no inline tags (ruling 4.3).
+    if splice_parts:
+        spans, recon = build_splice_spans(
+            [(i, witness_src[i], splice_parts[i]) for i in range(len(page_texts))]
         )
-        manifest = build_manifest_chars(title, md_text, page_texts, tree)
+        if recon != md_text:
+            log(
+                "WARNING: splice-span reconstruction differs from content.md "
+                f"({len(recon)} vs {len(md_text)} chars) — provenance spans may be off"
+            )
+        attach_span_confidence(spans, manifest)
+    else:
+        spans = alignment_spans(manifest, witness_src)
+    manifest["spans"] = spans
+    log(
+        f"best-of: token={best_of['scores']['token']:.3f} "
+        f"chars={best_of['scores']['chars']:.3f} -> {best_of['selected']}"
+    )
 
     if args.epub:
         # Photo plates / map pages carry a caption at most — nothing to
@@ -1794,13 +2171,61 @@ def _main_impl() -> None:
         if plates:
             log(f"fusion: {plates} low-text plate/map pages classed visual")
 
+    # E2, ship-garbage direction — a font lie that is still in the shipped
+    # md is never ok-with-garbage (r5 probe: lying-cmap shipped with
+    # anchored 1.000 / prose_mean 0.993). Reason names the lying fonts and
+    # the exact pages. Recovered pages (VLM produced different text) pass
+    # through to the gate and ship with provenance vlm.
+    font_lie_pages = {
+        int(k): v for k, v in ((scan_stats or {}).get("font_lie") or {}).items()
+    }
+    if font_lie_pages:
+        shipped = shipped_font_lies(font_lie_pages, page_texts, manifest["alignment"], md_text)
+        if shipped:
+            fonts = sorted(
+                {r.split(":", 1)[0] for p in shipped for r in font_lie_pages[p - 1]}
+            )
+            emit(
+                {
+                    "status": "rejected",
+                    "reason": "font_lie",
+                    "detail": (
+                        f"Pages {sorted(shipped)} use fonts whose Unicode maps lie "
+                        f"({', '.join(fonts)}): the extracted text does not match the "
+                        "printed page and the VLM lane did not recover it. Find the "
+                        "digital edition or an OCR'd copy."
+                    ),
+                    "pages": sorted(shipped),
+                    "containment_of_lie": shipped,
+                    "fonts": fonts,
+                },
+                3,
+            )
+
+    # Same direction for the cruder lie: U+FFFD/PUA chars that survived into
+    # content.md mean some pages' text layers lied and were never rescued —
+    # the NarrationBar would speak the garbage. A book that doesn't read is
+    # rejected (I5), not shipped with a stderr warning.
+    if not quality["ok"]:
+        emit(
+            {
+                "status": "rejected",
+                "reason": "glyph_garbage",
+                "detail": (
+                    f"{fffd} replacement + {pua} private-use chars survived into "
+                    "the text layer — their pages' fonts lied and were not "
+                    "VLM-flagged. Find a better source edition."
+                ),
+                "replacement_chars": fffd,
+                "pua_chars": pua,
+            },
+            3,
+        )
+
     log("5/6 class-aware quality gate (A2)")
-    if any(p["method"] == "anchored-chars" for p in manifest["alignment"]):
-        containment = containment_check_chars(md_text, page_texts, manifest["alignment"])
-    else:
-        containment = containment_check(md_text, page_texts, manifest["alignment"])
     log(
-        f"containment: prose_mean={containment['prose_mean']} "
+        f"containment[{containment.get('mode', 'tokens') or 'tokens'}]: "
+        f"prose_mean={containment['prose_mean']} "
         f"classes={containment['page_classes']} "
         f"longest_failing_run={containment['longest_failing_run']}"
     )

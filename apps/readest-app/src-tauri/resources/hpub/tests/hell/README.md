@@ -7,7 +7,7 @@ tests; the generated corpus and run artifacts are NOT committed
 
 ```sh
 VENV=~/Library/Application\ Support/com.bilingify.readest/hpub-venv/bin/python
-"$VENV" hellgen.py all                                   # corpus/ (12 cases)
+"$VENV" hellgen.py all                                   # corpus/ (13 cases)
 "$VENV" run_harness.py --fast                            # all non-nightly rows
 "$VENV" run_harness.py                                   # full matrix incl. nightly
 "$VENV" run_harness.py --case sanity-5p                  # one row
@@ -19,10 +19,11 @@ venv python is used for the sidecar, and a per-case subprocess timeout is a
 failure (I1: a hang is a red row, full stop). `HPUB_VENV_PYTHON` overrides
 the venv path.
 
-- `hellgen.py` — hand-rolled-PDF generator; 12 cases each named by tier +
+- `hellgen.py` — hand-rolled-PDF generator; 13 cases each named by tier +
   receipt (I6). `case.json` pins expectations; T2/T3 rows pin today's
-  behavior and are flipped by those waves (lying-cmap is red ON PURPOSE
-  until T2).
+  behavior and are flipped by those waves. `cjk-3p` (K1, T2) is the
+  script-aware-tokenizer receipt: an honest Japanese book that pre-T2 died
+  with ZERO tokens at the alignment backstop.
 - `run_case.py` — per-case executor; asserts M1 gate metrics, M2 manifest
   invariants (i3_*/i4_*), M3 grounding, and wall-clock budgets
   (i1_no_timeout / i1_wall_budget / i1_per_page_wall — bounded time scaled
