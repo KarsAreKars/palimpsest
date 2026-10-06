@@ -226,6 +226,97 @@ def ensure_llama_cpp() -> None:
 
 # ─── 2. marker extraction ────────────────────────────────────────────────────
 
+# ─── model acquisition watchdog (receipt R1) ────────────────────────────────
+#
+# R1: a stalled Hugging Face model download slept at 0% CPU forever — no
+# timeout, no retry, no error. huggingface_hub (used inside marker's
+# create_model_dict) honors HF_HUB_DOWNLOAD_TIMEOUT / HF_HUB_ETAG_TIMEOUT
+# per connection, but nothing bounded the TOTAL acquisition: one wedged
+# connection was one wedged import. This wrapper bounds attempts + total
+# time, takes a fresh connection per attempt (every attempt constructs new
+# clients; nothing socket-level survives a failure), and keeps stderr alive
+# with cache-dir growth beats so the Rust stall watchdog sees progress
+# during a slow-but-honest download. No marker internals are patched.
+
+ACQUIRE_MAX_ATTEMPTS = 3
+ACQUIRE_TOTAL_DEADLINE_S = 1800.0  # hard cap across ALL attempts (I1)
+ACQUIRE_POLL_INTERVAL_S = 30.0
+ACQUIRE_TIMEOUT_DEFAULT_S = "30"
+
+
+def _hf_cache_dir() -> Path:
+    root = os.environ.get("HF_HOME")
+    if root:
+        return Path(root) / "hub"
+    return Path.home() / ".cache" / "huggingface" / "hub"
+
+
+def _dir_size_bytes(path: Path) -> int:
+    total = 0
+    try:
+        for p in path.rglob("*"):
+            if p.is_file():
+                total += p.stat().st_size
+    except OSError:
+        pass
+    return total
+
+
+def _acquire_with_retry(acquire, label: str, cache_dir: Path | None = None):
+    """Run `acquire()` (e.g. marker's create_model_dict) under the R1
+    contract: HF timeout defaults unless user-set, HF_TOKEN passthrough,
+    <=ACQUIRE_MAX_ATTEMPTS attempts on fresh connections inside one total
+    deadline, cache-dir-size beats on stderr every 30 s. Raises
+    RuntimeError naming `label` when every attempt fails."""
+    os.environ.setdefault("HF_HUB_DOWNLOAD_TIMEOUT", ACQUIRE_TIMEOUT_DEFAULT_S)
+    os.environ.setdefault("HF_HUB_ETAG_TIMEOUT", ACQUIRE_TIMEOUT_DEFAULT_S)
+    token = os.environ.get("HF_TOKEN")
+    if token:
+        # huggingface_hub reads HF_TOKEN natively; set the legacy alias too
+        # so either spelling reaches the downloader (K6: env passthrough
+        # only, no credential UI this campaign).
+        os.environ.setdefault("HUGGING_FACE_HUB_TOKEN", token)
+        log(f"HF_TOKEN present — passing through to huggingface_hub ({len(token)} chars)")
+    deadline = time.monotonic() + ACQUIRE_TOTAL_DEADLINE_S
+    watch_dir = cache_dir or _hf_cache_dir()
+    stop = threading.Event()
+    last_size = _dir_size_bytes(watch_dir)
+
+    def _poll() -> None:
+        nonlocal last_size
+        while not stop.wait(ACQUIRE_POLL_INTERVAL_S):
+            size = _dir_size_bytes(watch_dir)
+            grown_mb = (size - last_size) / 1e6
+            last_size = size
+            log(
+                f"acquiring {label}: cache at {size / 1e9:.2f} GB "
+                f"({'+' if grown_mb >= 0 else ''}{grown_mb:.1f} MB in the last "
+                f"{ACQUIRE_POLL_INTERVAL_S:.0f}s)"
+            )
+
+    poller = threading.Thread(target=_poll, daemon=True, name="acquire-poller")
+    poller.start()
+    last_exc: Exception | None = None
+    try:
+        for attempt in range(1, ACQUIRE_MAX_ATTEMPTS + 1):
+            if time.monotonic() > deadline:
+                log(f"acquire {label}: total deadline reached before attempt {attempt}")
+                break
+            try:
+                if attempt > 1:
+                    log(f"acquire {label}: fresh connection (attempt {attempt}/{ACQUIRE_MAX_ATTEMPTS})")
+                return acquire()
+            except Exception as e:  # noqa: BLE001 — stall class: fail fast, retry fresh
+                last_exc = e
+                log(f"acquire {label}: attempt {attempt}/{ACQUIRE_MAX_ATTEMPTS} failed: {type(e).__name__}: {e}")
+    finally:
+        stop.set()
+        poller.join(timeout=1)
+    raise RuntimeError(
+        f"could not acquire {label} after {ACQUIRE_MAX_ATTEMPTS} attempts: {last_exc}"
+    )
+
+
 def marker_extract(
     pdf_path: str,
     cache_dir: Path | None = None,
@@ -297,7 +388,9 @@ def marker_extract(
 
     with _Heartbeat("marker extraction"):
         converter = PdfConverter(
-            artifact_dict=create_model_dict(), config=config, llm_service=llm_service
+            artifact_dict=_acquire_with_retry(create_model_dict, "marker model weights"),
+            config=config,
+            llm_service=llm_service,
         )
         with converter.filepath_to_str(pdf_path) as temp_path:
             document = converter.build_document(temp_path)
@@ -568,6 +661,56 @@ def hybrid_marker_extract(
         f"({len(flagged) / max(n_pages, 1):.0%}), {marginals_dropped} marginals dropped"
     )
     return md_text, tree, images
+
+
+# ─── 2c. chunked full-lane marker (K5) ──────────────────────────────────────
+
+MARKER_CHUNK_PAGES = 200  # king ruling K5: full-lane marker chunk size
+
+
+def marker_extract_chunked(
+    pdf_path: str,
+    n_pages: int,
+    cache_dir: Path | None = None,
+    use_llm: bool = False,
+    chunk_pages: int = MARKER_CHUNK_PAGES,
+) -> tuple[str, dict, dict]:
+    """Full marker pass in page_range chunks of `chunk_pages` (K5). Each
+    chunk reuses marker_extract's page_range + cache machinery unchanged;
+    a heartbeat beat() per chunk keeps stderr alive across the whole pass
+    (r1 P20: the unchunked full lane was one black-box silent stretch the
+    Rust stall watchdog could misdiagnose as a hang — extreme-long-1500p
+    measured ~25 min of marker silence). Books at or below one chunk take
+    the plain single-pass path, byte-identical to the pre-chunking golden."""
+    chunks = [
+        list(range(start, min(start + chunk_pages, n_pages)))
+        for start in range(0, n_pages, chunk_pages)
+    ]
+    if len(chunks) <= 1:
+        return marker_extract(pdf_path, cache_dir=cache_dir, use_llm=use_llm)
+    md_parts: list[str] = []
+    children: list[dict] = []
+    images: dict = {}
+    body_font_size = 10.0
+    with _Heartbeat("marker extraction (chunked)") as hb:
+        for i, chunk in enumerate(chunks):
+            hb.beat()  # per-chunk progress pulse — the pass can never go silent
+            log(f"marker chunk {i + 1}/{len(chunks)}: pages {chunk[0] + 1}-{chunk[-1] + 1} of {n_pages}")
+            md_c, tree_c, imgs = marker_extract(
+                pdf_path,
+                cache_dir=cache_dir,
+                use_llm=use_llm,
+                page_range=chunk,
+            )
+            md_parts.append(md_c)
+            children.extend(tree_c.get("children") or [])
+            images.update(imgs)
+            body_font_size = tree_c.get("body_font_size", body_font_size)
+    return (
+        "\n\n".join(md_parts),
+        {"children": children, "body_font_size": body_font_size},
+        images,
+    )
 
 
 # ─── 3. alignment (shingle anchoring, from phase-0 align.py) ─────────────────
@@ -1357,7 +1500,49 @@ def gate_book(manifest: dict, md_text: str, tree: dict, containment: dict) -> No
 
 # ─── main ────────────────────────────────────────────────────────────────────
 
+def _classify_error(e: Exception) -> tuple[str, str, int]:
+    """Map an unexpected exception onto the structured envelope
+    {status, reason, detail} + a mapped exit (constitution I1/I5: a failure
+    is loud and specific, never a bare traceback on stderr with an empty
+    stdout protocol line). reason is "encrypted"/"corrupt"/… wherever the
+    exception class or message lets us say so."""
+    name = type(e).__name__
+    msg = str(e).lower()
+    if (
+        "encrypt" in msg
+        or "password" in msg
+        or name in ("PasswordProtectedError", "FileNotDecryptedError")
+    ):
+        return "rejected", "encrypted", 2
+    if "corrupt" in msg or "invalid pdf" in msg or name in (
+        "PdfReadError",
+        "PdfStreamError",
+    ):
+        return "error", "corrupt", 1
+    return "error", "error", 1
+
+
 def main() -> None:
+    """Top-level error envelope (r1 P9): any exception escaping a stage
+    becomes one JSON line on stdout + a mapped exit code. Stages that
+    already emit() their own structured rejection are untouched — emit
+    raises SystemExit, which passes through unwrapped."""
+    try:
+        _main_impl()
+    except Exception as e:  # noqa: BLE001 — this IS the last-resort handler
+        status, reason, code = _classify_error(e)
+        log(f"fatal: {type(e).__name__}: {e}")
+        emit(
+            {
+                "status": status,
+                "reason": reason,
+                "detail": f"{type(e).__name__}: {e}",
+            },
+            code,
+        )
+
+
+def _main_impl() -> None:
     ap = argparse.ArgumentParser(description="PDF -> .hpub extraction sidecar")
     ap.add_argument("pdf", help="input PDF path")
     out = ap.add_mutually_exclusive_group(required=True)
@@ -1436,7 +1621,14 @@ def main() -> None:
             scan_stats: dict | None = None
             if not args.use_llm and not args.no_fastpath:
                 flagged, low_text, raw_pages, scan_stats = fastpath_scan(str(pdf_path))
-                if len(flagged) > FASTPATH_MAX_FLAGGED_FRACTION * len(page_texts):
+                if not flagged:
+                    # Zero-flag fix (r5 E3): a clean prose book flags nothing,
+                    # and an empty page_range crashes marker inside the hybrid
+                    # lane ("max() iterable argument is empty" — sanity,
+                    # rotated, broken-xref all died exit 1). No flagged pages
+                    # IS the full marker pass.
+                    flagged = None
+                elif len(flagged) > FASTPATH_MAX_FLAGGED_FRACTION * len(page_texts):
                     log(
                         f"fast path off: {len(flagged)}/{len(page_texts)} pages flagged "
                         "— full marker pass is simpler"
@@ -1452,11 +1644,18 @@ def main() -> None:
                     Path(args.workdir) / "marker" if args.workdir else None,
                 )
             else:
-                md_text, tree, images = marker_extract(
-                    str(pdf_path),
-                    Path(args.workdir) / "marker" if args.workdir else None,
-                    use_llm=args.use_llm,
-                )
+                workdir_marker = Path(args.workdir) / "marker" if args.workdir else None
+                if len(page_texts) > MARKER_CHUNK_PAGES:
+                    # Long books: full lane in 200-page chunks (K5) — a
+                    # heartbeat beat per chunk, bounded silence, resumable
+                    # via the per-range marker cache.
+                    md_text, tree, images = marker_extract_chunked(
+                        str(pdf_path), len(page_texts), workdir_marker, use_llm=args.use_llm
+                    )
+                else:
+                    md_text, tree, images = marker_extract(
+                        str(pdf_path), workdir_marker, use_llm=args.use_llm
+                    )
         except Exception as e:  # noqa: BLE001 — surface marker failures as import failures
             emit({"status": "error", "stage": "marker", "detail": str(e)}, 1)
             return

@@ -5,7 +5,8 @@
 //! (content.md + manifest.json + assets/) written directly into the book's
 //! library directory. The script speaks a tiny protocol: progress on stderr,
 //! a single JSON result object as the last stdout line, and exit codes
-//! 0 (ok) / 2 (scanned rejection) / 3 (quality gate) / 1 (error).
+//! 0 (ok) / 2 (scanned rejection) / 3 (quality gate) / 4 (edition mismatch,
+//! fusion lane) / 1 (error).
 //!
 //! Interpreter resolution order:
 //!   1. `PALIMPSEST_PYTHON` env var (dev: point at a marker-pdf venv)
@@ -283,25 +284,33 @@ pub async fn hpub_extract(
         serde_json::to_string(&result).unwrap_or_default()
     );
 
-    match status.code() {
-        // 0 ok; 2 scanned rejection; 3 quality gate — all carry a JSON status
-        // the JS layer turns into user-facing import feedback.
-        Some(0) | Some(2) | Some(3) => Ok(result),
-        _ => {
-            let msg = format!(
-                "hpub sidecar failed (status {:?}): {}",
-                status.code(),
-                result.get("detail").and_then(Value::as_str).unwrap_or(&result_line)
-            );
-            log::error!("{msg}");
-            Err(msg)
-        }
+    if is_structured_status(status.code()) {
+        // 0 ok; 2 scanned rejection; 3 quality gate; 4 edition mismatch —
+        // all carry a JSON status the JS layer turns into user-facing import
+        // feedback (E6: exit 4 was previously unmatched, surfacing as a
+        // generic "sidecar failed" error with the actionable detail lost).
+        Ok(result)
+    } else {
+        let msg = format!(
+            "hpub sidecar failed (status {:?}): {}",
+            status.code(),
+            result.get("detail").and_then(Value::as_str).unwrap_or(&result_line)
+        );
+        log::error!("{msg}");
+        Err(msg)
     }
+}
+
+/// Exit codes whose JSON result carries a structured status/reason the JS
+/// layer turns into user-facing import feedback (as opposed to 1/error and
+/// signal deaths, which surface as a generic sidecar failure).
+fn is_structured_status(code: Option<i32>) -> bool {
+    matches!(code, Some(0) | Some(2) | Some(3) | Some(4))
 }
 
 #[cfg(test)]
 mod tests {
-    use super::parse_stage;
+    use super::{is_structured_status, parse_stage};
 
     #[test]
     fn parses_stage_lines() {
@@ -309,6 +318,17 @@ mod tests {
             parse_stage("[make_hpub +   12.3s] 2/6 marker extraction (51 pages — slow)"),
             Some("marker extraction (51 pages — slow)".to_string())
         );
+    }
+
+    #[test]
+    fn exit_code_classification_matches_sidecar_protocol() {
+        // E6: 4 (edition mismatch, fusion lane) must be treated as a
+        // structured rejection like 2/3 — not a generic sidecar failure.
+        for code in [Some(0), Some(2), Some(3), Some(4)] {
+            assert!(is_structured_status(code), "{code:?} should be structured");
+        }
+        assert!(!is_structured_status(Some(1)));
+        assert!(!is_structured_status(None)); // signal death (killed/crashed)
     }
 
     #[test]

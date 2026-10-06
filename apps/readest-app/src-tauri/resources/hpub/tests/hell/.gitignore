@@ -1,0 +1,5 @@
+# Generated corpus + run artifacts: regenerate with `hellgen.py all` (<1 s,
+# deterministic, seed 42). Never commit — r5 ruling E4.
+corpus/
+runs/
+__pycache__/
