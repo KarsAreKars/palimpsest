@@ -14,12 +14,12 @@ jobs:
   gate:
     runs-on: macos-14
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           submodules: recursive
 
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v6
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
         with:
           node-version: 24
           cache: pnpm
@@ -42,7 +42,7 @@ jobs:
       # Math-check suite for qwen_server.py. latex2sympy2 must be pinned:
       # newer releases pull an antlr runtime that breaks on Python 3.12+
       # ("No module named 'typing.io'" → every /check test 503s).
-      - uses: actions/setup-python@v6
+      - uses: actions/setup-python@v7
         with:
           python-version: '3.13'
       - name: Install math-check deps
