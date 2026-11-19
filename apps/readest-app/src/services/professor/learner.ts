@@ -6,7 +6,7 @@
  * is the pedagogy engine's evidence base: it never guesses what the reader
  * knows — it counts what they asked.
  *
- * Concept state (Bloom tracker):
+ * Concept state (Bloom tracker + Wave 2 mastery ledger):
  *   - A concept starts at Bloom level 2 (understand) the first time it is
  *     asked about — asking means they engaged but haven't got it yet.
  *   - Re-asking the SAME concept drops the level (min 1): the previous
@@ -15,6 +15,16 @@
  *     graded verdict of "pass". No verdict → asked-only: never credit,
  *     never a penalty (audit #33 — the student model is fed by graded
  *     outcomes, not by asks or by inferred "resolved" flags).
+ *
+ * Wave 2 (audit Ruling 4): the graded-outcome ledger. A concept earns
+ *   - an FSRS card (ConceptState.card) — created and advanced ONLY by a
+ *     graded check verdict; the card's due_ts is the authoritative return
+ *     date (it supersedes the old fixed 24/72/168h retest queue, removed
+ *     in this wave — old files carrying retest_queue simply stop
+ *     propagating it on the next write), and
+ *   - a 3-state mastery (unknown/edge/known) derived from the last-10
+ *     graded-outcome window (gradedAccuracy ≥ 0.8 → known). Asks feed
+ *     nothing here: no card, no mastery credit (mechanism #33).
  *
  * Stuck rule (plan §6): a concept asked ≥ STUCK_THRESHOLD times means the
  * professor must switch strategy — never repeat an explanation — and offer
@@ -27,6 +37,8 @@
 import type { AppService } from '@/types/system';
 import type { Book } from '@/types/book';
 import { getDir } from '@/utils/book';
+import type { CardState } from './scheduler';
+import { initialCard, reviewCard, RATING_AGAIN, RATING_GOOD } from './scheduler';
 
 export const LEARNER_FILENAME = 'learner.json';
 export const NOTES_FILENAME = 'notes.md';
@@ -66,30 +78,40 @@ export interface ConceptState {
   last_ts: string;
   /** Misconceptions named for this concept (dedupe-appended; additive). */
   misconception_ids?: string[];
+  /** FSRS card state — exists ONLY once a graded check verdict has landed
+   *  (Wave 2 ledger; additive — absent in old logs and in never-graded
+   *  concepts). The card's due_ts is the authoritative review date. */
+  card?: CardState;
+  /** Graded check outcomes, newest last, capped at 10 — the accuracy
+   *  window behind mastery (additive; absent in old logs). */
+  graded?: Array<'pass' | 'retry'>;
 }
 
-/** A spaced-retest item for a named misconception (additive). */
-export interface RetestEntry {
-  concept: string;
-  misconception_id: string;
-  due_ts: number;
-  /** Index into RETEST_INTERVALS_MS: 0 → +24h, 1 → +72h, 2 → +168h. */
-  interval_index: number;
-  passes: number; // consecutive passes; >=2 removes the entry
+/** 3-state mastery, derived from the graded-outcome window (Wave 2). */
+export type Mastery = 'unknown' | 'edge' | 'known';
+
+/** Pass ratio over the last-10 graded check window (0 when never graded). */
+export function gradedAccuracy(state: ConceptState): number {
+  const graded = state.graded ?? [];
+  if (graded.length === 0) return 0;
+  return graded.filter((v) => v === 'pass').length / graded.length;
 }
 
-/** Spaced-retest intervals: 24h → 72h → 168h. */
-export const RETEST_INTERVALS_MS = [
-  24 * 60 * 60 * 1000,
-  72 * 60 * 60 * 1000,
-  168 * 60 * 60 * 1000,
-] as const;
+/**
+ * Mastery state: unknown until a graded check exists; known once the
+ * last-10 window is ≥ 80% passes (L2 §15's ≥80% gate, windowed); edge in
+ * between — including "every check failed so far", which is engaged but
+ * unproven, never unknown.
+ */
+export function masteryOf(state: ConceptState): Mastery {
+  const graded = state.graded ?? [];
+  if (graded.length === 0) return 'unknown';
+  return gradedAccuracy(state) >= 0.8 ? 'known' : 'edge';
+}
 
 export interface LearnerState {
   exchanges: LearnerExchange[];
   concept_states: Record<string, ConceptState>;
-  /** Spaced retests owed to the reader (additive; absent in old logs). */
-  retest_queue?: RetestEntry[];
   /** Anti-gaming telemetry per problem (additive). */
   gaming_signals?: Record<string, { hint_velocity: number; flags: number }>;
   /** Opaque per-problem tutoring sessions, keyed by problem (additive). */
@@ -122,61 +144,31 @@ export function applyExchange(state: LearnerState, ex: LearnerExchange): Learner
   } else {
     bloom = Math.max(1, prev.bloom - 1); // re-asking = the last explanation failed
   }
+  // --- Wave 2 ledger: graded check outcomes only (mechanism #33). An ask
+  // --- — even a check-me the Prof never graded — touches neither the
+  // --- graded window nor the FSRS card.
+  const now = Date.parse(ex.ts);
+  const when = Number.isNaN(now) ? Date.now() : now;
+  const isGradedCheck =
+    ex.question_kind === 'check-me' && (ex.verdict === 'pass' || ex.verdict === 'retry');
+  const graded = isGradedCheck ? [...(prev?.graded ?? []), ex.verdict!].slice(-10) : prev?.graded;
+  const rating = ex.verdict === 'pass' ? RATING_GOOD : RATING_AGAIN;
+  const card = isGradedCheck
+    ? prev?.card
+      ? reviewCard(prev.card, rating, when)
+      : initialCard(rating, when)
+    : prev?.card;
   const concept_states = {
     ...state.concept_states,
-    [ex.concept]: { bloom, asked: (prev?.asked ?? 0) + 1, last_ts: ex.ts },
+    [ex.concept]: {
+      bloom,
+      asked: (prev?.asked ?? 0) + 1,
+      last_ts: ex.ts,
+      ...(graded !== undefined ? { graded } : {}),
+      ...(card !== undefined ? { card } : {}),
+    },
   };
   return { exchanges, concept_states };
-}
-
-// --- Tutoring additions (additive; old learner.json files lack these) ------
-
-/**
- * Insert or replace a retest item, keyed by (concept, misconception_id).
- * Pure: the first retest is due +24h (interval_index 0).
- */
-export function scheduleRetest(queue: RetestEntry[], entry: RetestEntry): RetestEntry[] {
-  const rest = queue.filter(
-    (e) => !(e.concept === entry.concept && e.misconception_id === entry.misconception_id),
-  );
-  return [...rest, entry];
-}
-
-/**
- * Record a spaced-retest result. Pass advances the interval (24h → 72h →
- * 168h) and the pass count; a second consecutive pass retires the item.
- * Fail resets to interval 0 and clears passes. Pure; unknown items no-op.
- */
-export function recordRetestResult(
-  queue: RetestEntry[],
-  concept: string,
-  misconceptionId: string,
-  passed: boolean,
-  now: number = Date.now(),
-): RetestEntry[] {
-  const entry = queue.find((e) => e.concept === concept && e.misconception_id === misconceptionId);
-  if (!entry) return queue;
-  if (!passed) {
-    return scheduleRetest(queue, {
-      ...entry,
-      interval_index: 0,
-      passes: 0,
-      due_ts: now + RETEST_INTERVALS_MS[0],
-    });
-  }
-  const passes = entry.passes + 1;
-  if (passes >= 2) {
-    // Retired: two spaced passes is enough evidence it landed.
-    return queue.filter((e) => !(e.concept === concept && e.misconception_id === misconceptionId));
-  }
-  const interval_index = Math.min(entry.interval_index + 1, RETEST_INTERVALS_MS.length - 1);
-  const intervalMs = RETEST_INTERVALS_MS[interval_index] ?? RETEST_INTERVALS_MS[0] ?? 0;
-  return scheduleRetest(queue, {
-    ...entry,
-    interval_index,
-    passes,
-    due_ts: now + intervalMs,
-  });
 }
 
 /** Dedupe-append a named misconception to a concept's state. Pure. */
@@ -240,7 +232,9 @@ export async function loadLearner(appService: AppService, book: Book): Promise<L
       exchanges: Array.isArray(parsed.exchanges) ? parsed.exchanges : [],
       concept_states: parsed.concept_states ?? {},
       // Additive fields: tolerate absence in old logs, preserve when present.
-      ...(Array.isArray(parsed.retest_queue) ? { retest_queue: parsed.retest_queue } : {}),
+      // retest_queue (Wave 1) is deliberately dropped: the FSRS due-date
+      // superseded it, and the next appendExchange re-serializes the state
+      // without it — that re-write is the migration.
       ...(parsed.gaming_signals && typeof parsed.gaming_signals === 'object'
         ? { gaming_signals: parsed.gaming_signals }
         : {}),

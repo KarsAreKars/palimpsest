@@ -48,8 +48,29 @@ export interface ChapterSlice {
 }
 
 export const MAX_OBJECTIVES = 5;
+/** Learner-picked session (Wave 2, audit #15): they choose 1–3 of the
+ *  drafted objectives; the session quizzes only those. */
+export const MAX_PICKED_OBJECTIVES = 3;
 /** Chapters can be huge; the objectives prompt needs the gist, not the tome. */
 export const MAX_CHAPTER_CHARS = 12000;
+
+/**
+ * Clamp the learner's picked indices to the 1–3 contract, preserving their
+ * order, dropping out-of-range and duplicate picks. Empty → the caller
+ * keeps the session closed (a session with no picked objective is no
+ * session).
+ */
+export function pickObjectives(all: string[], picked: number[]): string[] {
+  const seen = new Set<number>();
+  const out: string[] = [];
+  for (const i of picked) {
+    if (i < 0 || i >= all.length || seen.has(i)) continue;
+    seen.add(i);
+    out.push(all[i]!);
+    if (out.length >= MAX_PICKED_OBJECTIVES) break;
+  }
+  return out;
+}
 
 /** Flatten a TOC (depth-first) to the items that carry a page index. */
 const flattenToc = (toc: TOCItem[]): TOCItem[] => {
@@ -223,6 +244,26 @@ export function buildSessionQuestion(
 export interface SessionOutcome {
   verdict: 'pass' | 'retry';
   takeaway?: string;
+}
+
+/**
+ * The retry-then-re-explain-then-re-ask turn (Wave 2, audit #15): the
+ * first [RETRY] on an objective earns ONE re-explanation and a re-ask of
+ * the SAME objective — never an instant advance, never an identical
+ * repeat (L2 §16: the smallest useful hint, differently; the re-ask is a
+ * new form of the same question). A second verdict stamps the objective
+ * either way. The prompt carries the verdict + caption contract so the
+ * re-ask lands as a fresh graded outcome on the ledger.
+ */
+export function buildRetryQuestion(objective: string): string {
+  return (
+    `I want another go at this objective: "${objective}". ` +
+    'First, briefly re-explain ONLY the part I got wrong — differently from before, shorter. ' +
+    'Then ask me the question again in a new form and wait for my answer. ' +
+    'Grade my answer briefly and end with a verdict tag on its own line: [PASS] if I have it, ' +
+    '[RETRY] if something load-bearing is still missing. ' +
+    'Then one line [CAPTION:the one-line takeaway].'
+  );
 }
 
 /**

@@ -405,6 +405,39 @@ describe('buildConceptPages', () => {
     expect(pages[1]).toContain('rings and ideals');
     expect(pages[3]).toContain('direct limits');
   });
+
+  test('Wave 2: the tier keys on FAILED CHECKS, not asks — a retried concept outranks a merely popular one', () => {
+    // Four concepts, four distinct pages. `struggled` is asked only 2x but
+    // failed a graded check; the others are asked more but never failed.
+    // Struggle is the signal now (audit Ruling 4 Wave 2), so `struggled`
+    // takes a slot and the LOWEST-asked of the rest (`prime`, page 4) is
+    // pushed out of the top-3 tier.
+    const states: Record<string, ConceptState> = {
+      rings: { bloom: 2, asked: 9, last_ts: '2026-09-10T00:00:00Z' },
+      radical: { bloom: 2, asked: 8, last_ts: '2026-09-10T00:00:00Z' },
+      prime: { bloom: 2, asked: 7, last_ts: '2026-09-10T00:00:00Z' },
+      struggled: { bloom: 1, asked: 2, last_ts: '2026-09-10T00:00:00Z' },
+    };
+    const exchanges: LearnerExchange[] = [
+      {
+        ts: '2026-09-01T00:00:00Z',
+        concept: 'struggled',
+        page: 3,
+        question_kind: 'check-me',
+        question: 'q',
+        resolved: false,
+        verdict: 'retry',
+      },
+    ];
+    const pages = buildConceptPages(MD, manifest, states, CONCEPT_PAGE_CHARS, exchanges);
+    // 'struggled' is not in any page text → falls back to its last logged
+    // page (3, direct limits). The retried concept claims a slot and page 4
+    // (prime ideals — lowest-asked of the never-failed) drops out.
+    expect(pages[3]).toContain('direct limits');
+    expect(pages[1]).toContain('rings and ideals');
+    expect(pages[2]).toContain('radical of an ideal');
+    expect(pages[4]).toBeUndefined();
+  });
 });
 
 describe('buildWorkbenchContextPack — compat shim', () => {

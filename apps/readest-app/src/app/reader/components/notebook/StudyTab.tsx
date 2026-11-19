@@ -37,21 +37,26 @@ import {
   type ProfessorAnnotationSet,
 } from '@/services/professor/annotationBus';
 import {
+  buildRetryQuestion,
   buildSessionQuestion,
   buildSessionReportMd,
   extractSessionOutcome,
   generateChapterObjectives,
   getChapterText,
+  MAX_PICKED_OBJECTIVES,
+  pickObjectives,
   type SessionObjective,
 } from '@/services/professor/session';
 import {
   loadLearner,
   appendExchange,
   appendNote,
+  masteryOf,
   NOTES_FILENAME,
   STUCK_THRESHOLD,
   type LearnerState,
 } from '@/services/professor/learner';
+import { dueCards } from '@/services/professor/scheduler';
 import EmptyState from '../EmptyState';
 
 export const PROF_ASK_EVENT = 'palimpsest-prof-ask';
@@ -69,9 +74,7 @@ const BloomPips: React.FC<{ level: number }> = ({ level }) => (
     {Array.from({ length: 6 }, (_, i) => (
       <span
         key={i}
-        className={`inline-block h-1.5 w-1.5 rounded-full ${
-          i < level ? 'bg-ink' : 'bg-ink/20'
-        }`}
+        className={`inline-block h-1.5 w-1.5 rounded-full ${i < level ? 'bg-ink' : 'bg-ink/20'}`}
       />
     ))}
   </span>
@@ -90,6 +93,7 @@ const StudyTab: React.FC<{ bookKey: string }> = ({ bookKey }) => {
     const book = getBookData(bookKey)?.book;
     if (!appService || !book) return;
     setLearner(await loadLearner(appService, book));
+    setNowTick(Date.now()); // ledger due-dates are read against "now"
     try {
       setNotes(
         toText(await appService.readFile(`${getDir(book)}/${NOTES_FILENAME}`, 'Books', 'text')),
@@ -103,6 +107,35 @@ const StudyTab: React.FC<{ bookKey: string }> = ({ bookKey }) => {
     void reload();
   }, [reload]);
 
+  // The ledger's due surface (Wave 2): concepts whose FSRS card has come
+  // due, oldest first. This tab IS the natural pause — due reviews live
+  // here and nowhere else, so deep reading is never interrupted (R3).
+  const [nowTick, setNowTick] = useState(() => Date.now());
+  const due = learner
+    ? dueCards(learner.concept_states, nowTick).filter(
+        ({ concept }) => concept !== 'uncategorized' && concept !== 'chapter_session',
+      )
+    : [];
+
+  const reviewDue = (concept: string) => {
+    const pretty = concept.replace(/_/g, ' ');
+    askProfessorFromUI(
+      bookKey,
+      `"${pretty}" has come back for review. Ask me ONE question that checks whether I still ` +
+        'have it — a fresh angle, not the old one. Wait for my answer, grade it briefly, and end ' +
+        'with a verdict tag on its own line: [PASS] or [RETRY], then one line ' +
+        '[CAPTION:the one-line takeaway]. Tag your grading [CONCEPT:' +
+        concept +
+        '][QKIND:check-me] so the outcome lands on my study ledger. Ask the question now.',
+    );
+  };
+
+  const MASTERY_LABEL: Record<string, string> = {
+    unknown: _('not yet checked'),
+    edge: _('still forming'),
+    known: _('taking hold'),
+  };
+
   const queue = Object.entries(learner?.concept_states ?? {})
     // chapter_session is the session-summary exchange, not a learnable
     // concept — it must not surface in the review queue with Bloom pips.
@@ -115,8 +148,11 @@ const StudyTab: React.FC<{ bookKey: string }> = ({ bookKey }) => {
   const deck = (booknotes ?? [])
     .filter((n) => !n.deletedAt && (n.text?.trim() || n.note?.trim()))
     .slice()
-    .sort((a, b) => new Date(b.updatedAt ?? b.createdAt ?? 0).getTime() -
-      new Date(a.updatedAt ?? a.createdAt ?? 0).getTime())
+    .sort(
+      (a, b) =>
+        new Date(b.updatedAt ?? b.createdAt ?? 0).getTime() -
+        new Date(a.updatedAt ?? a.createdAt ?? 0).getTime(),
+    )
     .slice(0, 12);
 
   const goTo = (cfi?: string) => {
@@ -148,6 +184,9 @@ const StudyTab: React.FC<{ bookKey: string }> = ({ bookKey }) => {
   // annotation tags on the professor's annotation bus — the Study tab
   // subscribes and advances the checklist; no new channel, no new agents.
   const [objectives, setObjectives] = useState<SessionObjective[] | null>(null);
+  // Learner-picked session (Wave 2, audit #15): the drafted objectives are
+  // a menu; the reader taps 1–3 and the session quizzes only those.
+  const [picked, setPicked] = useState<number[]>([]);
   const [chapterLabel, setChapterLabel] = useState('');
   const [activeIdx, setActiveIdx] = useState<number | null>(null);
   const [generating, setGenerating] = useState(false);
@@ -159,6 +198,9 @@ const StudyTab: React.FC<{ bookKey: string }> = ({ bookKey }) => {
   const chapterLabelRef = useRef('');
   const awaitingVerdictRef = useRef(false);
   const lastSetRef = useRef<ProfessorAnnotationSet | null>(null);
+  /** Objectives already given their one retry round — a second verdict
+   *  stamps either way (retry→re-explain→re-ask, Wave 2). */
+  const retriedRef = useRef<Set<number>>(new Set());
 
   const setObjs = (objs: SessionObjective[] | null) => {
     objectivesRef.current = objs;
@@ -195,7 +237,9 @@ const StudyTab: React.FC<{ bookKey: string }> = ({ bookKey }) => {
   const generateObjectives = useCallback(async () => {
     const aiSettings = useSettingsStore.getState().settings.aiSettings;
     if (!aiSettings?.enabled) {
-      setSessionNote(_('No AI provider configured — connect one in Settings → AI to run a chapter session.'));
+      setSessionNote(
+        _('No AI provider configured — connect one in Settings → AI to run a chapter session.'),
+      );
       return;
     }
     setGenerating(true);
@@ -204,7 +248,9 @@ const StudyTab: React.FC<{ bookKey: string }> = ({ bookKey }) => {
     try {
       const source = await readChapterSource();
       if (!source) {
-        setSessionNote(_('The book\u2019s text layer is still being prepared — try again in a moment.'));
+        setSessionNote(
+          _('The book\u2019s text layer is still being prepared — try again in a moment.'),
+        );
         return;
       }
       const page = (getBookProgress(bookKey)?.index ?? 0) + 1;
@@ -221,7 +267,13 @@ const StudyTab: React.FC<{ bookKey: string }> = ({ bookKey }) => {
       chapterLabelRef.current = chapter.label;
       setChapterLabel(chapter.label);
       lastSetRef.current = getProfessorAnnotations(bookKey);
-      setObjs(list.map((text) => ({ text, status: 'pending' as const })));
+      const drafted = list.map((text) => ({ text, status: 'pending' as const }));
+      setObjs(drafted);
+      retriedRef.current = new Set();
+      // Default pick: everything when the chapter yields ≤3, else the
+      // first three — the reader adjusts by tapping.
+      const initialPick = drafted.map((_, i) => i).slice(0, MAX_PICKED_OBJECTIVES);
+      setPicked(initialPick);
     } finally {
       setGenerating(false);
     }
@@ -264,7 +316,12 @@ const StudyTab: React.FC<{ bookKey: string }> = ({ bookKey }) => {
           await appendNote(
             appService,
             book,
-            buildSessionReportMd({ chapterLabel: chapterLabelRef.current, objectives: objs, date, page }),
+            buildSessionReportMd({
+              chapterLabel: chapterLabelRef.current,
+              objectives: objs,
+              date,
+              page,
+            }),
           );
           await appendExchange(appService, book, {
             ts: new Date().toISOString(),
@@ -300,14 +357,27 @@ const StudyTab: React.FC<{ bookKey: string }> = ({ bookKey }) => {
       if (!set || set.pending || set === lastSetRef.current) return;
       const outcome = extractSessionOutcome(set.annotations);
       if (!outcome) return;
-      lastSetRef.current = set;
-      awaitingVerdictRef.current = false;
       const objs = objectivesRef.current;
       const idx = activeIdxRef.current;
       if (!objs || idx === null) return;
+      if (outcome.verdict === 'retry' && !retriedRef.current.has(idx)) {
+        // Retry → re-explain → re-ask (Wave 2): one retry round on the
+        // SAME objective, never an instant advance, never an identical
+        // repeat. Still awaiting — the re-ask's verdict does the stamping.
+        retriedRef.current.add(idx);
+        lastSetRef.current = set;
+        askProfessorFromUI(bookKey, buildRetryQuestion(objs[idx]!.text));
+        return;
+      }
+      lastSetRef.current = set;
+      awaitingVerdictRef.current = false;
       const next = objs.map((o, i) =>
         i === idx
-          ? { ...o, status: outcome.verdict, ...(outcome.takeaway ? { takeaway: outcome.takeaway } : {}) }
+          ? {
+              ...o,
+              status: outcome.verdict,
+              ...(outcome.takeaway ? { takeaway: outcome.takeaway } : {}),
+            }
           : o,
       );
       setObjs(next);
@@ -324,10 +394,27 @@ const StudyTab: React.FC<{ bookKey: string }> = ({ bookKey }) => {
   const startSession = () => {
     const objs = objectivesRef.current;
     if (!objs?.length) return;
+    // The learner's pick drives the session (1–3, their order).
+    const chosen = pickObjectives(
+      objs.map((o) => o.text),
+      picked,
+    );
+    const sessionObjs = chosen.map((text) => objs.find((o) => o.text === text)!);
+    if (sessionObjs.length === 0) return;
+    setObjs(sessionObjs);
     sessionEndedRef.current = false; // re-arm for a restarted session
     lastSetRef.current = getProfessorAnnotations(bookKey);
-    askObjective(0, objs);
+    askObjective(0, sessionObjs);
   };
+
+  const togglePicked = (i: number) =>
+    setPicked((prev) =>
+      prev.includes(i)
+        ? prev.filter((x) => x !== i)
+        : prev.length >= MAX_PICKED_OBJECTIVES
+          ? prev
+          : [...prev, i].sort((a, b) => a - b),
+    );
 
   /** The Prof didn't stamp a verdict (or the reader wants to move on):
    *  advance without one — the report marks the objective honestly. */
@@ -343,8 +430,10 @@ const StudyTab: React.FC<{ bookKey: string }> = ({ bookKey }) => {
 
   const sessionDone =
     objectives !== null && activeIdx === null && objectives.some((o) => o.status !== 'pending');
+  const sessionNotStarted = objectives !== null && activeIdx === null && !sessionDone;
 
-  const empty = queue.length === 0 && notes.trim().length === 0 && deck.length === 0;
+  const empty =
+    queue.length === 0 && notes.trim().length === 0 && deck.length === 0 && due.length === 0;
 
   return (
     <div className='flex min-h-0 flex-1 flex-col'>
@@ -391,10 +480,20 @@ const StudyTab: React.FC<{ bookKey: string }> = ({ bookKey }) => {
         {objectives ? (
           <ol className='mt-1'>
             {objectives.map((o, i) => (
-              <li key={i} className='border-ink bg-paperlight my-1.5 border px-2 py-1.5'>
+              <li
+                key={i}
+                className={`border-ink bg-paperlight my-1.5 border px-2 py-1.5 ${
+                  sessionNotStarted ? 'cursor-pointer hover:border-stamp' : ''
+                }`}
+                onClick={() => sessionNotStarted && togglePicked(i)}
+              >
                 <div className='flex items-start gap-2'>
-                  <span className='typed text-mutedink mt-0.5 text-[9px] leading-snug'>
-                    {i + 1}.
+                  <span
+                    className={`typed mt-0.5 text-[9px] leading-snug ${
+                      picked.includes(i) ? 'text-stamp' : 'text-mutedink'
+                    }`}
+                  >
+                    {sessionNotStarted ? (picked.includes(i) ? '✓' : '○') : `${i + 1}.`}
                   </span>
                   <span className='flex-1 text-[13px] leading-snug'>{o.text}</span>
                   {o.status === 'pass' && (
@@ -428,6 +527,11 @@ const StudyTab: React.FC<{ bookKey: string }> = ({ bookKey }) => {
             {sessionNote.toUpperCase()}
           </p>
         )}
+        {objectives && sessionNotStarted && (
+          <p className='typed text-mutedink mt-1 text-[9px] leading-relaxed'>
+            {_('TAP THE ONES YOU WANT — ONE TO THREE. THE SESSION QUIZZES ONLY THOSE.')}
+          </p>
+        )}
         <div className='mt-1.5 flex flex-wrap gap-1.5'>
           {!objectives && (
             <StampButton onClick={() => void generateObjectives()} disabled={generating}>
@@ -435,7 +539,9 @@ const StudyTab: React.FC<{ bookKey: string }> = ({ bookKey }) => {
             </StampButton>
           )}
           {objectives && activeIdx === null && !sessionDone && (
-            <StampButton onClick={startSession}>{_('Start session')}</StampButton>
+            <StampButton onClick={startSession} disabled={picked.length === 0}>
+              {_('Start session')}
+            </StampButton>
           )}
           {activeIdx !== null && (
             <>
@@ -468,79 +574,125 @@ const StudyTab: React.FC<{ bookKey: string }> = ({ bookKey }) => {
           </div>
         ) : (
           <>
-          {deck.length > 0 && (
-            <>
-              <p className='content font-size-base mt-1'>{_('From your margins')}</p>
-              <ul>
-                {deck.map((n) => {
-                  const excerpt = (n.text || n.note || '').trim();
-                  return (
+            {deck.length > 0 && (
+              <>
+                <p className='content font-size-base mt-1'>{_('From your margins')}</p>
+                <ul>
+                  {deck.map((n) => {
+                    const excerpt = (n.text || n.note || '').trim();
+                    return (
+                      <li
+                        key={n.id}
+                        className='border-ink bg-paperlight my-2 rounded-sm border p-2.5'
+                      >
+                        <p className='line-clamp-3 text-[13px] italic'>{excerpt}</p>
+                        <div className='mt-1.5 flex items-center justify-between'>
+                          <button
+                            className='typed text-mutedink hover:text-ink text-[9px]'
+                            onClick={() => goTo(n.cfi)}
+                          >
+                            {typeof n.page === 'number' ? `P. ${n.page + 1}` : _('GO')}
+                          </button>
+                          <StampButton
+                            className='flex items-center gap-1'
+                            onClick={() =>
+                              quizMe(excerpt, typeof n.page === 'number' ? n.page + 1 : undefined)
+                            }
+                          >
+                            <PiSparkle size={12} />
+                            {_('Quiz me')}
+                          </StampButton>
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </>
+            )}
+            {due.length > 0 && (
+              <>
+                <p className='content font-size-base mt-1'>{_('Due for review')}</p>
+                <p className='typed text-mutedink mt-0.5 text-[9px] leading-relaxed'>
+                  {_(
+                    'THE PROF BRINGS THESE BACK WHEN THEY ARE ABOUT TO FADE — A SHORT LOOK KEEPS THEM YOURS.',
+                  )}
+                </p>
+                <ul>
+                  {due.map(({ concept, card }) => (
                     <li
-                      key={n.id}
+                      key={concept}
                       className='border-ink bg-paperlight my-2 rounded-sm border p-2.5'
                     >
-                      <p className='line-clamp-3 text-[13px] italic'>{excerpt}</p>
+                      <div className='flex items-center justify-between gap-2'>
+                        <span className='text-sm font-medium'>{concept.replace(/_/g, ' ')}</span>
+                        <span className='typed text-mutedink text-[9px]'>
+                          {MASTERY_LABEL[masteryOf(learner!.concept_states[concept]!)]}
+                        </span>
+                      </div>
                       <div className='mt-1.5 flex items-center justify-between'>
-                        <button
-                          className='typed text-mutedink hover:text-ink text-[9px]'
-                          onClick={() => goTo(n.cfi)}
-                        >
-                          {typeof n.page === 'number' ? `P. ${n.page + 1}` : _('GO')}
-                        </button>
+                        <span className='font-size-xs text-mutedink'>
+                          {card.due_ts <= nowTick - 24 * 60 * 60 * 1000
+                            ? _('back since {{date}}', {
+                                date: new Date(card.due_ts).toLocaleDateString('en-US', {
+                                  month: 'short',
+                                  day: 'numeric',
+                                }),
+                              })
+                            : _('due today')}
+                        </span>
                         <StampButton
                           className='flex items-center gap-1'
-                          onClick={() => quizMe(excerpt, typeof n.page === 'number' ? n.page + 1 : undefined)}
+                          onClick={() => reviewDue(concept)}
                         >
                           <PiSparkle size={12} />
-                          {_('Quiz me')}
+                          {_('Review')}
                         </StampButton>
                       </div>
                     </li>
-                  );
-                })}
-              </ul>
-            </>
-          )}
-          {queue.length > 0 && (
-            <>
-              <p className='content font-size-base mt-1'>{_('Review queue')}</p>
-              <ul>
-                {queue.map(([name, s]) => (
-                  <li
-                    key={name}
-                    className='border-ink bg-paperlight my-2 rounded-sm border p-2.5'
-                  >
-                    <div className='flex items-center justify-between gap-2'>
-                      <span className='text-sm font-medium'>{name.replace(/_/g, ' ')}</span>
-                      <BloomPips level={s.bloom} />
-                    </div>
-                    <div className='mt-1.5 flex items-center justify-between'>
-                      <span className='font-size-xs text-mutedink'>
-                        {s.asked >= STUCK_THRESHOLD
-                          ? _('asked {{count}}x — stuck, switch it up', { count: s.asked })
-                          : _('asked {{count}}x', { count: s.asked })}
-                      </span>
-                      <StampButton
-                        className='flex items-center gap-1'
-                        onClick={() => startReview(name)}
-                      >
-                        <PiSparkle size={12} />
-                        {_('Feynman review')}
-                      </StampButton>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            </>
-          )}
-          {notes.trim().length > 0 && (
-            <>
-              <p className='content font-size-base mt-3'>{_('Study notes')}</p>
-              <div className='prose prose-sm font-size-xs mt-1 max-w-none select-text'>
-                <ReactMarkdown remarkPlugins={[remarkGfm]}>{notes}</ReactMarkdown>
-              </div>
-            </>
-          )}
+                  ))}
+                </ul>
+              </>
+            )}
+            {queue.length > 0 && (
+              <>
+                <p className='content font-size-base mt-1'>{_('Review queue')}</p>
+                <ul>
+                  {queue.map(([name, s]) => (
+                    <li
+                      key={name}
+                      className='border-ink bg-paperlight my-2 rounded-sm border p-2.5'
+                    >
+                      <div className='flex items-center justify-between gap-2'>
+                        <span className='text-sm font-medium'>{name.replace(/_/g, ' ')}</span>
+                        <BloomPips level={s.bloom} />
+                      </div>
+                      <div className='mt-1.5 flex items-center justify-between'>
+                        <span className='font-size-xs text-mutedink'>
+                          {s.asked >= STUCK_THRESHOLD
+                            ? _('asked {{count}}x — stuck, switch it up', { count: s.asked })
+                            : _('asked {{count}}x', { count: s.asked })}
+                        </span>
+                        <StampButton
+                          className='flex items-center gap-1'
+                          onClick={() => startReview(name)}
+                        >
+                          <PiSparkle size={12} />
+                          {_('Feynman review')}
+                        </StampButton>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              </>
+            )}
+            {notes.trim().length > 0 && (
+              <>
+                <p className='content font-size-base mt-3'>{_('Study notes')}</p>
+                <div className='prose prose-sm font-size-xs mt-1 max-w-none select-text'>
+                  <ReactMarkdown remarkPlugins={[remarkGfm]}>{notes}</ReactMarkdown>
+                </div>
+              </>
+            )}
           </>
         )}
       </div>

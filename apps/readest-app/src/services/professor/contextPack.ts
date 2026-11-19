@@ -190,12 +190,15 @@ export function buildWholeBookText(
 }
 
 /**
- * T2 — concept-anchored pages (context architecture §6): for each of the
- * top-N concept_states (deterministic: asked desc, name asc on ties), find
- * the first anchored page whose text contains the concept name; fall back
- * to the page where the concept was last logged in the learner exchange
- * history. Each included page is capped at capPerPage chars. Returns at
- * most CONCEPT_TIER_PAGE_COUNT entries, keyed by 1-based page.
+ * T2 — concept-anchored pages (context architecture §6), Wave 2 re-keyed
+ * on FAILED CHECKS, not asks (audit Ruling 4): the tier exists to follow
+ * the reader's demonstrated struggles, so concepts are ranked by graded
+ * retry count (the struggle signal), with ask count and name as
+ * deterministic tiebreaks. For each of the top-N, find the first anchored
+ * page whose text contains the concept name; fall back to the page where
+ * the concept was last logged in the learner exchange history. Each
+ * included page is capped at capPerPage chars. Returns at most
+ * CONCEPT_TIER_PAGE_COUNT entries, keyed by 1-based page.
  */
 export function buildConceptPages(
   md: string,
@@ -204,8 +207,20 @@ export function buildConceptPages(
   capPerPage: number = CONCEPT_PAGE_CHARS,
   learnerExchanges: LearnerExchange[] = [],
 ): Record<number, string> {
+  // Struggle ranking: graded retries first, asks as the tiebreak.
+  const retriesByConcept = new Map<string, number>();
+  for (const ex of learnerExchanges) {
+    if (ex.verdict === 'retry') {
+      retriesByConcept.set(ex.concept, (retriesByConcept.get(ex.concept) ?? 0) + 1);
+    }
+  }
   const top = Object.entries(conceptStates)
-    .sort((a, b) => b[1].asked - a[1].asked || a[0].localeCompare(b[0]))
+    .sort(
+      (a, b) =>
+        (retriesByConcept.get(b[0]) ?? 0) - (retriesByConcept.get(a[0]) ?? 0) ||
+        b[1].asked - a[1].asked ||
+        a[0].localeCompare(b[0]),
+    )
     .slice(0, CONCEPT_TIER_PAGE_COUNT);
   const anchored = manifest.alignment
     .filter((a) => a.md_char_start !== null && a.md_char_end !== null)
