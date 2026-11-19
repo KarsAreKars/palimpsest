@@ -28,11 +28,16 @@
  *    legitimately appear inside math anyway.
  */
 
-/** [CONCEPTS …] — concept names in three shelves, as emitted. */
+/** [CONCEPTS …] — concept names in three shelves, as emitted. An
+ *  optional `goal:` section (Wave 'Learn Mode' planRoute) names the
+ *  route's destination; the desk draws the shelves as a PATH to it. */
 export interface ConceptMapShelves {
   known: string[];
   edge: string[];
   unknown: string[];
+  /** The stated goal this catalogue is a route toward, when the plan
+   *  filed one. Optional — the plain catalogue carries none. */
+  goal?: string;
 }
 
 export interface ParsedProfessorMessage {
@@ -279,7 +284,17 @@ export function parseProfessorTags(raw: string): ParsedProfessorMessage {
             .map((s) => s.trim())
             .filter(Boolean);
         };
-        conceptMap = { known: grab('known'), edge: grab('edge'), unknown: grab('unknown') };
+        // The route's destination, optional: `goal:…` — one name, the
+        // last section. (The known/edge/unknown arms of the body never
+        // contain a `goal:` segment, so a plain grab is safe.)
+        const goalHit = /(?:^|[;\s])goal:([^;\]]*)/.exec(v);
+        const goal = goalHit?.[1]?.trim();
+        conceptMap = {
+          known: grab('known'),
+          edge: grab('edge'),
+          unknown: grab('unknown'),
+          ...(goal ? { goal } : {}),
+        };
         break;
       }
       case 'DERIVE': {

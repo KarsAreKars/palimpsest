@@ -56,6 +56,12 @@ import {
   STUCK_THRESHOLD,
   type LearnerState,
 } from '@/services/professor/learner';
+import { loadProfile, saveProfile, type LearnerProfile } from '@/services/professor/learnerProfile';
+import { planRoute, type RouteSeed, type StudyRoute } from '@/services/professor/planRoute';
+import { buildPracticeQuestion, composePracticeQueue } from '@/services/professor/practice';
+import { syncProfileGraph, toneOf } from '@/services/professor/conceptGraph';
+import { slugifyConcept } from '@/services/professor/annotations';
+import type { TOCItem } from '@/libs/document';
 import { dueCards } from '@/services/professor/scheduler';
 import EmptyState from '../EmptyState';
 
@@ -88,11 +94,17 @@ const StudyTab: React.FC<{ bookKey: string }> = ({ bookKey }) => {
   const booknotes = useBookDataStore((s) => s.booksData[bookKey]?.config?.booknotes);
   const [learner, setLearner] = useState<LearnerState | null>(null);
   const [notes, setNotes] = useState('');
+  // The reader's own account (additive, per reader): the stated study
+  // goal drives the route + practice lane; the knowledge graph rides the
+  // same file, synced from this book's ledger below.
+  const [profile, setProfile] = useState<LearnerProfile | null>(null);
+  const [goalDraft, setGoalDraft] = useState('');
 
   const reload = useCallback(async () => {
     const book = getBookData(bookKey)?.book;
     if (!appService || !book) return;
-    setLearner(await loadLearner(appService, book));
+    const learnerState = await loadLearner(appService, book);
+    setLearner(learnerState);
     setNowTick(Date.now()); // ledger due-dates are read against "now"
     try {
       setNotes(
@@ -100,6 +112,15 @@ const StudyTab: React.FC<{ bookKey: string }> = ({ bookKey }) => {
       );
     } catch {
       setNotes('');
+    }
+    const loaded = await loadProfile(appService);
+    // Opportunistic, additive, and never blocking: fold this book's
+    // ledger into the cross-book map; save only when the map moved.
+    const synced = syncProfileGraph(loaded, book.hash, learnerState);
+    setProfile(synced);
+    setGoalDraft(synced.study_goal ?? '');
+    if (synced !== loaded) {
+      void saveProfile(appService, synced).catch(() => undefined);
     }
   }, [bookKey, appService, getBookData]);
 
@@ -116,6 +137,77 @@ const StudyTab: React.FC<{ bookKey: string }> = ({ bookKey }) => {
         ({ concept }) => concept !== 'uncategorized' && concept !== 'chapter_session',
       )
     : [];
+
+  // ── PLAN + PRACTICE + the map (Wave 'Learn Mode') ────────────────────────
+  // Seeds come from the book's own structure (King R6) — the TOC is the
+  // lesson plan, read in its order. Cheap and local, exactly as ruled.
+  const tocSeeds: RouteSeed[] = (() => {
+    const out: RouteSeed[] = [];
+    const seen = new Set<string>();
+    const walk = (items: TOCItem[]) => {
+      for (const item of items) {
+        const slug = slugifyConcept(item.label);
+        if (slug.length >= 3 && !seen.has(slug)) {
+          seen.add(slug);
+          out.push({
+            name: item.label.trim(),
+            ...(Number.isFinite(item.index) ? { page: item.index + 1 } : {}),
+          });
+        }
+        if (item.subitems?.length) walk(item.subitems);
+      }
+    };
+    walk(getBookData(bookKey)?.bookDoc?.toc ?? []);
+    return out.slice(0, 40);
+  })();
+
+  // The visible route: from current mastery to the stated goal. Pure and
+  // cheap, so mastery flips re-route on the next render — the plan adapts.
+  const route: StudyRoute | null = (() => {
+    const goal = profile?.study_goal;
+    if (!goal || !learner) return null;
+    const pages: Record<string, number> = {};
+    for (const ex of learner.exchanges) {
+      if (Number.isFinite(ex.page)) pages[ex.concept] = ex.page;
+    }
+    return planRoute({
+      goal,
+      conceptStates: learner.concept_states,
+      seeds: tocSeeds,
+      book: getBookData(bookKey)?.book?.hash,
+      pages,
+    });
+  })();
+
+  // Practice is its own mode: the FSRS due queue interleaved with varied
+  // problems from the route's nodes (or the ledger's engaged concepts).
+  const practiceItems = learner
+    ? composePracticeQueue({
+        conceptStates: learner.concept_states,
+        route: route ?? undefined,
+        now: nowTick,
+      })
+    : [];
+
+  // The cross-book map, librarian order: what is proved, what is forming,
+  // what waits; freshest review first within a tone.
+  const TONE_RANK = { known: 0, edge: 1, unknown: 2 } as const;
+  const graphNodes = Object.values(profile?.concept_graph ?? {})
+    .sort(
+      (a, b) =>
+        TONE_RANK[toneOf(a)] - TONE_RANK[toneOf(b)] ||
+        (b.last_review_ts ?? 0) - (a.last_review_ts ?? 0),
+    )
+    .slice(0, 30);
+
+  const saveGoal = async () => {
+    if (!appService || !profile) return;
+    const goal = goalDraft.trim();
+    const { study_goal: _drop, ...rest } = profile;
+    const next: LearnerProfile = goal ? { ...rest, study_goal: goal } : rest;
+    setProfile(next);
+    await saveProfile(appService, next).catch(() => undefined);
+  };
 
   const reviewDue = (concept: string) => {
     const pretty = concept.replace(/_/g, ' ');
@@ -651,6 +743,121 @@ const StudyTab: React.FC<{ bookKey: string }> = ({ bookKey }) => {
                     </li>
                   ))}
                 </ul>
+              </>
+            )}
+            {/* PRACTICE (Wave 'Learn Mode') — its own mode beside 'Due for
+                review': a focused run of checks over the due queue plus the
+                route's forming nodes. The professor runs it through the
+                ordinary voice loop; verdicts land on the ledger the usual
+                way. */}
+            {learner && (
+              <>
+                <p className='content font-size-base mt-1'>{_('Practice')}</p>
+                <div className='mt-1 flex items-center gap-1.5'>
+                  <input
+                    className='border-ink bg-paperlight flex-1 border px-2 py-1 text-[12px] italic outline-none placeholder:text-mutedink/70'
+                    value={goalDraft}
+                    onChange={(e) => setGoalDraft(e.target.value)}
+                    placeholder={_('What are you working toward?')}
+                    aria-label={_('Study goal')}
+                  />
+                  <StampButton onClick={() => void saveGoal()}>{_('Set course')}</StampButton>
+                </div>
+                {route && (
+                  <>
+                    <p className='typed text-mutedink mt-1 text-[9px] leading-relaxed'>
+                      {_('THE ROAD TO {{goal}} — WHAT YOU OWN, WHAT IS FORMING, WHAT WAITS.', {
+                        goal: route.goalLabel.toUpperCase(),
+                      })}
+                    </p>
+                    <ol className='border-faint mt-1 border-l pl-2'>
+                      {route.nodes.map((n) => (
+                        <li
+                          key={n.name}
+                          className='text-[12px] leading-relaxed'
+                          style={{
+                            color:
+                              n.role === 'goal'
+                                ? 'var(--stamp)'
+                                : n.mastery === 'known'
+                                  ? 'var(--stamp)'
+                                  : n.mastery === 'edge'
+                                    ? 'var(--sage)'
+                                    : 'var(--muted)',
+                          }}
+                        >
+                          {n.role === 'goal' ? '◈ ' : ''}
+                          {n.label}
+                        </li>
+                      ))}
+                    </ol>
+                  </>
+                )}
+                {practiceItems.length > 0 && (
+                  <>
+                    <div className='mt-1.5 flex items-center justify-between gap-2'>
+                      <span className='typed text-mutedink text-[9px]'>
+                        {_('{{count}} CHECKS READY', { count: practiceItems.length })}
+                      </span>
+                      <StampButton
+                        className='flex items-center gap-1'
+                        onClick={() => {
+                          const q = buildPracticeQuestion(practiceItems);
+                          if (q) askProfessorFromUI(bookKey, q);
+                        }}
+                      >
+                        <PiSparkle size={12} />
+                        {_('Practice')}
+                      </StampButton>
+                    </div>
+                    <ul className='mt-0.5'>
+                      {practiceItems.map((it) => (
+                        <li key={it.concept} className='text-[12px] leading-relaxed'>
+                          <span
+                            style={{
+                              color: it.kind === 'due' ? 'var(--stamp)' : 'var(--sage)',
+                            }}
+                          >
+                            {it.kind === 'due' ? _('back for review') : _('forming')}
+                          </span>{' '}
+                          <span className='text-ink'>{it.concept.replace(/_/g, ' ')}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </>
+                )}
+              </>
+            )}
+            {/* The map of what you know (Wave 'Learn Mode') — the minimal
+                knowledge graph across every book, colored by mastery; a tap
+                brings the concept back for review. */}
+            {graphNodes.length > 0 && (
+              <>
+                <p className='content font-size-base mt-1'>{_('The map of what you know')}</p>
+                <p className='typed text-mutedink mt-0.5 text-[9px] leading-relaxed'>
+                  {_(
+                    'EVERY IDEA YOU HAVE TOUCHED, IN EVERY BOOK ON THE DESK — TAP ONE AND THE PROF BRINGS IT BACK FOR A LOOK.',
+                  )}
+                </p>
+                <div className='mt-1 flex flex-wrap gap-x-2 gap-y-1'>
+                  {graphNodes.map((n) => (
+                    <button
+                      key={n.name}
+                      className='text-[12px] italic underline-offset-2 hover:underline'
+                      style={{
+                        color:
+                          toneOf(n) === 'known'
+                            ? 'var(--stamp)'
+                            : toneOf(n) === 'edge'
+                              ? 'var(--sage)'
+                              : 'var(--muted)',
+                      }}
+                      onClick={() => reviewDue(n.name)}
+                    >
+                      {n.name.replace(/_/g, ' ')}
+                    </button>
+                  ))}
+                </div>
               </>
             )}
             {queue.length > 0 && (

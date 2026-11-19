@@ -42,6 +42,10 @@ export interface ConceptMapData {
   known: ConceptMapEntry[];
   edge: ConceptMapEntry[];
   unknown: ConceptMapEntry[];
+  /** The route's destination (Wave 'Learn Mode' planRoute), when the
+   *  filed catalogue is a path toward a stated goal. Optional — plain
+   *  catalogues (and every pre-Wave block) carry none. */
+  goal?: string;
 }
 
 export interface DerivationStep {
@@ -286,6 +290,7 @@ export function resolveConceptThreads(
     known: mapShelf(shelves.known),
     edge: mapShelf(shelves.edge),
     unknown: mapShelf(shelves.unknown),
+    ...(shelves.goal ? { goal: shelves.goal } : {}),
   };
 }
 
@@ -369,7 +374,16 @@ export function clampConceptShelves(
   prev: ConceptMapData | null,
   next: ConceptMapShelves,
 ): ConceptMapShelves {
-  if (!prev) return { known: [...next.known], edge: [...next.edge], unknown: [...next.unknown] };
+  // The goal is not clamped: it is the plan's destination, replaced only
+  // by a newly stated one; a shelves-only re-file keeps the old goal.
+  const goal = next.goal ?? prev?.goal;
+  if (!prev)
+    return {
+      known: [...next.known],
+      edge: [...next.edge],
+      unknown: [...next.unknown],
+      ...(goal ? { goal } : {}),
+    };
   const prevShelf = new Map<string, DeskShelf>();
   for (const e of prev.known) prevShelf.set(e.name, 'known');
   for (const e of prev.edge) prevShelf.set(e.name, 'edge');
@@ -387,7 +401,7 @@ export function clampConceptShelves(
   file(next.known, 'known');
   file(next.edge, 'edge');
   file(next.unknown, 'unknown');
-  return result;
+  return { ...result, ...(goal ? { goal } : {}) };
 }
 
 /** Steps in derivation blocks are numbered with one running ordinal across

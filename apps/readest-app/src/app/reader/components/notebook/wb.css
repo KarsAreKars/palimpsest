@@ -695,6 +695,31 @@ math-field.workbench-math-field[read-only] {
   color: var(--muted);
 }
 
+/* ---------- the route slip (Wave 'Learn Mode' — the visible plan) ------ */
+.wb-route-path {
+  list-style: none;
+  margin: 0;
+  padding: 0 0 0 10px;
+  border-left: 1px solid color-mix(in srgb, var(--ink) 25%, transparent);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+}
+
+.wb-route-goal {
+  border-color: var(--stamp);
+  color: var(--stamp);
+  text-transform: none;
+  letter-spacing: normal;
+  font-size: 9.5px;
+  padding: 2px 6px 1px;
+}
+
+.wb-route-goal::before {
+  content: '\25C8\00a0';
+}
+
 /* ---------- teach-back captions + the probe-signal marker (S1) ---------- */
 .wb-teachback-caption {
   font-family: 'Special Elite', 'Courier New', monospace;

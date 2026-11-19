@@ -12,6 +12,7 @@
 import environmentConfig from '@/services/environment';
 import type { AppService } from '@/types/system';
 import { slugifyConcept } from './annotations';
+import type { GraphNode } from './conceptGraph';
 
 export const LEARNER_PROFILE_PATH = 'professor/learner-profile.json';
 
@@ -33,12 +34,27 @@ export type ProfileVoice = (typeof PROFILE_VOICES)[number];
 /** Cap on owned-concept names injected into the prompt line. */
 export const PROFILE_OWNED_CONCEPT_MAX = 8;
 
+/** Cap on the stated study goal's length — a destination, not an essay. */
+export const PROFILE_GOAL_MAX_CHARS = 80;
+
+/** Cap on knowledge-graph nodes carried in the profile file. */
+export const PROFILE_GRAPH_MAX_NODES = 1000;
+
 export interface LearnerProfile {
   pace?: ProfilePace;
   /** Concepts the reader says they already own (slugs, deduped). */
   owned_concepts?: string[];
   probe_level?: number; // 1..6
   voice?: ProfileVoice;
+  /** The reader's stated study goal, plain words (Wave 'Learn Mode'):
+   *  the PLAN's destination — the route and the practice lane are laid
+   *  toward it. A preference, never a gate. */
+  study_goal?: string;
+  /** The minimal cross-book knowledge graph (Wave 'Learn Mode', audit
+   *  Ruling 5 #3): 1-bit mastery + timestamps + book/page sources per
+   *  [CONCEPT:name] node, synced from each book's ledger by
+   *  conceptGraph.ts. Additive; absent until the first sync. */
+  concept_graph?: Record<string, GraphNode>;
 }
 
 export const emptyProfile = (): LearnerProfile => ({});
@@ -47,7 +63,9 @@ export const isEmptyProfile = (p: LearnerProfile): boolean =>
   p.pace === undefined &&
   p.owned_concepts === undefined &&
   p.probe_level === undefined &&
-  p.voice === undefined;
+  p.voice === undefined &&
+  p.study_goal === undefined &&
+  p.concept_graph === undefined;
 
 /**
  * Tolerant parse — corrupt files degrade to the empty profile, never throw
@@ -84,6 +102,46 @@ export function normalizeProfile(raw: unknown): LearnerProfile {
       ),
     ];
     if (slugs.length > 0) out.owned_concepts = slugs;
+  }
+  const goal = r['study_goal'];
+  if (typeof goal === 'string' && goal.trim().length > 0) {
+    const clean = goal.trim().slice(0, PROFILE_GOAL_MAX_CHARS);
+    if (clean) out.study_goal = clean;
+  }
+  const graph = r['concept_graph'];
+  if (graph && typeof graph === 'object' && !Array.isArray(graph)) {
+    const cleanGraph: Record<string, GraphNode> = {};
+    for (const [name, rawNode] of Object.entries(graph).slice(0, PROFILE_GRAPH_MAX_NODES)) {
+      if (!rawNode || typeof rawNode !== 'object') continue;
+      const n = rawNode as Record<string, unknown>;
+      if (typeof n['known'] !== 'boolean') continue; // the 1-bit is mandatory
+      const sources = Array.isArray(n['sources'])
+        ? n['sources']
+            .filter(
+              (s): s is Record<string, unknown> =>
+                !!s &&
+                typeof s === 'object' &&
+                typeof (s as Record<string, unknown>)['book'] === 'string',
+            )
+            .map((s) => {
+              const page = s['page'];
+              return {
+                book: String(s['book']),
+                ...(typeof page === 'number' && Number.isFinite(page) ? { page } : {}),
+              };
+            })
+        : [];
+      const lastTs = n['last_review_ts'];
+      cleanGraph[name] = {
+        name: typeof n['name'] === 'string' ? n['name'] : name,
+        known: n['known'],
+        ...(typeof lastTs === 'number' && Number.isFinite(lastTs)
+          ? { last_review_ts: lastTs }
+          : {}),
+        sources,
+      };
+    }
+    if (Object.keys(cleanGraph).length > 0) out.concept_graph = cleanGraph;
   }
   return out;
 }

@@ -188,6 +188,50 @@ const ConceptMapSlip: React.FC<{
   );
 };
 
+/** The route slip (Wave 'Learn Mode' — the visible plan): the filed
+ *  catalogue read as a PATH, shelves in walking order with the goal as
+ *  the destination. Every chip travels to its thread like the plain
+ *  catalogue's; the destination is where the walk is headed, not yet a
+ *  place the student has been. */
+const RouteSlip: React.FC<{
+  map: ConceptMapData;
+  onOpen: (threadId: string) => void;
+}> = ({ map, onOpen }) => {
+  const _ = useTranslation();
+  const goal = map.goal ?? '';
+  // The goal never appears twice: if the professor also filed it on a
+  // shelf, the destination row carries it.
+  const steps = [...map.known, ...map.edge, ...map.unknown].filter(
+    (e) => e.name.toLowerCase() !== goal.toLowerCase(),
+  );
+  return (
+    <div className='wb-map wb-route'>
+      <p className='wb-map-caption'>{_('THE ROAD TO {{goal}}', { goal: goal.toUpperCase() })}</p>
+      <ol className='wb-route-path'>
+        {steps.map((entry) => (
+          <li key={entry.name} className='wb-route-step'>
+            {entry.threadId ? (
+              <button
+                type='button'
+                className='wb-chip wb-map-chip'
+                aria-label={_('Open the thread on {{concept}}', { concept: entry.name })}
+                onClick={() => onOpen(entry.threadId!)}
+              >
+                {entry.name}
+              </button>
+            ) : (
+              <span className='wb-chip wb-map-chip wb-map-chip-dim'>{entry.name}</span>
+            )}
+          </li>
+        ))}
+        <li className='wb-route-step wb-route-dest'>
+          <span className='wb-chip wb-route-goal'>{goal}</span>
+        </li>
+      </ol>
+    </div>
+  );
+};
+
 /** The "consulting the book" mark under a block whose professor consulted
  *  pages via [LOOK] (s2 §8 — landed with wave A per audit R7a). */
 const ConsultMark: React.FC<{ pages: number[] }> = ({ pages }) => {
@@ -367,9 +411,13 @@ export const BlockBody: React.FC<BlockBodyProps> = ({
       <p className='wb-byline'>{_(b.author === 'professor' ? 'THE PROFESSOR' : 'YOU')}</p>
       <div className='wb-content'>{renderContent(b.content, quoteForPage, onGoPage)}</div>
       {b.author === 'professor' && <VoiceControl {...voice} />}
-      {b.author === 'professor' && b.conceptMap && (
-        <ConceptMapSlip map={b.conceptMap} onOpen={onOpenThread} />
-      )}
+      {b.author === 'professor' &&
+        b.conceptMap &&
+        (b.conceptMap.goal ? (
+          <RouteSlip map={b.conceptMap} onOpen={onOpenThread} />
+        ) : (
+          <ConceptMapSlip map={b.conceptMap} onOpen={onOpenThread} />
+        ))}
       {b.author === 'professor' && b.lookedUp && <ConsultMark pages={b.lookedUp} />}
       {b.author === 'professor' && b.probe && (
         <ProbeRow picked={b.probePicked} onPick={(s, m) => onPickProbe(b.id, s, m)} />
