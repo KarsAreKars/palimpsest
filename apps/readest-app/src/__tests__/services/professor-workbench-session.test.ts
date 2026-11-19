@@ -98,9 +98,11 @@ describe('sendWorkbenchTurn — the pack rides every turn (Finding B fix)', () =
     expect(message).toContain('Entropy measures the dispersal of heat');
     // The citation whitelist the prompt addendum names.
     expect(message).toContain('Pages in your context: 1, 2, 3');
-    // T3 still rides along: transcript, where-we-are, the student's words.
+    // T3 still rides along: transcript + the student's words. The
+    // "where we are" self-echo tier was dropped (audit #30 — redundant
+    // with the transcript summary).
     expect(message).toContain('The workbench transcript so far');
-    expect(message).toContain('Where we are');
+    expect(message).not.toContain('Where we are');
     expect(message).toContain('The student now says: why does entropy increase?');
   });
 
@@ -188,6 +190,25 @@ describe('startWorkbenchSession — local-mode pack cap (the localMode wiring)',
     expect(sent.messages[0]!.content).toContain('full text layer, with [Page N] markers');
   });
 });
+describe('contract trim (#31) — one-line closer, no per-turn restatement', () => {
+  test('the turn closes with the answer-first reminder, not the old contract paragraph', async () => {
+    const callbacks = cb();
+    await sendWorkbenchTurn({
+      bookKey: 'book-1',
+      history,
+      userContent: 'what is entropy, plainly?',
+      aiSettings,
+      cb: callbacks,
+    });
+    const sent = streamTextMock.mock.calls[0]![0] as { messages: Array<{ content: string }> };
+    const message = sent.messages[0]!.content;
+    expect(message).toContain('Answer first, in character');
+    // The old per-turn restatement of provenance + ladder + tags is gone.
+    expect(message).not.toContain('Respond in character per the workbench contract');
+    expect(message).not.toContain('teach with provenance (WHAT from the book');
+  });
+});
+
 describe('startWorkbenchSession — tiered opening', () => {
   test('opening message carries the pack and the citation whitelist', async () => {
     const callbacks = cb();

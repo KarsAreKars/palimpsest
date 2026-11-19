@@ -198,7 +198,10 @@ export async function askProfessor(req: TutorRequest): Promise<void> {
 }
 
 // ---------------------------------------------------------------------------
-// Notebook distillation (HP-4, plan §7) — exchange → study note in notes.md
+// Notebook distillation (HP-4, plan §7) — exchange → study note in notes.md.
+// ON-DEMAND ONLY (learning-engine audit #14): this seam exists for an
+// explicit "keep this" from the reader, NOT a second generation per
+// exchange. The per-exchange auto-distillation was removed in Wave 1.
 // ---------------------------------------------------------------------------
 
 export interface DistillRequest {

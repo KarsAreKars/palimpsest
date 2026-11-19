@@ -18,9 +18,12 @@ export const LEARNER_PROFILE_PATH = 'professor/learner-profile.json';
 export const PROFILE_PACES = ['deliberate', 'steady', 'swift'] as const;
 export type ProfilePace = (typeof PROFILE_PACES)[number];
 
-/** Preferred probe depth — how high the disclosure ladder climbs before the
- *  professor releases a full answer (Bloom ceiling 1..6, matching the
- *  concept history's bloom scale in learner.ts). */
+/** Preferred probe depth on PROFESSOR-POSED checks — how high the hint
+ *  ladder climbs before the professor releases a full answer when the
+ *  check was his idea (Bloom ceiling 1..6, matching the concept history's
+ *  bloom scale in learner.ts). With the Bloom gates dropped (audit #4)
+ *  this IS the release policy for checks; a question the learner asks
+ *  outright is always answered immediately, whatever this says. */
 export const PROFILE_PROBE_MIN = 1;
 export const PROFILE_PROBE_MAX = 6;
 
@@ -118,8 +121,8 @@ export async function loadProfileCurrent(): Promise<LearnerProfile> {
 /**
  * The profile as 0–5 prompt lines (3–5 when anything is set — the header
  * plus one line per set field). Empty profile → []. Each line is short and
- * human; the professor reads preference, the log's Bloom counts remain the
- * release-gate authority (PROFESSOR_SYSTEM_PROMPT's ladder is untouched).
+ * human. probe_level is a stance preference for checks the professor poses
+ * (audit #29) — it is not a gate on the learner's own questions.
  */
 export function profileLinesForPrompt(profile: LearnerProfile): string[] {
   const p = normalizeProfile(profile);
@@ -134,7 +137,9 @@ export function profileLinesForPrompt(profile: LearnerProfile): string[] {
   else if (p.pace === 'swift')
     lines.push('- They move swiftly — keep explanations tight and get to the question.');
   if (typeof p.probe_level === 'number')
-    lines.push(`- Probe them up to Bloom ${p.probe_level} before releasing a full answer.`);
+    lines.push(
+      `- On checks you pose, probe them up to Bloom ${p.probe_level} before releasing the full answer — but a question they ask outright is always answered immediately.`,
+    );
   if (p.owned_concepts && p.owned_concepts.length > 0)
     lines.push(
       `- They say they already own: ${p.owned_concepts.slice(0, PROFILE_OWNED_CONCEPT_MAX).join(', ')}.`,

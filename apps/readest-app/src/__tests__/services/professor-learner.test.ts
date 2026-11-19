@@ -53,15 +53,27 @@ describe('applyExchange', () => {
     expect(s.concept_states['associated_primes']!.bloom).toBe(1);
   });
 
-  it('a resolved check-me raises the level, capped at 6', () => {
+  it('a check-me with an explicit pass verdict raises the level, capped at 6 (#33)', () => {
     let s = applyExchange(emptyLearner(), ex({}));
     s = applyExchange(s, ex({ concept: 'other_thing' })); // settles first as resolved
-    s = applyExchange(s, ex({ question_kind: 'check-me', resolved: true }));
-    expect(s.concept_states['associated_primes']!.bloom).toBe(3); // 2 → +1 for the pass
+    s = applyExchange(s, ex({ question_kind: 'check-me', verdict: 'pass' }));
+    expect(s.concept_states['associated_primes']!.bloom).toBe(3); // 2 → +1 for the graded pass
     for (let i = 0; i < 8; i++) {
-      s = applyExchange(s, ex({ question_kind: 'check-me', resolved: true }));
+      s = applyExchange(s, ex({ question_kind: 'check-me', verdict: 'pass' }));
     }
     expect(s.concept_states['associated_primes']!.bloom).toBeLessThanOrEqual(6);
+  });
+
+  it('a check-me with NO verdict is asked-only: never credit (#33)', () => {
+    let s = applyExchange(emptyLearner(), ex({}));
+    s = applyExchange(s, ex({ concept: 'other_thing' }));
+    // No graded outcome, even with a politely inferred "resolved" flag.
+    s = applyExchange(s, ex({ question_kind: 'check-me', resolved: true }));
+    expect(s.concept_states['associated_primes']!.bloom).toBe(2); // unchanged — asked, not learned
+    expect(s.concept_states['associated_primes']!.asked).toBe(2);
+    // A retry verdict never credits either.
+    s = applyExchange(s, ex({ question_kind: 'check-me', verdict: 'retry' }));
+    expect(s.concept_states['associated_primes']!.bloom).toBe(2);
   });
 
   it('settles the previous exchange resolved-flag by concept change', () => {

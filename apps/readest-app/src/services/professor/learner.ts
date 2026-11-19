@@ -11,8 +11,10 @@
  *     asked about — asking means they engaged but haven't got it yet.
  *   - Re-asking the SAME concept drops the level (min 1): the previous
  *     explanation didn't land. This is the stuck signal.
- *   - A resolved "check-me" exchange (the reader explains it back and the
- *     professor confirms) raises it (max 6).
+ *   - A "check-me" exchange raises the level (max 6) ONLY on an explicit
+ *     graded verdict of "pass". No verdict → asked-only: never credit,
+ *     never a penalty (audit #33 — the student model is fed by graded
+ *     outcomes, not by asks or by inferred "resolved" flags).
  *
  * Stuck rule (plan §6): a concept asked ≥ STUCK_THRESHOLD times means the
  * professor must switch strategy — never repeat an explanation — and offer
@@ -113,11 +115,10 @@ export function applyExchange(state: LearnerState, ex: LearnerExchange): Learner
   let bloom: number;
   if (!prev) {
     bloom = 2; // first contact: engaged, not yet mastered
-  } else if (
-    ex.question_kind === 'check-me' &&
-    (ex.verdict ? ex.verdict === 'pass' : ex.resolved)
-  ) {
-    bloom = Math.min(6, prev.bloom + 1);
+  } else if (ex.question_kind === 'check-me' && ex.verdict === 'pass') {
+    bloom = Math.min(6, prev.bloom + 1); // graded pass — the only source of credit
+  } else if (ex.question_kind === 'check-me') {
+    bloom = prev.bloom; // a check-me with no graded outcome is asked-only: no credit, no penalty
   } else {
     bloom = Math.max(1, prev.bloom - 1); // re-asking = the last explanation failed
   }

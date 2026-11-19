@@ -106,6 +106,11 @@ describe('profileLinesForPrompt', () => {
     expect(lines[0]).toContain('study profile');
     expect(lines.join('\n')).toContain('Bloom 5');
     expect(lines.join('\n')).toContain('already own: limits, primes');
+    // #29: probe_level is a stance preference for professor-posed checks,
+    // never a gate on the learner's own questions.
+    const probeLine = lines.find((l) => l.includes('Bloom 5'))!;
+    expect(probeLine).toContain('checks you pose');
+    expect(probeLine).toContain('always answered immediately');
   });
 
   it('caps the owned-concepts line at PROFILE_OWNED_CONCEPT_MAX names', () => {

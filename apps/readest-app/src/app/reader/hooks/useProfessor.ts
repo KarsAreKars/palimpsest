@@ -17,7 +17,7 @@ import { useReaderStore } from '@/store/readerStore';
 import { useEnv } from '@/context/EnvContext';
 import { useBookDataStore } from '@/store/bookDataStore';
 import { buildContextPack, type ProfessorExchange } from '@/services/professor/contextPack';
-import { askProfessor, distillNote } from '@/services/professor/tutor';
+import { askProfessor } from '@/services/professor/tutor';
 import { profTrace, profTraceReset, profTraceDump } from '@/services/professor/telemetry';
 import {
   captureVisiblePageImages,
@@ -44,7 +44,6 @@ import {
 import { PROF_ASK_EVENT } from '@/app/reader/components/notebook/StudyTab';
 import {
   appendExchange,
-  appendNote,
   emptyLearner,
   loadLearner,
   normalizeQKind,
@@ -344,7 +343,7 @@ export const useProfessor = ({ bookKey }: { bookKey: string }) => {
             if (safe.includes(']')) publishStreamingInk();
             voice.push(safe); // speaks at the first complete sentence — the tag can never reach the ear
           },
-          onDone: (full, meta) => {
+          onDone: (full) => {
             profTrace('llm-done', { chars: full.length });
             voice.finish();
             setPhase('idle');
@@ -396,9 +395,10 @@ export const useProfessor = ({ bookKey }: { bookKey: string }) => {
             scheduleGestureFade();
 
             // HP-4 question log (plan §6): fold the exchange into
-            // learner.json, refresh the cached concept history, then distill
-            // the study note (plan §7). All fire-and-forget — the overlay
-            // never waits on the log.
+            // learner.json and refresh the cached concept history.
+            // All fire-and-forget — the overlay never waits on the log.
+            // Study notes are distilled ON DEMAND only (audit #14) — no
+            // second generation per exchange.
             const concept =
               parsed.find(
                 (a): a is Extract<ProfessorAnnotation, { kind: 'concept' }> => a.kind === 'concept',
@@ -428,19 +428,6 @@ export const useProfessor = ({ bookKey }: { bookKey: string }) => {
               })
                 .then((state) => learnerByBook.set(bookKey, state))
                 .catch((e) => console.warn('[professor] learner log failed', e));
-              if (!meta.echo) {
-                const date = ts.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-                void distillNote({
-                  question: q,
-                  answer: cleaned,
-                  page: targetPage,
-                  concept,
-                  date,
-                  aiSettings,
-                })
-                  .then((note) => (note ? appendNote(appService, book, note) : undefined))
-                  .catch((e) => console.warn('[professor] note distillation failed', e));
-              }
             }
           },
           onError: (message) => {

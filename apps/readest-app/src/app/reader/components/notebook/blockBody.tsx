@@ -106,9 +106,10 @@ const STANCES: { stance: ProbeStance; label: string }[] = [
   { stance: 'work', label: 'I will work it' },
 ];
 
-/** The stance chip row under a [PROBE] block (s1 §5.2) — the sanctioned
- *  mid-session interaction: the chips replace a typed message and go inert
- *  after a pick. */
+/** The stance chip row under a [PROBE] block (s1 §5.2) — an OFFER, never a
+ *  gate (audit #20 + King's ruling R2): the answer above the chips is
+ *  already complete; the student may ignore the row entirely and just keep
+ *  typing. The chips replace a typed message and go inert after a pick. */
 const ProbeRow: React.FC<{
   picked?: ProbeStance;
   onPick: (stance: ProbeStance, message: string) => void;
@@ -118,7 +119,7 @@ const ProbeRow: React.FC<{
     <div
       className='wb-probe-row'
       role='group'
-      aria-label={_('Choose how the professor guides you')}
+      aria-label={_('Optional — pick how the professor guides you, or just keep talking')}
     >
       {STANCES.map(({ stance, label }) => (
         <button

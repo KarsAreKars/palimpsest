@@ -167,16 +167,6 @@ function summarizeLearner(state: LearnerState | null): string {
   return `Learner concept states (their study log across this book):\n${lines.join('\n')}`;
 }
 
-/** T3 — the rolling "where we are": the professor's own last answer, capped
- *  at 600 chars so it varies per turn without bloating the pack. */
-function summarizeWhereWeAre(blocks: WorkbenchBlock[]): string {
-  const last = [...blocks].reverse().find((b) => b.author === 'professor');
-  if (!last) return '';
-  const text =
-    last.content.length > 600 ? `${last.content.slice(0, 600)} …[trimmed]` : last.content;
-  return `Where we are — your last answer to this student (trimmed to 600 chars):\n${text}`;
-}
-
 /** Local/ollama mode: the assembled pack must fit LOCAL_PACK_MAX_CHARS. */
 const isLocalMode = (aiSettings: AISettings): boolean => aiSettings.provider === 'ollama';
 
@@ -308,7 +298,9 @@ export function composeWorkbenchOpening(args: {
  * in EVERY turn, so the professor stays grounded on turns 2+ instead of
  * answering from a 12-block history summary alone. Book tiers come first in
  * a fixed byte-stable order; the turn-varying T3 material (transcript,
- * where-we-are, checker, the student's words) rides last.
+ * checker, the student's words) rides last. (The "where we are" self-echo
+ * tier was dropped in the learning-engine audit #30 — redundant with the
+ * transcript summary.)
  */
 export function composeWorkbenchTurnMessage(args: {
   pack: ProfessorContextPack | null;
@@ -349,8 +341,6 @@ export function composeWorkbenchTurnMessage(args: {
   if (transcript) {
     parts.push(`The workbench transcript so far (Professor and Student alternate):\n${transcript}`);
   }
-  const whereWeAre = summarizeWhereWeAre(history);
-  if (whereWeAre) parts.push(whereWeAre);
   const learnerSummary = summarizeLearner(learner);
   if (learnerSummary) parts.push(learnerSummary);
   const profileLines = profileSummary(profile);
@@ -361,11 +351,11 @@ export function composeWorkbenchTurnMessage(args: {
     );
   }
   parts.push(`The student now says: ${userContent}`);
+  // One line, not a paragraph (audit #31): the system prompt carries the
+  // contract; restating it every turn trained ceremony over answer.
   parts.push(
-    'Respond in character per the workbench contract: teach with provenance (WHAT from the book with a page anchor, ' +
-      'WHERE IT CAME FROM as a story, WHY IT MATTERS), never reveal an answer before a genuine attempt — ' +
-      'climb the disclosure ladder one rung per exchange — math in $$ blocks, protocol tags only at the very end ' +
-      'on their own lines.',
+    'Answer first, in character — a question the student asks is answered completely now; ' +
+      'protocol tags only at the very end on their own lines.',
   );
   return parts.join('\n\n');
 }

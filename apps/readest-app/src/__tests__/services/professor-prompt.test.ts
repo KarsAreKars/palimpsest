@@ -1,8 +1,10 @@
 /**
  * Prompt contract tests (OpenMAIC pattern: prompts are assets with
- * regression tests). These strings are load-bearing pedagogy — the
- * disclosure ladder gates and the speech rules — ported from
- * THU-MAIC/OpenMAIC (MIT) on 2026-09-10. If an edit drops them, fail loud.
+ * regression tests). Re-scoped by the learning-engine audit (L5,
+ * 2026-11-18): ANSWER FIRST — the Bloom release gates are gone (#4), the
+ * ladder is scoped to professor-posed checks (#3), [PROBE] is an offer
+ * (#20/R2), provenance and visuals are repertoire (#16/#17). These tests
+ * pin the new contract and fail loud if the gates creep back.
  */
 import { describe, expect, test } from 'vitest';
 import {
@@ -19,9 +21,14 @@ describe('professor system prompt', () => {
     expect(PROFESSOR_SYSTEM_PROMPT).toContain('Rung 3');
   });
 
-  test('release gates are keyed to Bloom levels', () => {
-    expect(PROFESSOR_SYSTEM_PROMPT).toMatch(/Bloom 1–2.*ONE genuine stuck signal/s);
-    expect(PROFESSOR_SYSTEM_PROMPT).toMatch(/Bloom 5–6.*only on explicit request/s);
+  test('answer-first: the Bloom release gates are gone, the ladder is scoped to posed checks', () => {
+    // #4: no Bloom-keyed release gates anywhere.
+    expect(PROFESSOR_SYSTEM_PROMPT).not.toMatch(/Bloom 1–2/);
+    expect(PROFESSOR_SYSTEM_PROMPT).not.toMatch(/Bloom 5–6/);
+    expect(PROFESSOR_SYSTEM_PROMPT).not.toContain('Release gates, read from their concept history');
+    // #3: an asked question is answered immediately and completely.
+    expect(PROFESSOR_SYSTEM_PROMPT).toContain('answered immediately and completely');
+    expect(PROFESSOR_SYSTEM_PROMPT).toContain('never a gate on their questions');
   });
 
   test('speech rules: marks are never announced, words stand alone', () => {
@@ -30,9 +37,14 @@ describe('professor system prompt', () => {
     expect(PROFESSOR_SYSTEM_PROMPT).toContain('Point FIRST');
   });
 
-  test('spoken-word rule: no markdown, math said in words', () => {
+  test('answer shape is mode-dependent (#10): heard → spoken rules, read → full markdown/LaTeX', () => {
     expect(PROFESSOR_SYSTEM_PROMPT).toContain('read aloud');
-    expect(PROFESSOR_SYSTEM_PROMPT).toContain('no markdown');
+    expect(PROFESSOR_SYSTEM_PROMPT).toContain('No markdown');
+    expect(PROFESSOR_SYSTEM_PROMPT).toContain('LaTeX allowed, length by need');
+    // The unconditional 120-word cap is gone.
+    expect(PROFESSOR_SYSTEM_PROMPT).not.toContain(
+      'at most about 120 words unless the question genuinely needs more',
+    );
   });
 
   test('check-me protocol: correct the specific wrong turn first', () => {
@@ -87,8 +99,25 @@ describe('workbench 2.x addendum', () => {
     expect(PROFESSOR_WORKBENCH_ADDENDUM).toContain('viewBox="0 0 200 120"');
   });
 
+  test('probe is an offer, never a gate (#20): no thread-opening compulsion', () => {
+    expect(PROFESSOR_WORKBENCH_ADDENDUM).toContain('THE STANCE OFFER');
+    expect(PROFESSOR_WORKBENCH_ADDENDUM).toContain('[PROBE]');
+    expect(PROFESSOR_WORKBENCH_ADDENDUM).not.toContain('PROBE BEFORE YOU TEACH');
+    expect(PROFESSOR_WORKBENCH_ADDENDUM).not.toContain(
+      'when a thread starts, do not lecture first',
+    );
+  });
+
+  test('provenance + visuals are repertoire, not law (#16/#17)', () => {
+    expect(PROFESSOR_WORKBENCH_ADDENDUM).toContain('repertoire, not a ritual');
+    expect(PROFESSOR_WORKBENCH_ADDENDUM).toContain('THE VISUAL IS AN OFFER');
+    expect(PROFESSOR_WORKBENCH_ADDENDUM).not.toContain('Teach every concept three ways, in order');
+    expect(PROFESSOR_WORKBENCH_ADDENDUM).not.toContain('OPEN with the artifact');
+    expect(PROFESSOR_WORKBENCH_ADDENDUM).not.toContain('mechanical, not a matter of taste');
+  });
+
   test('pedagogy + lookup + voice + bridge paragraphs are appended additively', () => {
-    expect(PROFESSOR_WORKBENCH_ADDENDUM).toContain('PROBE BEFORE YOU TEACH');
+    expect(PROFESSOR_WORKBENCH_ADDENDUM).toContain('THE STANCE OFFER');
     expect(PROFESSOR_WORKBENCH_ADDENDUM).toContain('Looking things up');
     expect(PROFESSOR_WORKBENCH_ADDENDUM).toContain('[LOOK page:N]');
     expect(PROFESSOR_WORKBENCH_ADDENDUM).toContain('Spoken turns');
