@@ -20,12 +20,12 @@ jobs:
     runs-on: macos-15 # Apple Silicon (aarch64) — matches the owner's local build
     timeout-minutes: 60
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           submodules: recursive # foliate-js, tao, tauri plugins, turso plugin
 
-      - uses: pnpm/action-setup@v4 # version read from packageManager in root package.json
-      - uses: actions/setup-node@v6
+      - uses: pnpm/action-setup@v6 # version read from packageManager in root package.json
+      - uses: actions/setup-node@v7
         with:
           node-version: 24
           cache: pnpm
@@ -53,7 +53,7 @@ jobs:
         run: pnpm tauri build --target aarch64-apple-darwin --bundles dmg
 
       - name: Publish DMG to GitHub Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           # The workspace-level Cargo target dir wins: with --target aarch64-apple-darwin
           # the DMG lands at target/aarch64-apple-darwin/release/bundle/dmg/*.dmg (verified
