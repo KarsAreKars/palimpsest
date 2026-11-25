@@ -30,7 +30,9 @@ import { useBookDataStore } from '@/store/bookDataStore';
 import { getBookProgress } from '@/store/readerProgressStore';
 import { PROFESSOR_WORKBENCH_SYSTEM_PROMPT } from './prompt';
 import { buildTieredPack, type ProfessorContextPack } from './contextPack';
-import { loadLearner, type LearnerState } from './learner';
+import { loadLearner, masteryOf, type LearnerState } from './learner';
+import { parseProfessorTags } from './professorTags';
+import { renderStanceLine, signalOf, type StanceInput } from './stance';
 import { loadBookSource, lookupBookPages, type PageLookupResult } from './pageLookup';
 import { loadProfileCurrent, profileLinesForPrompt, type LearnerProfile } from './learnerProfile';
 
@@ -345,6 +347,7 @@ export function composeWorkbenchTurnMessage(args: {
   if (learnerSummary) parts.push(learnerSummary);
   const profileLines = profileSummary(profile);
   if (profileLines) parts.push(profileLines);
+  parts.push(renderStanceLine(stanceInputForTurn({ history, learner, profile, userContent })));
   if (checkerSummary) {
     parts.push(
       `Deterministic checker result for the student's latest work (trust this over your own reading): ${checkerSummary}`,
@@ -358,6 +361,46 @@ export function composeWorkbenchTurnMessage(args: {
       'protocol tags only at the very end on their own lines.',
   );
   return parts.join('\n\n');
+}
+
+// ---------------------------------------------------------------------------
+// Wave 3 — the stance decision table's row for this turn (audit Ruling 4).
+// The system prompt carries the whole table; the turn carries the ONE row
+// that applies, computed here from the transcript, the Wave 2 ledger, and
+// the profile — the model executes a stance, it no longer decides one.
+// ---------------------------------------------------------------------------
+
+/** A question-shaped message is always 'asked' (R1: answers are always
+ *  free — a side question mid-check is still a question). Otherwise the
+ *  turn is 'posed' exactly when the professor's last block left a question
+ *  or a teach-back open. Verdict and mastery come from the ledger's graded
+ *  window on the concept that block tagged. */
+function stanceInputForTurn(args: {
+  history: WorkbenchBlock[];
+  learner: LearnerState | null;
+  profile?: LearnerProfile;
+  userContent: string;
+}): StanceInput {
+  const { history, learner, profile, userContent } = args;
+  const lastProfessor = [...history].reverse().find((b) => b.author === 'professor');
+  const parsed = lastProfessor ? parseProfessorTags(lastProfessor.content) : null;
+  const asksQuestion = userContent.trim().endsWith('?');
+  const posedCheck =
+    !asksQuestion &&
+    parsed !== null &&
+    (parsed.display.includes('?') ||
+      parsed.teachbackAsk !== undefined ||
+      parsed.qkind === 'check-me');
+  const concept = parsed?.concept;
+  const cs = concept && learner ? learner.concept_states[concept] : undefined;
+  const graded = cs?.graded;
+  return {
+    initiation: posedCheck ? 'posed' : 'asked',
+    mastery: cs ? masteryOf(cs) : 'unknown',
+    verdict: graded && graded.length > 0 ? graded[graded.length - 1]! : 'none',
+    signal: signalOf(userContent),
+    ...(profile?.probe_level !== undefined ? { probeLevel: profile.probe_level } : {}),
+  };
 }
 
 // ---------------------------------------------------------------------------
