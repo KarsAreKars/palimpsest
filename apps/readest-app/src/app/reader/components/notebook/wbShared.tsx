@@ -19,10 +19,52 @@ export const Prose: React.FC<{ text: string }> = ({ text }) => (
       remarkPlugins={[streamdownMath.remarkPlugin]}
       rehypePlugins={[streamdownMath.rehypePlugin]}
     >
-      {text}
+      {normalizeProfessorMath(text)}
     </Streamdown>
   </div>
 );
+
+/**
+ * Normalize the professor's mixed math into Streamdown/KaTeX-clean markdown.
+ * The model emits a mishmash: `$$…$$` display blocks, bare `\(…\)` / `\[…\]`
+ * delimiters, trailing `$$` on a raw-LaTeX line, and inline `$…$`. KaTeX's
+ * remark plugin handles `$$…$$` and `$…$` but chokes on the rest ("Can't use
+ * '$' in math mode") and on bare `\lim \frac` sitting OUTSIDE any math node
+ * (renders as literal text). So:
+ *   1. `\(…\)` → `$…$` and `\[…\]` → `$$…$$`
+ *   2. `$$…$$` blocks: strip the delimiters, re-wrap, and discard any
+ *      trailing `$$` that leaked INSIDE the body (the `$`-in-math ParseError)
+ *   3. A line that is pure bare LaTeX (starts with `\` and has NO `$`) →
+ *      wrap the whole line in `$$…$$` so it renders as display math
+ */
+export function normalizeProfessorMath(text: string): string {
+  // \(…\) → $…$   \[…\] → $$…$$
+  let out = text
+    .replace(/\\\(/g, '$')
+    .replace(/\\\)/g, '$')
+    .replace(/\\\[/g, '$$')
+    .replace(/\\\]/g, '$$');
+
+  // $$…$$ blocks: strip and re-wrap; drop stray trailing $$ INSIDE the body.
+  out = out.replace(/\$\$([\s\S]*?)\$\$/g, (_m, body: string) => {
+    const cleaned = body.replace(/\$+/g, '').trim();
+    return cleaned ? `$${cleaned}$` : '';
+  });
+
+  // A whole line of pure bare LaTeX (starts with \, no $ left) → $$…$$
+  out = out
+    .split('\n')
+    .map((line) => {
+      const t = line.trim();
+      if (t.startsWith('\\') && !t.includes('$') && /\\(frac|lim|sum|int|sqrt|d|partial)/.test(t)) {
+        return `$$${t}$$`;
+      }
+      return line;
+    })
+    .join('\n');
+
+  return out;
+}
 
 /** The paper slip under a chip (hover-only; the aria-label carries the same
  *  words for everyone else). */

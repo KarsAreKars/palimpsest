@@ -273,7 +273,7 @@ export const DEFAULT_READSETTINGS: ReadSettings = {
   isSideBarPinned: true,
   notebookWidth: '25%',
   isNotebookPinned: false,
-  notebookActiveTab: 'notes',
+  notebookActiveTab: 'study',
   translationProvider: 'deepl',
   translateTargetLang: 'EN',
   wordLensAutoDownload: true,

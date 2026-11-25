@@ -1,6 +1,6 @@
 import clsx from 'clsx';
 import React from 'react';
-import { PiNotePencil, PiGraduationCap, PiBooks } from 'react-icons/pi';
+import { PiGraduationCap } from 'react-icons/pi';
 
 import { useEnv } from '@/context/EnvContext';
 import { useTranslation } from '@/hooks/useTranslation';
@@ -18,19 +18,13 @@ const NotebookTabNavigation: React.FC<NotebookTabNavigationProps> = ({
   const _ = useTranslation();
   const { appService } = useEnv();
 
-  // The AI chat tab is gone (2026-09-06): the Prof owns ask-the-book, and the
-  // assistant-ui runtime crashed the notebook outright. Four learning
-  // surfaces, always visible — notes must not hide behind an AI flag again.
-  // The workbench surface moved to the Desk (D1); the tab is gone
-  // (campaign default 1).
-  const tabs: NotebookTab[] = ['spine', 'notes', 'study'];
+  // Spine and Notes are gone (owner ruling 2026-11-25): the Learn surfaces
+  // (Study — due reviews, the route, practice, the concept graph) are what
+  // the notebook is for. One tab, no chooser.
+  const tabs: NotebookTab[] = ['study'];
 
   const getTabLabel = (tab: NotebookTab) => {
     switch (tab) {
-      case 'spine':
-        return _('Spine');
-      case 'notes':
-        return _('Notes');
       case 'study':
         return _('Study');
       default:
@@ -40,10 +34,6 @@ const NotebookTabNavigation: React.FC<NotebookTabNavigationProps> = ({
 
   const getTabIcon = (tab: NotebookTab) => {
     switch (tab) {
-      case 'spine':
-        return <PiBooks className='mx-auto' size={20} />;
-      case 'notes':
-        return <PiNotePencil className='mx-auto' size={20} />;
       case 'study':
         return <PiGraduationCap className='mx-auto' size={20} />;
       default:
