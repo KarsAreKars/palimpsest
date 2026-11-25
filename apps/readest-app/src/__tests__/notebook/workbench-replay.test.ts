@@ -23,6 +23,7 @@ import type { TranscriptBlock } from '@/app/reader/components/notebook/workbench
 // (the desk-sheet.test.ts idiom).
 vi.mock('@/app/reader/components/notebook/wbShared', () => ({
   Prose: ({ text }: { text: string }) => React.createElement('span', null, text),
+  Tex: ({ latex }: { latex: string }) => React.createElement('span', null, latex),
   Slip: ({ children }: { children?: React.ReactNode }) =>
     React.createElement('span', null, children),
   VerdictChip: () => null,

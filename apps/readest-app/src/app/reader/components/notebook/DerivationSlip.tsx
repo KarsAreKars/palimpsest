@@ -17,7 +17,7 @@ import React, { useRef, useState } from 'react';
 
 import { useTranslation } from '@/hooks/useTranslation';
 import type { TranscriptBlock, BlockCheck } from './workbenchChat';
-import { Prose, Slip, VerdictChip } from './wbShared';
+import { Slip, Tex, VerdictChip } from './wbShared';
 
 export type ReplayRowState = 'ghost' | 'active' | 'hidden';
 
@@ -152,7 +152,7 @@ const DerivationSlip: React.FC<{
               {ordinalBase + i + 1}
             </span>
             <div className='wb-step-body'>
-              <Prose text={`$$${s.latex}$$`} />
+              <Tex latex={s.latex} />
               {/* The finale suppresses the justification — the goal owns the eye. */}
               {s.justification && !goalBeat && (
                 <span className='wb-step-justify'>{s.justification}</span>
@@ -165,7 +165,7 @@ const DerivationSlip: React.FC<{
       {d.goalLatex && (
         <div className={`wb-goal-line${goalBeat ? ` ${REPLAY_GOAL_CLASS}` : ''}`}>
           <span className='wb-step-no'>{_('GOAL')}</span>
-          <Prose text={`$$${d.goalLatex}$$`} />
+          <Tex latex={d.goalLatex} display={false} />
         </div>
       )}
       {goal && (
