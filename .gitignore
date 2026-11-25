@@ -66,3 +66,4 @@ apps/readest.koplugin/native/localsend-bin/target/
 
 # Python sidecar caches
 __pycache__/
+*.pyc
