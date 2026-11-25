@@ -169,6 +169,33 @@ export function decideStance(input: StanceInput): Stance {
 }
 
 // ---------------------------------------------------------------------------
+// Worked-example fading (Wave 4, audit Ruling 4 WAVE 4; LEARNING_SCIENCE
+// §7: Kalyuga et al. 2001 expertise reversal — worked examples help
+// novices and HURT experts, so the example shrinks as the ledger's
+// graded mastery rises: full → partial → none).
+// ---------------------------------------------------------------------------
+
+export type WorkedExampleDepth = 'full' | 'partial' | 'none';
+
+export function workedExampleDepth(mastery: Mastery): WorkedExampleDepth {
+  switch (mastery) {
+    case 'known':
+      return 'none'; // expertise reversal guard: examples now cost learning
+    case 'edge':
+      return 'partial'; // completion strategy (Paas & van Merriënboer 1994)
+    default:
+      return 'full'; // novice: complete examples beat unaided search (Sweller)
+  }
+}
+
+const WORKED_EXAMPLE_DEPTH_LINES: Record<WorkedExampleDepth, string> = {
+  full: 'Worked-example depth FULL — demonstrate the whole worked analog, every step, slowly (no graded evidence yet: complete examples are the right load for a novice, §7).',
+  partial:
+    'Worked-example depth PARTIAL — work the early steps aloud, then leave the LAST step blank for the learner to complete (faded completion problem, §7).',
+  none: 'Worked-example depth NONE — the study log says they own this; a worked example now is over-scaffolding (Kalyuga expertise reversal, §17.5) — pose the problem directly.',
+};
+
+// ---------------------------------------------------------------------------
 // Rendering — the prompt carries the whole table; the turn carries its row.
 // ---------------------------------------------------------------------------
 
@@ -193,14 +220,22 @@ function renderCondition(c: StanceCondition): string {
 
 /** The whole table, numbered, first-match-wins — for the system prompt. */
 export function renderStanceTable(): string {
-  return STANCE_ROWS.map(
+  const rows = STANCE_ROWS.map(
     (r, n) => `  ${n + 1}. ${renderCondition(r.if)} → ${r.stance} — ${r.because}.`,
   ).join('\n');
+  return (
+    rows +
+    '\n  Worked-example stances fade with demonstrated competence: full example → ' +
+    'partial (last step left blank) → none, as the study log’s mastery rises (Kalyuga, §7).'
+  );
 }
 
 /** The one applicable row, for the turn message — the desk's lookup, handed
- *  to the model so the row is executed, not re-derived. */
+ *  to the model so the row is executed, not re-derived. Worked-example
+ *  rows carry their Kalyuga fading depth (full/partial/none) with them. */
 export function renderStanceLine(input: StanceInput): string {
   const row = matchingRow(input);
-  return `This turn’s stance, from the decision table (execute it; do not re-decide): ${row.stance} — ${row.because}.`;
+  const line = `This turn’s stance, from the decision table (execute it; do not re-decide): ${row.stance} — ${row.because}.`;
+  if (row.stance !== 'worked-example') return line;
+  return `${line} ${WORKED_EXAMPLE_DEPTH_LINES[workedExampleDepth(input.mastery)]}`;
 }

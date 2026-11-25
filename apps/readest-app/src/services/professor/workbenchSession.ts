@@ -33,6 +33,7 @@ import { buildTieredPack, type ProfessorContextPack } from './contextPack';
 import { loadLearner, masteryOf, type LearnerState } from './learner';
 import { parseProfessorTags } from './professorTags';
 import { renderStanceLine, signalOf, type StanceInput } from './stance';
+import { diagnoseFailedCheck } from './diagnose';
 import { loadBookSource, lookupBookPages, type PageLookupResult } from './pageLookup';
 import { loadProfileCurrent, profileLinesForPrompt, type LearnerProfile } from './learnerProfile';
 
@@ -347,7 +348,26 @@ export function composeWorkbenchTurnMessage(args: {
   if (learnerSummary) parts.push(learnerSummary);
   const profileLines = profileSummary(profile);
   if (profileLines) parts.push(profileLines);
-  parts.push(renderStanceLine(stanceInputForTurn({ history, learner, profile, userContent })));
+  const stanceTurn = stanceTurnContext({ history, learner, profile, userContent });
+  parts.push(renderStanceLine(stanceTurn.input));
+  // Wave 4 (Specificity Engine): when the failed answer matches a stored,
+  // book-verified wrong reading, the repair NAMES it and cites the page —
+  // generic feedback is the fallback, never the default (Oppia; §11).
+  const repairLibrary = learner?.misconception_library;
+  if (repairLibrary && stanceTurn.posedCheck && stanceTurn.concept) {
+    const repair = diagnoseFailedCheck({
+      answerText: userContent,
+      concept: stanceTurn.concept,
+      library: repairLibrary,
+    });
+    if (repair) {
+      parts.push(
+        `The student's answer matches a wrong reading this book's notes already name: ${repair.text} ` +
+          "Name THAT specific wrong reading in the student's own terms — never a generic " +
+          '"not quite" when this specific repair exists — and correct it from the quoted page.',
+      );
+    }
+  }
   if (checkerSummary) {
     parts.push(
       `Deterministic checker result for the student's latest work (trust this over your own reading): ${checkerSummary}`,
@@ -374,13 +394,14 @@ export function composeWorkbenchTurnMessage(args: {
  *  free — a side question mid-check is still a question). Otherwise the
  *  turn is 'posed' exactly when the professor's last block left a question
  *  or a teach-back open. Verdict and mastery come from the ledger's graded
- *  window on the concept that block tagged. */
-function stanceInputForTurn(args: {
+ *  window on the concept that block tagged. Also surfaces the tagged
+ *  concept so the Wave 4 named-repair lookup reads the same turn. */
+function stanceTurnContext(args: {
   history: WorkbenchBlock[];
   learner: LearnerState | null;
   profile?: LearnerProfile;
   userContent: string;
-}): StanceInput {
+}): { input: StanceInput; concept: string | undefined; posedCheck: boolean } {
   const { history, learner, profile, userContent } = args;
   const lastProfessor = [...history].reverse().find((b) => b.author === 'professor');
   const parsed = lastProfessor ? parseProfessorTags(lastProfessor.content) : null;
@@ -395,11 +416,15 @@ function stanceInputForTurn(args: {
   const cs = concept && learner ? learner.concept_states[concept] : undefined;
   const graded = cs?.graded;
   return {
-    initiation: posedCheck ? 'posed' : 'asked',
-    mastery: cs ? masteryOf(cs) : 'unknown',
-    verdict: graded && graded.length > 0 ? graded[graded.length - 1]! : 'none',
-    signal: signalOf(userContent),
-    ...(profile?.probe_level !== undefined ? { probeLevel: profile.probe_level } : {}),
+    input: {
+      initiation: posedCheck ? 'posed' : 'asked',
+      mastery: cs ? masteryOf(cs) : 'unknown',
+      verdict: graded && graded.length > 0 ? graded[graded.length - 1]! : 'none',
+      signal: signalOf(userContent),
+      ...(profile?.probe_level !== undefined ? { probeLevel: profile.probe_level } : {}),
+    },
+    concept,
+    posedCheck,
   };
 }
 

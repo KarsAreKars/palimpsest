@@ -38,6 +38,7 @@ import type { AppService } from '@/types/system';
 import type { Book } from '@/types/book';
 import { getDir } from '@/utils/book';
 import type { CardState } from './scheduler';
+import type { MisconceptionLibrary } from './misconceptions';
 import { initialCard, reviewCard, RATING_AGAIN, RATING_GOOD } from './scheduler';
 
 export const LEARNER_FILENAME = 'learner.json';
@@ -116,6 +117,10 @@ export interface LearnerState {
   gaming_signals?: Record<string, { hint_velocity: number; flags: number }>;
   /** Opaque per-problem tutoring sessions, keyed by problem (additive). */
   problem_sessions?: Record<string, unknown>;
+  /** Wave 4 (Specificity Engine): the book-scoped, book-verified chapter
+   *  misconception library, keyed by concept + page (misconceptions.ts).
+   *  Additive — absent in old logs. */
+  misconception_library?: MisconceptionLibrary;
 }
 
 export const emptyLearner = (): LearnerState => ({ exchanges: [], concept_states: {} });
@@ -168,7 +173,9 @@ export function applyExchange(state: LearnerState, ex: LearnerExchange): Learner
       ...(card !== undefined ? { card } : {}),
     },
   };
-  return { exchanges, concept_states };
+  // Additive fields (gaming_signals, problem_sessions, Wave 4's
+  // misconception_library, …) ride through untouched.
+  return { ...state, exchanges, concept_states };
 }
 
 /** Dedupe-append a named misconception to a concept's state. Pure. */
@@ -240,6 +247,9 @@ export async function loadLearner(appService: AppService, book: Book): Promise<L
         : {}),
       ...(parsed.problem_sessions && typeof parsed.problem_sessions === 'object'
         ? { problem_sessions: parsed.problem_sessions }
+        : {}),
+      ...(parsed.misconception_library && typeof parsed.misconception_library === 'object'
+        ? { misconception_library: parsed.misconception_library }
         : {}),
     };
   } catch {

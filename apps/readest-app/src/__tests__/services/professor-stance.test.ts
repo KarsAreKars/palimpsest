@@ -14,6 +14,7 @@ import {
   renderStanceLine,
   renderStanceTable,
   signalOf,
+  workedExampleDepth,
   STANCE_ROWS,
   type StanceInput,
 } from '@/services/professor/stance';
@@ -30,6 +31,7 @@ import {
   resetStanceOutcomes,
   stanceOutcomeRates,
 } from '@/services/professor/telemetry';
+import { storeChapterMisconceptions } from '@/services/professor/misconceptions';
 
 const base: StanceInput = {
   initiation: 'posed',
@@ -169,6 +171,39 @@ describe('rendering — the prompt carries the table, the turn carries the row',
   });
 });
 
+describe('worked-example fading (Wave 4 — Kalyuga 2001, §7 expertise reversal)', () => {
+  it('depth follows demonstrated mastery: unknown → full, edge → partial, known → none', () => {
+    expect(workedExampleDepth('unknown')).toBe('full');
+    expect(workedExampleDepth('edge')).toBe('partial');
+    expect(workedExampleDepth('known')).toBe('none');
+  });
+
+  it('a worked-example stance carries its fading depth in the turn line', () => {
+    const posedRetry = (mastery: 'unknown' | 'edge' | 'known'): StanceInput => ({
+      initiation: 'posed',
+      mastery,
+      verdict: 'retry',
+      signal: 'none',
+    });
+    // verdict retry → worked-example row; the depth rides with it.
+    expect(renderStanceLine(posedRetry('unknown'))).toContain('worked-example');
+    expect(renderStanceLine(posedRetry('unknown'))).toContain('depth FULL');
+    expect(renderStanceLine(posedRetry('edge'))).toContain('depth PARTIAL');
+    expect(renderStanceLine(posedRetry('known'))).toContain('depth NONE');
+    expect(renderStanceLine(posedRetry('known'))).toContain('Kalyuga');
+  });
+
+  it('non-worked-example stances carry no depth line', () => {
+    const asked: StanceInput = { ...base, initiation: 'asked' };
+    expect(renderStanceLine(asked)).not.toContain('depth');
+  });
+
+  it('the rendered table announces the fading rule', () => {
+    expect(renderStanceTable()).toContain('full example');
+    expect(renderStanceTable()).toContain('Kalyuga');
+  });
+});
+
 describe('the desk hands the matching row down per turn', () => {
   const pack = {
     blocks: [],
@@ -235,6 +270,86 @@ describe('the desk hands the matching row down per turn', () => {
       profile: { probe_level: 6 },
     });
     expect(msg).toContain('socratic');
+  });
+});
+
+describe('the desk names the stored wrong reading (Wave 4 — Specificity Engine)', () => {
+  const pack = {
+    blocks: [],
+    recent_exchanges: [],
+    concept_states: {},
+  } as unknown as ProfessorContextPack;
+  const posedHistory = [
+    {
+      id: 'b1',
+      author: 'professor' as const,
+      content:
+        'Take a guess: does the passage claim ice cream CAUSES drowning?\n[CONCEPT:correlation]\n[QKIND:check-me]',
+      at: '2026-11-25T10:00:00Z',
+    },
+  ];
+  const learnerWithLibrary = (): LearnerState => ({
+    exchanges: [],
+    concept_states: {
+      correlation: { bloom: 2, asked: 1, last_ts: '2026-11-25T00:00:00Z', graded: ['retry'] },
+    },
+    misconception_library: storeChapterMisconceptions({}, [
+      {
+        id: 'correlation.treated_correlation_as_proof_of',
+        concept: 'correlation',
+        wrongReading: 'treated correlation as proof of causation',
+        correction: 'the passage says the two share a common cause',
+        evidenceQuote: 'Correlation, it says, is not causation.',
+        sourceRef: { page: 42 },
+        provenance: ['wave4-generated', 'book-verified'],
+        confidencePrior: 0.5,
+      },
+    ]),
+  });
+  const WRONG_ANSWER =
+    'Ice cream sales rise with drowning deaths, so the sales must drive the drownings — ' +
+    'correlation is proof of causation here.';
+
+  it('a failed check on a stored misconception → the NAMED repair citing the page', () => {
+    const msg = composeWorkbenchTurnMessage({
+      pack,
+      page: 1,
+      history: posedHistory,
+      userContent: WRONG_ANSWER,
+      learner: learnerWithLibrary(),
+    });
+    expect(msg).toContain('matches a wrong reading');
+    expect(msg).toContain('You treated correlation as proof of causation');
+    expect(msg).toContain('page 42');
+  });
+
+  it('a non-matching wrong answer → no named repair (the ladder stands)', () => {
+    const msg = composeWorkbenchTurnMessage({
+      pack,
+      page: 1,
+      history: posedHistory,
+      userContent:
+        'The researcher surveyed only two neighborhoods over two weekends, so the sampling ' +
+        'method itself was the weak point of this study.',
+      learner: learnerWithLibrary(),
+    });
+    expect(msg).not.toContain('matches a wrong reading');
+  });
+
+  it('no library → no named repair, even on the same wrong answer', () => {
+    const msg = composeWorkbenchTurnMessage({
+      pack,
+      page: 1,
+      history: posedHistory,
+      userContent: WRONG_ANSWER,
+      learner: {
+        exchanges: [],
+        concept_states: {
+          correlation: { bloom: 2, asked: 1, last_ts: '2026-11-25T00:00:00Z', graded: ['retry'] },
+        },
+      },
+    });
+    expect(msg).not.toContain('matches a wrong reading');
   });
 });
 
