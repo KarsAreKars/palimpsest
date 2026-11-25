@@ -55,6 +55,28 @@ Audit L5 arbitrates → wave plan for the Learning Engine rebuild.
 - Karpathy: no speculative generality; every mechanism traces to a named finding.
 - Queen protocol: constitution → research → audit → waves → verify → commit.
 
+## StudentSim incorporation (Microsoft Research, owner ruling 2026-11-25)
+
+Source: "Simulating student learning for better AI tutoring" (StudentSim).
+Microsoft trains a PERSONALIZED student simulator from the learner's own
+records, then uses the frozen simulator as a reward signal to train the tutor
+RL-style — instead of TutorRL's generic synthetic student. This is the
+promotion path the audit parked (Ruling 5 #7): a personalized learner-model,
+OFFLINE ONLY, never a runtime router.
+
+S1. The simulator is trained from the learner's OWN graded-check history
+    (the Wave 2 concept ledger: what they got right/wrong, how their answers
+    changed after guidance) — one simulator per learner, private, local.
+S2. OFFLINE ONLY: it evaluates/labels professor transcripts and can train the
+    stance policy. It NEVER sits in the runtime path (Ruling 5 #7 stands).
+S3. Two-stage like Microsoft: stage 1 = the tutor's stance table as the prior
+    (shared, from TutorRL); stage 2 = personalize on the learner's records.
+S4. Success metric: does the simulator's predicted next-attempt-improvement
+    (r_sol) agree with the learner's real r_sol from the ledger? That agreement
+    IS the calibration; a simulator that disagrees is not trusted.
+S5. It feeds the R4 eval harness: "would I rather upload to ChatGPT" is scored
+    by a learner-model that knows THIS learner, not a generic judge.
+
 ## King's rulings on the audit's open questions (2026-11-18, binding)
 
 R1. Answers are always free — even mid-chapter-session; only forward progress is gated.
