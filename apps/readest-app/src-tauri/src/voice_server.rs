@@ -609,6 +609,22 @@ enum Phase {
 /// dies, when shutdown begins, or when a restart bumps the generation.
 #[cfg(all(desktop, not(windows)))]
 async fn watch(app: &AppHandle) -> Phase {
+    /// Liveness of the server under watch, from the owned-child handle.
+    enum Liveness {
+        /// Owned child has exited — genuinely dead, respawn.
+        Exited,
+        /// Owned child is still running. The server is deliberately
+        /// single-threaded (qwen_server.py), so /health cannot answer
+        /// mid-generation: a cold kokoro load (~20s), a long Qwen unit, or
+        /// a big /stt clip all look like a dead server to a health probe
+        /// for >15s. An owned child that `try_wait` reports running is
+        /// BUSY, not dead — health strikes must never apply to it (they
+        /// killed healthy busy servers; P1-V1).
+        Busy,
+        /// No owned child handle (adopted server, or poisoned lock): health
+        /// strikes are the only death signal available.
+        Adopted,
+    }
     let start_gen = generation(app);
     let mut strikes = 0u32;
     loop {
@@ -622,24 +638,32 @@ async fn watch(app: &AppHandle) -> Phase {
         // Reap the owned child if it has exited (also keeps it from
         // lingering as a zombie). Adopted servers have no child here; their
         // death is detected by the health strikes below.
-        let exited = match app.try_state::<VoiceServerState>() {
+        let liveness = match app.try_state::<VoiceServerState>() {
             Some(state) => match state.child.lock() {
                 Ok(mut guard) => match guard.as_mut() {
-                    Some(child) => matches!(child.try_wait(), Ok(Some(_))),
-                    None => false,
+                    Some(child) => match child.try_wait() {
+                        Ok(Some(_)) => Liveness::Exited,
+                        _ => Liveness::Busy,
+                    },
+                    None => Liveness::Adopted,
                 },
-                Err(_) => false,
+                Err(_) => Liveness::Adopted,
             },
-            None => true,
+            None => Liveness::Exited,
         };
-        if exited {
-            let reaped = app
-                .try_state::<VoiceServerState>()
-                .and_then(|state| state.child.lock().ok().and_then(|mut guard| guard.take()));
-            if let Some(mut child) = reaped {
-                let _ = child.wait().await;
+        match liveness {
+            Liveness::Exited => {
+                let reaped = app
+                    .try_state::<VoiceServerState>()
+                    .and_then(|state| state.child.lock().ok().and_then(|mut guard| guard.take()));
+                if let Some(mut child) = reaped {
+                    let _ = child.wait().await;
+                }
+                return Phase::Unhealthy;
             }
-            return Phase::Unhealthy;
+            // Owned child still running: busy is alive. Never health-strike.
+            Liveness::Busy => continue,
+            Liveness::Adopted => {}
         }
         if health_up().await {
             strikes = 0;
