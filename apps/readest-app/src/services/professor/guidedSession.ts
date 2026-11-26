@@ -66,6 +66,10 @@ export type LearnerStateRead = 'steady' | 'rushed' | 'defended' | 'curious' | 'b
 /** One line in the session log — the session's memory. */
 export interface SessionBeat {
   kind: 'trial' | 'verdict' | 'note';
+  /** Who spoke. Absent = the professor (Wave A's beats). The guided
+   *  conversation (Wave A2) logs the learner's turns too — the beat log
+   *  IS the conversation. */
+  speaker?: 'professor' | 'learner';
   /** Plain words, librarian voice — never machinery. */
   text: string;
   concept?: string;
@@ -90,6 +94,33 @@ export interface GuidedSessionState {
   /** Free-mode interruption: the session holds its place. */
   paused: boolean;
   beats: SessionBeat[];
+}
+
+// ---------------------------------------------------------------------------
+// The conversation — the beat log as a scroll of turns (Wave A2)
+// ---------------------------------------------------------------------------
+
+/** One rendered message in the guided session's conversation. */
+export interface ConversationTurn {
+  speaker: 'professor' | 'learner';
+  kind: SessionBeat['kind'];
+  text: string;
+  concept?: string;
+  verdict?: 'pass' | 'retry';
+  at: string;
+}
+
+/** The conversation IS the session: the beat log mapped to turns, in
+ *  order, nothing added, nothing dropped. The UI renders exactly this. */
+export function buildConversation(state: GuidedSessionState): ConversationTurn[] {
+  return state.beats.map((b) => ({
+    speaker: b.speaker ?? 'professor',
+    kind: b.kind,
+    text: b.text,
+    ...(b.concept ? { concept: b.concept } : {}),
+    ...(b.verdict ? { verdict: b.verdict } : {}),
+    at: b.at,
+  }));
 }
 
 export const idleSession = (): GuidedSessionState => ({

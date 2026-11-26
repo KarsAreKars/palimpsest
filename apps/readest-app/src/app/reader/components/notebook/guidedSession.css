@@ -1,0 +1,126 @@
+/**
+ * GuidedSessionView — the full-screen guided session (Wave A2).
+ * Antiquarian Catalogue conventions: paper surfaces, 1px ink hairlines,
+ * ≤2px radius, stamp the only accent. The conversation scrolls; the
+ * composer stays pinned at the foot. Professor turns left, learner turns
+ * right — a back-and-forth, not a dashboard.
+ */
+
+.gs-sheet {
+  border-radius: 2px;
+  background: var(--paper, #f7f2e7);
+  box-shadow: var(--lift-shadow);
+}
+
+.gs-sheet :focus-visible {
+  outline: 2px solid var(--stamp);
+  outline-offset: 2px;
+}
+
+/* ---------- the route strip (the plan, thin) ---------- */
+.gs-route {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  min-width: 60px;
+  max-width: 220px;
+  flex: 0 1 auto;
+}
+.gs-route-seg {
+  height: 3px;
+  flex: 1 1 0;
+  min-width: 8px;
+  border-radius: 1px;
+  background: color-mix(in srgb, var(--ink) 15%, transparent);
+}
+.gs-route-settled {
+  background: var(--stamp);
+}
+.gs-route-current {
+  background: var(--ink);
+}
+.gs-route-skipped {
+  background: color-mix(in srgb, var(--ink) 30%, transparent);
+}
+
+/* ---------- the conversation ---------- */
+.gs-scroll {
+  position: relative;
+  overflow-y: auto;
+  background: transparent;
+}
+.gs-thread {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 24px 20px 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.gs-turn {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-width: 85%;
+}
+.gs-turn-prof {
+  align-self: flex-start;
+}
+.gs-turn-learner {
+  align-self: flex-end;
+  text-align: right;
+}
+.gs-turn-who {
+  font-size: 8.5px;
+  letter-spacing: 0.08em;
+  color: var(--muted, #6b6156);
+}
+.gs-verdict.gs-pass {
+  color: var(--stamp);
+}
+.gs-verdict.gs-retry {
+  color: var(--sage);
+}
+.gs-turn-body {
+  font-size: 14px;
+  line-height: 1.6;
+}
+.gs-turn-learner .gs-turn-body {
+  display: inline-block;
+  background: var(--paper-light);
+  border: 1px solid color-mix(in srgb, var(--ink) 18%, transparent);
+  border-radius: 2px;
+  padding: 6px 10px;
+  text-align: left;
+}
+.gs-turn-prof .gs-turn-body .wb-prose {
+  font-size: 14px;
+}
+
+/* ---------- the start plate ---------- */
+.gs-start {
+  margin: auto;
+  padding: 48px 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  max-width: 480px;
+}
+
+/* ---------- the composer ---------- */
+.gs-composer {
+  background: var(--paper-light);
+}
+.gs-input {
+  border-radius: 2px;
+  line-height: 1.5;
+  font-family: inherit;
+}
+.gs-input:disabled {
+  opacity: 0.55;
+}
+
+[data-eink='true'] .gs-sheet {
+  box-shadow: none;
+}

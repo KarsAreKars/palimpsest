@@ -28,6 +28,7 @@ import ReadingRuler from './ReadingRuler';
 import DoubleBorder from './DoubleBorder';
 import ReadingStatsTracker from './ReadingStatsTracker';
 import DeskSheet from './desk/DeskSheet';
+import GuidedSessionView from './notebook/GuidedSessionView';
 
 interface BooksGridProps {
   bookKeys: string[];
@@ -269,6 +270,10 @@ const BookCellInner: React.FC<BookCellProps> = ({
           book, so multi-book splits never stack two desks. Sits above the
           page wrapper, below HeaderBar (z-10). */}
       {bookKey === sideBarBookKey && <DeskSheet bookKey={bookKey} />}
+      {/* The guided session (Wave A2): a second full-screen mode beside
+          the desk — visible only while the Study tab's toggle is on
+          Guided; Free returns to the desk. */}
+      {bookKey === sideBarBookKey && <GuidedSessionView bookKey={bookKey} />}
       <BookmarkPullDown bookKey={bookKey} ribbonHidden={!!hoveredBookKey} slideRef={slideRef} />
       <PageNavigationButtons bookKey={bookKey} isDropdownOpen={isDropdownOpen} />
       <SearchResultsNav bookKey={bookKey} gridInsets={gridInsets} />

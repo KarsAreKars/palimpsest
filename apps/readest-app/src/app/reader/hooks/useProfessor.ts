@@ -41,7 +41,7 @@ import {
   makeBridgeTagFilter,
   useBridgeStore,
 } from '@/services/professor/bridge';
-import { PROF_ASK_EVENT } from '@/app/reader/components/notebook/StudyTab';
+import { PROF_ASK_EVENT, type ProfAskOptions } from '@/services/professor/askBridge';
 import {
   appendExchange,
   emptyLearner,
@@ -77,7 +77,7 @@ export const useProfessor = ({ bookKey }: { bookKey: string }) => {
   const [error, setError] = useState<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
   const voiceRef = useRef<ProfessorVoice | null>(null);
-  const askRef = useRef<(q: string, opts?: { system?: string }) => Promise<void>>(async () => {});
+  const askRef = useRef<(q: string, opts?: ProfAskOptions) => Promise<void>>(async () => {});
   const getView = useReaderStore((s) => s.getView);
   const { appService } = useEnv();
   const getBookData = useBookDataStore((s) => s.getBookData);
@@ -146,11 +146,17 @@ export const useProfessor = ({ bookKey }: { bookKey: string }) => {
   // a question through the normal loop — voice, pen, and logging included.
   useEffect(() => {
     const onAsk = (e: Event) => {
-      const detail = (e as CustomEvent<{ bookKey?: string; question?: string; system?: string }>)
+      const detail = (e as CustomEvent<{ bookKey?: string; question?: string } & ProfAskOptions>)
         .detail;
       if (detail?.bookKey !== bookKey || !detail.question) return;
       setOpen(true);
-      void askRef.current(detail.question, detail.system ? { system: detail.system } : undefined);
+      // Pass the options through whole (system override, silent, the
+      // driving surface's onAnswer) — absent keys stay absent.
+      const opts: ProfAskOptions = {};
+      if (detail.system) opts.system = detail.system;
+      if (detail.silent) opts.silent = detail.silent;
+      if (detail.onAnswer) opts.onAnswer = detail.onAnswer;
+      void askRef.current(detail.question, opts);
     };
     window.addEventListener(PROF_ASK_EVENT, onAsk);
     return () => window.removeEventListener(PROF_ASK_EVENT, onAsk);
@@ -206,7 +212,7 @@ export const useProfessor = ({ bookKey }: { bookKey: string }) => {
   }, [bookKey, cancelGestureFade]);
 
   const ask = useCallback(
-    async (question: string, opts?: { system?: string }) => {
+    async (question: string, opts?: ProfAskOptions) => {
       const q = question.trim();
       if (!q) return;
       profTraceReset();
@@ -343,11 +349,14 @@ export const useProfessor = ({ bookKey }: { bookKey: string }) => {
             setAnswer((prev) => prev + safe);
             streamBuf += safe;
             if (safe.includes(']')) publishStreamingInk();
-            voice.push(safe); // speaks at the first complete sentence — the tag can never reach the ear
+            // Text-to-text (Wave A2): a silent ask streams and lands but
+            // never speaks — guided mode's default; the speaker toggle
+            // opts back in.
+            if (!opts?.silent) voice.push(safe); // speaks at the first complete sentence — the tag can never reach the ear
           },
           onDone: (full) => {
             profTrace('llm-done', { chars: full.length });
-            voice.finish();
+            if (!opts?.silent) voice.finish();
             setPhase('idle');
             // The speech/display contract: the bubble and any future spoken
             // answer see ONLY stripped prose. The raw stream carries the
@@ -358,6 +367,11 @@ export const useProfessor = ({ bookKey }: { bookKey: string }) => {
             pushExchange(bookKey, { q, a: cleaned });
 
             const parsed = parseAnnotations(full);
+            // The driving surface (the guided session) reads the completed
+            // answer — cleaned prose + the FULL parsed tags — in order,
+            // before the ink filter below drops concept/qkind. This is the
+            // verdict intake's only channel; no bus race.
+            opts?.onAnswer?.(cleaned, parsed);
             // Chat-bridge (W2.x #7): if the answer closed with a well-formed
             // [TO_WORKBENCH prompt:'…'], stage the persistent desk suggestion.
             // The tag is already gone from `answer` (filtered tokens) and is
@@ -437,6 +451,9 @@ export const useProfessor = ({ bookKey }: { bookKey: string }) => {
             voice.stop();
             setPhase('idle');
             setError(message);
+            // A driving surface (the guided session) hears the failure
+            // too — it says so in the conversation instead of hanging.
+            opts?.onError?.(message);
             // A failed/aborted stream can leave PENDING ink on the page
             // (faint pulsing marks the strike never lands on — the "red
             // dots that won't clear" bug). Completed margin notes from a

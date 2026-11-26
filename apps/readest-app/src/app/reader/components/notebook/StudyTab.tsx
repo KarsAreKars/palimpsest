@@ -17,7 +17,7 @@
  * Data loads when the tab opens and refreshes on the refresh button;
  * exchanges logged while the panel sits open appear on the next open.
  */
-import React, { useCallback, useEffect, useReducer, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { PiGraduationCap, PiArrowsClockwise, PiSparkle } from 'react-icons/pi';
@@ -36,7 +36,6 @@ import {
   subscribeProfessorAnnotations,
   type ProfessorAnnotationSet,
 } from '@/services/professor/annotationBus';
-import type { ProfessorAnnotation } from '@/services/professor/annotations';
 import {
   buildRetryQuestion,
   buildSessionQuestion,
@@ -60,36 +59,14 @@ import {
 import { loadProfile, saveProfile, type LearnerProfile } from '@/services/professor/learnerProfile';
 import { planRoute, type RouteSeed, type StudyRoute } from '@/services/professor/planRoute';
 import { buildPracticeQuestion, composePracticeQueue } from '@/services/professor/practice';
-import { PROFESSOR_GUIDED_SYSTEM_PROMPT } from '@/services/professor/prompt';
-import {
-  buildGuidedBeatPrompt,
-  buildSessionReportMd as buildGuidedReportMd,
-  currentConcept,
-  idleSession,
-  readStateFromLedger,
-  sessionReducer,
-  sessionSummaryLine,
-  teachSequence,
-  type LearnerStateRead,
-} from '@/services/professor/guidedSession';
-import { newBlockId, useWorkbenchChatStore } from './workbenchChat';
+import { askProfessorFromUI } from '@/services/professor/askBridge';
+import { useGuidedSessionStore } from './guidedSessionStore';
 import { toText } from '@/services/professor/io';
 import { syncProfileGraph, toneOf } from '@/services/professor/conceptGraph';
 import { slugifyConcept } from '@/services/professor/annotations';
 import type { TOCItem } from '@/libs/document';
 import { dueCards } from '@/services/professor/scheduler';
 import EmptyState from '../EmptyState';
-
-export const PROF_ASK_EVENT = 'palimpsest-prof-ask';
-
-/** Fire a professor question from anywhere; useProfessor owns the loop. */
-export const askProfessorFromUI = (
-  bookKey: string,
-  question: string,
-  opts?: { system?: string },
-): void => {
-  window.dispatchEvent(new CustomEvent(PROF_ASK_EVENT, { detail: { bookKey, question, ...opts } }));
-};
 
 const BloomPips: React.FC<{ level: number }> = ({ level }) => (
   <span className='inline-flex gap-0.5' title={`Bloom level ${level}/6`}>
@@ -551,313 +528,12 @@ const StudyTab: React.FC<{ bookKey: string }> = ({ bookKey }) => {
     else askObjective(nextIdx, objs);
   };
 
-  // ── Guided session (Wave A — THE FORM §2: the professor drives, the
-  // learner follows, the desk shows the work). The toggle is one switch;
-  // the state machine is guidedSession.ts's sessionReducer; every beat
-  // rides the ordinary professor loop (answers are always free); verdicts
-  // return on the annotation bus, exactly like the chapter session. ──────
-  const [mode, setModeState] = useState<'free' | 'guided'>('free');
-  const [gSession, dispatchG] = useReducer(sessionReducer, undefined, idleSession);
-  const gSessionRef = useRef(gSession);
-  gSessionRef.current = gSession;
-  const learnerRef = useRef<LearnerState | null>(null);
-  learnerRef.current = learner;
-  const gAwaitingRef = useRef(false);
-  const gLastSetRef = useRef<ProfessorAnnotationSet | null>(null);
-  /** Concepts already given their one retry round this session. */
-  const gRetriedRef = useRef<Set<string>>(new Set());
-  const gPracticeTotalRef = useRef(0);
-  const gPracticeStampedRef = useRef<Set<string>>(new Set());
-  const gEndedRef = useRef(false);
-  const [gNote, setGNote] = useState('');
-  const [gReport, setGReport] = useState<string | null>(null);
-  const appendDeskBlock = useWorkbenchChatStore((s) => s.appendBlock);
-
-  /** The desk shows the work: one quiet block per session beat — plain
-   *  librarian words, no machinery. */
-  const mirrorBeat = useCallback(
-    (text: string) => {
-      appendDeskBlock(bookKey, {
-        id: newBlockId(),
-        author: 'professor',
-        content: text,
-        at: new Date().toISOString(),
-        kind: 'meta',
-      });
-    },
-    [bookKey, appendDeskBlock],
-  );
-  const mirrorBeatRef = useRef(mirrorBeat);
-  mirrorBeatRef.current = mirrorBeat;
-
-  /** Free / Guided switch. Free mid-session pauses (the session holds its
-   *  place — respect agency); guided again resumes. */
-  const setMode = (m: 'free' | 'guided') => {
-    setModeState(m);
-    const s = gSessionRef.current;
-    if (m === 'free' && s.phase !== 'idle' && s.phase !== 'done' && !s.paused) {
-      dispatchG({ type: 'pause' });
-    } else if (m === 'guided' && s.paused) {
-      dispatchG({ type: 'resume' });
-    }
-  };
-
-  /** The goal: the learner's own words, else the professor infers from the
-   *  book — the chapter being read. */
-  const inferGuidedGoal = (): string => {
-    const stated = goalDraft.trim();
-    if (stated) return stated;
-    const page = (getBookProgress(bookKey)?.index ?? 0) + 1;
-    let label = '';
-    const walk = (items: TOCItem[]) => {
-      for (const item of items) {
-        if (Number.isFinite(item.index) && item.index <= page - 1) {
-          label = item.label.trim() || label;
-        }
-        if (item.subitems?.length) walk(item.subitems);
-      }
-    };
-    walk(getBookData(bookKey)?.bookDoc?.toc ?? []);
-    return label || _('this book');
-  };
-
-  const askGuidedBeat = useCallback(
-    (route: StudyRoute, idx: number, stateRead: LearnerStateRead) => {
-      const node = teachSequence(route)[idx];
-      if (!node) return;
-      const prompt = buildGuidedBeatPrompt({
-        goal: route.goalLabel,
-        route,
-        conceptIdx: idx,
-        stateRead,
-      });
-      if (!prompt) return;
-      gAwaitingRef.current = true;
-      dispatchG({
-        type: 'beat',
-        beat: {
-          kind: 'trial',
-          concept: node.name,
-          text: `A trial on ${node.label}.`,
-          at: new Date().toISOString(),
-        },
-      });
-      askProfessorFromUI(bookKey, prompt, { system: PROFESSOR_GUIDED_SYSTEM_PROMPT });
-    },
-    [bookKey],
-  );
-  const askGuidedBeatRef = useRef(askGuidedBeat);
-  askGuidedBeatRef.current = askGuidedBeat;
-
-  const beginGuidedPractice = useCallback(
-    (route: StudyRoute) => {
-      const items = composePracticeQueue({
-        conceptStates: learnerRef.current?.concept_states ?? {},
-        route,
-        now: Date.now(),
-      });
-      const q = buildPracticeQuestion(items);
-      if (!q) {
-        void finishGuidedRef.current('ended');
-        return;
-      }
-      gPracticeTotalRef.current = items.length;
-      gPracticeStampedRef.current = new Set();
-      gAwaitingRef.current = true;
-      askProfessorFromUI(bookKey, q, { system: PROFESSOR_GUIDED_SYSTEM_PROMPT });
-    },
-    [bookKey],
-  );
-  const beginGuidedPracticeRef = useRef(beginGuidedPractice);
-  beginGuidedPracticeRef.current = beginGuidedPractice;
-
-  /** The session report (A13: the professor knows when to stop). Filed to
-   *  notes.md + a summary exchange on the ledger, librarian voice. */
-  const finishGuided = useCallback(
-    async (via: 'completed' | 'ended') => {
-      // Same once-guard as the chapter session: the verdict callback and
-      // the End button can land in the same frame.
-      if (gEndedRef.current) return;
-      gEndedRef.current = true;
-      gAwaitingRef.current = false;
-      const s = gSessionRef.current;
-      dispatchG(via === 'completed' ? { type: 'practiceDone' } : { type: 'exit' });
-      const book = getBookData(bookKey)?.book;
-      const page = (getBookProgress(bookKey)?.index ?? 0) + 1;
-      const date = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-      const dueCount = learnerRef.current
-        ? dueCards(learnerRef.current.concept_states, Date.now()).filter(
-            ({ concept }) =>
-              concept !== 'uncategorized' &&
-              concept !== 'chapter_session' &&
-              concept !== 'guided_session',
-          ).length
-        : 0;
-      const report = buildGuidedReportMd(s, { date, page, dueCount });
-      setGReport(report);
-      mirrorBeatRef.current(`The session closes: ${sessionSummaryLine(s)}.`);
-      if (appService && book) {
-        try {
-          await appendNote(appService, book, report);
-          await appendExchange(appService, book, {
-            ts: new Date().toISOString(),
-            concept: 'guided_session',
-            page,
-            question_kind: 'check-me',
-            question: sessionSummaryLine(s),
-            resolved: false,
-          });
-        } catch (e) {
-          console.warn('[study] guided session report failed', e);
-        }
-      }
-      dispatchG({ type: 'reportFiled' });
-      setGNote(_('Session filed to your study notes.'));
-      void reload();
-    },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [bookKey, appService, getBookData, reload, _],
-  );
-  const finishGuidedRef = useRef(finishGuided);
-  finishGuidedRef.current = finishGuided;
-
-  const beginGuided = () => {
-    const states = learnerRef.current?.concept_states ?? {};
-    const pages: Record<string, number> = {};
-    for (const ex of learnerRef.current?.exchanges ?? []) {
-      if (Number.isFinite(ex.page)) pages[ex.concept] = ex.page;
-    }
-    const goal = inferGuidedGoal();
-    // MEASURE is latent: the ledger is read, never quizzed (A3).
-    const stateRead = readStateFromLedger(states);
-    // PLAN: the route, visible.
-    const route = planRoute({
-      goal,
-      conceptStates: states,
-      seeds: tocSeeds,
-      book: getBookData(bookKey)?.book?.hash,
-      pages,
-    });
-    gEndedRef.current = false;
-    gRetriedRef.current = new Set();
-    gLastSetRef.current = getProfessorAnnotations(bookKey);
-    setGNote('');
-    setGReport(null);
-    dispatchG({ type: 'start', goal });
-    dispatchG({ type: 'measured', stateRead });
-    dispatchG({ type: 'planned', route });
-    const seq = teachSequence(route);
-    mirrorBeatRef.current(
-      `A guided session begins: the road to ${goal}. ${seq.length} ${seq.length === 1 ? 'concept' : 'concepts'} on the road.`,
-    );
-    if (seq.length === 0) {
-      beginGuidedPracticeRef.current(route);
-    } else {
-      askGuidedBeatRef.current(route, 0, stateRead);
-    }
-  };
-
-  /** Pause holds the place; resume re-poses the current trial. */
-  const togglePause = () => {
-    const s = gSessionRef.current;
-    if (s.paused) {
-      dispatchG({ type: 'resume' });
-      const node = currentConcept(s);
-      if (node && s.route && !gAwaitingRef.current) {
-        askGuidedBeatRef.current(s.route, s.conceptIdx, s.stateRead);
-      }
-    } else {
-      dispatchG({ type: 'pause' });
-    }
-  };
-
-  /** Respect agency: pass on a concept, ungraded, without blame. */
-  const skipGuidedConcept = () => {
-    const s = gSessionRef.current;
-    const node = currentConcept(s);
-    if (!node || !s.route) return;
-    mirrorBeatRef.current(`The learner passes on ${node.label} — it waits.`);
-    gAwaitingRef.current = false;
-    const nextIdx = s.conceptIdx + 1;
-    dispatchG({ type: 'skipConcept' });
-    if (nextIdx >= teachSequence(s.route).length) {
-      beginGuidedPracticeRef.current(s.route);
-    } else {
-      askGuidedBeatRef.current(s.route, nextIdx, s.stateRead);
-    }
-  };
-
-  // Verdict intake: the Prof's completed answer (the strike — pending flips
-  // false) carries the [PASS]/[RETRY] tag, exactly like the chapter session.
-  // Consume it once per set; the reducer records the evidence and the exit.
-  useEffect(() => {
-    const unsub = subscribeProfessorAnnotations(() => {
-      const s = gSessionRef.current;
-      if (s.phase !== 'teaching' && s.phase !== 'practicing') return;
-      if (!gAwaitingRef.current) return;
-      const set = getProfessorAnnotations(bookKey);
-      if (!set || set.pending || set === gLastSetRef.current) return;
-      const outcome = extractSessionOutcome(set.annotations);
-      if (!outcome) return;
-      gLastSetRef.current = set;
-      const nowIso = new Date().toISOString();
-      if (s.phase === 'practicing') {
-        const concept = set.annotations.find(
-          (a): a is Extract<ProfessorAnnotation, { kind: 'concept' }> => a.kind === 'concept',
-        )?.name;
-        dispatchG({
-          type: 'beat',
-          beat: {
-            kind: 'verdict',
-            concept,
-            verdict: outcome.verdict,
-            text: outcome.takeaway ?? '',
-            at: nowIso,
-          },
-        });
-        if (concept) gPracticeStampedRef.current.add(concept);
-        if (gPracticeStampedRef.current.size >= gPracticeTotalRef.current) {
-          void finishGuidedRef.current('completed');
-        }
-        return;
-      }
-      const node = currentConcept(s);
-      if (!node) return;
-      dispatchG({
-        type: 'beat',
-        beat: {
-          kind: 'verdict',
-          concept: node.name,
-          verdict: outcome.verdict,
-          text: outcome.takeaway ?? '',
-          at: nowIso,
-        },
-      });
-      dispatchG({ type: 'verdict', concept: node.name, verdict: outcome.verdict });
-      mirrorBeatRef.current(
-        `${outcome.verdict === 'pass' ? '✓' : '↻'} ${node.label}${outcome.takeaway ? ` — ${outcome.takeaway}` : ''}`,
-      );
-      if (s.paused) return; // evidence filed; the session holds its place
-      if (outcome.verdict === 'retry' && !gRetriedRef.current.has(node.name)) {
-        // Retry → re-explain → re-ask (session.ts's contract): one retry
-        // round, never an instant advance, never an identical repeat.
-        gRetriedRef.current.add(node.name);
-        askProfessorFromUI(bookKey, buildRetryQuestion(node.label), {
-          system: PROFESSOR_GUIDED_SYSTEM_PROMPT,
-        });
-        return;
-      }
-      gAwaitingRef.current = false;
-      const nextIdx = s.conceptIdx + 1;
-      dispatchG({ type: 'nextConcept' });
-      if (nextIdx >= teachSequence(s.route!).length) {
-        beginGuidedPracticeRef.current(s.route!);
-      } else {
-        askGuidedBeatRef.current(s.route!, nextIdx, s.stateRead);
-      }
-    });
-    return unsub;
-  }, [bookKey]);
+  // ── Guided session (Wave A2 — THE FORM §2). The toggle lives here; the
+  // session itself is full-screen (GuidedSessionView) and driven by the
+  // guidedSessionStore — the notebook tab can unmount without the session
+  // losing its place. Free = the desk; guided = the conversation. ────────
+  const mode = useGuidedSessionStore((s) => s.mode);
+  const setMode = (m: 'free' | 'guided') => useGuidedSessionStore.getState().setMode(bookKey, m);
 
   const sessionDone =
     objectives !== null && activeIdx === null && objectives.some((o) => o.status !== 'pending');
@@ -1187,168 +863,11 @@ const StudyTab: React.FC<{ bookKey: string }> = ({ bookKey }) => {
               ))}
             </div>
             {mode === 'guided' ? (
-              <>
-                {(gSession.phase === 'idle' || gSession.phase === 'done') && !gReport && (
-                  <>
-                    <p className='content font-size-base mt-2'>{_('Guided session')}</p>
-                    <p className='typed text-mutedink mt-0.5 text-[9px] leading-relaxed'>
-                      {_(
-                        'THE PROF TAKES THE LEAD: A GOAL, A ROUTE, A RHYTHM. TRIALS, NOT LECTURES. YOU MAY PAUSE OR LEAVE AT ANY TIME.',
-                      )}
-                    </p>
-                    <div className='mt-1 flex items-center gap-1.5'>
-                      <input
-                        className='border-ink bg-paperlight flex-1 border px-2 py-1 text-[12px] italic outline-none placeholder:text-mutedink/70'
-                        value={goalDraft}
-                        onChange={(e) => setGoalDraft(e.target.value)}
-                        placeholder={_('What do you want to understand?')}
-                        aria-label={_('Session goal')}
-                      />
-                    </div>
-                    <p className='typed text-mutedink mt-1 text-[8.5px] leading-relaxed'>
-                      {_('LEAVE IT BLANK AND THE PROF READS THE BOOK FOR THE GOAL.')}
-                    </p>
-                    <div className='mt-1.5 flex flex-wrap gap-1.5'>
-                      <StampButton onClick={() => beginGuided()}>{_('Begin')}</StampButton>
-                    </div>
-                  </>
+              <p className='typed text-mutedink mt-2 text-[9px] leading-relaxed'>
+                {_(
+                  'THE SESSION IS ON THE DESK, FULL SCREEN — THE CONVERSATION IS THE LESSON. CHOOSE FREE TO RETURN.',
                 )}
-                {(gSession.phase === 'measuring' ||
-                  gSession.phase === 'planning' ||
-                  gSession.phase === 'teaching' ||
-                  gSession.phase === 'practicing' ||
-                  gSession.phase === 'reporting') && (
-                  <>
-                    <p className='content font-size-base mt-2'>{_('Guided session')}</p>
-                    {gSession.route && (
-                      <>
-                        <p className='typed text-mutedink mt-1 text-[9px] leading-relaxed'>
-                          {_('THE ROAD TO {{goal}}', { goal: gSession.goal.toUpperCase() })}
-                        </p>
-                        <ol className='border-faint mt-1 border-l pl-2'>
-                          {teachSequence(gSession.route).map((n, i) => {
-                            const exited = gSession.exits.includes(n.name);
-                            const current =
-                              i === gSession.conceptIdx && gSession.phase === 'teaching';
-                            const skipped = gSession.skipped.includes(n.name);
-                            return (
-                              <li
-                                key={n.name}
-                                className='text-[12px] leading-relaxed'
-                                style={{
-                                  color: exited
-                                    ? 'var(--stamp)'
-                                    : current
-                                      ? 'var(--ink)'
-                                      : 'var(--muted)',
-                                }}
-                              >
-                                {exited ? '✓ ' : current ? '→ ' : skipped ? '· ' : ''}
-                                {n.label}
-                              </li>
-                            );
-                          })}
-                        </ol>
-                      </>
-                    )}
-                    {(() => {
-                      const node = currentConcept(gSession);
-                      if (!node) {
-                        return gSession.phase === 'practicing' ? (
-                          <p className='typed text-stamp mt-2 text-[9px] leading-relaxed'>
-                            {_('PRACTICE — THE QUEUE IS WORKING THROUGH THE CHECKS.')}
-                          </p>
-                        ) : null;
-                      }
-                      return (
-                        <p className='typed text-stamp mt-2 text-[9px] leading-relaxed'>
-                          {gSession.paused
-                            ? _('THE SESSION HOLDS — COME BACK WHEN YOU ARE READY.')
-                            : _(
-                                'THE PROF IS POSING A TRIAL ON {{concept}} — ANSWER HIM AND HE STAMPS THE VERDICT',
-                                {
-                                  concept: node.label.toUpperCase(),
-                                },
-                              )}
-                        </p>
-                      );
-                    })()}
-                    {gSession.exits.length > 0 && (
-                      <>
-                        <p className='typed text-mutedink mt-2 text-[9px] leading-relaxed'>
-                          {_('TAKING HOLD — THE PROF HAS LEFT THESE:')}
-                        </p>
-                        <p
-                          className='text-[12px] leading-relaxed'
-                          style={{ color: 'var(--stamp)' }}
-                        >
-                          {gSession.exits.map((c) => c.replace(/_/g, ' ')).join(', ')}
-                        </p>
-                      </>
-                    )}
-                    {gSession.beats.length > 0 && (
-                      <>
-                        <p className='typed text-mutedink mt-2 text-[9px]'>
-                          {_('THE SESSION SO FAR')}
-                        </p>
-                        <ul className='mt-0.5'>
-                          {gSession.beats.slice(-6).map((b, i) => (
-                            <li key={i} className='text-mutedink text-[11px] leading-relaxed'>
-                              {b.kind === 'verdict'
-                                ? b.verdict === 'pass'
-                                  ? '✓ '
-                                  : '↻ '
-                                : b.kind === 'trial'
-                                  ? '→ '
-                                  : '· '}
-                              {b.text || (b.concept ? b.concept.replace(/_/g, ' ') : '')}
-                            </li>
-                          ))}
-                        </ul>
-                      </>
-                    )}
-                  </>
-                )}
-                {gSession.phase === 'done' && gReport && (
-                  <>
-                    <p className='content font-size-base mt-2'>{_('The session, filed')}</p>
-                    <div className='prose prose-sm font-size-xs mt-1 max-w-none select-text'>
-                      <ReactMarkdown remarkPlugins={[remarkGfm]}>{gReport}</ReactMarkdown>
-                    </div>
-                    {gNote && (
-                      <p className='typed text-mutedink mt-1 text-[9px] leading-relaxed'>
-                        {gNote.toUpperCase()}
-                      </p>
-                    )}
-                  </>
-                )}
-                <div className='mt-2 flex flex-wrap gap-1.5'>
-                  {(gSession.phase === 'teaching' || gSession.phase === 'practicing') && (
-                    <>
-                      <StampButton onClick={togglePause}>
-                        {gSession.paused ? _('Resume') : _('Pause')}
-                      </StampButton>
-                      {gSession.phase === 'teaching' && !gSession.paused && (
-                        <StampButton onClick={skipGuidedConcept}>{_('Skip')}</StampButton>
-                      )}
-                      <StampButton onClick={() => void finishGuided('ended')}>
-                        {_('End session')}
-                      </StampButton>
-                    </>
-                  )}
-                  {gSession.phase === 'done' && (
-                    <StampButton
-                      onClick={() => {
-                        dispatchG({ type: 'reset' });
-                        setGReport(null);
-                        setGNote('');
-                      }}
-                    >
-                      {_('New session')}
-                    </StampButton>
-                  )}
-                </div>
-              </>
+              </p>
             ) : (
               <>
                 <div className='flex items-center justify-between'>

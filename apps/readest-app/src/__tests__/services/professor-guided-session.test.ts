@@ -8,6 +8,7 @@
  */
 import { describe, expect, test } from 'vitest';
 import {
+  buildConversation,
   buildGuidedBeatPrompt,
   buildSessionReportMd,
   currentConcept,
@@ -299,6 +300,63 @@ describe('the session report — librarian voice, no machinery', () => {
   test('no machinery talk, no scores, no streaks', () => {
     const md = buildSessionReportMd(finished, { date: 'Nov 26', page: 12 });
     expect(md).not.toMatch(/FSRS|streak|score|XP|80%|queue|dashboard/i);
+  });
+});
+
+describe('the conversation — the beat log as turns (Wave A2)', () => {
+  test('buildConversation renders turns from the beat log in order, nothing added or dropped', () => {
+    const s = walk(
+      teachingSession(),
+      {
+        type: 'beat',
+        beat: { kind: 'note', speaker: 'professor', text: 'A guided session begins.', at: T },
+      },
+      {
+        type: 'beat',
+        beat: {
+          kind: 'trial',
+          speaker: 'professor',
+          text: 'What does softmax turn logits into?',
+          at: T,
+        },
+      },
+      {
+        type: 'beat',
+        beat: { kind: 'note', speaker: 'learner', text: 'Weights over tokens.', at: T },
+      },
+      {
+        type: 'beat',
+        beat: {
+          kind: 'verdict',
+          speaker: 'professor',
+          text: 'Not quite — it turns scores into weights.',
+          verdict: 'retry',
+          concept: 'dot_product',
+          at: T,
+        },
+      },
+    );
+    const turns = buildConversation(s);
+    expect(turns.map((t) => t.text)).toEqual([
+      'A guided session begins.',
+      'What does softmax turn logits into?',
+      'Weights over tokens.',
+      'Not quite — it turns scores into weights.',
+    ]);
+    expect(turns.map((t) => t.speaker)).toEqual(['professor', 'professor', 'learner', 'professor']);
+    expect(turns[3]).toMatchObject({ kind: 'verdict', verdict: 'retry', concept: 'dot_product' });
+  });
+
+  test('a beat without a speaker reads as the professor (Wave A beats)', () => {
+    const s = walk(teachingSession(), {
+      type: 'beat',
+      beat: { kind: 'trial', text: 'Old-style beat.', at: T },
+    });
+    expect(buildConversation(s)[0]).toMatchObject({ speaker: 'professor', kind: 'trial' });
+  });
+
+  test('the conversation is empty at rest — the log is the session', () => {
+    expect(buildConversation(idleSession())).toEqual([]);
   });
 });
 
