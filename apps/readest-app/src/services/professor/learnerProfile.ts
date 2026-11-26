@@ -13,6 +13,7 @@ import environmentConfig from '@/services/environment';
 import type { AppService } from '@/types/system';
 import { slugifyConcept } from './annotations';
 import type { GraphNode } from './conceptGraph';
+import { toText } from './io';
 
 export const LEARNER_PROFILE_PATH = 'professor/learner-profile.json';
 
@@ -147,9 +148,6 @@ export function normalizeProfile(raw: unknown): LearnerProfile {
 }
 
 // ── Persistence (AppService file API, 'Data' base — per reader) ────────────
-
-const toText = (c: string | ArrayBuffer): string =>
-  typeof c === 'string' ? c : new TextDecoder().decode(c);
 
 export async function loadProfile(appService: AppService): Promise<LearnerProfile> {
   try {

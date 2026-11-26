@@ -103,6 +103,16 @@ const PlotSlip: React.FC<{ spec: PlotSpec }> = ({ spec }) => {
   useEffect(() => setView(null), [specKey]);
   const v = view ?? base;
 
+  // Resample every rule over the CURRENT window — the desk computes the
+  // curve at whatever magnification the learner chooses. Memoized on the
+  // view (perf review P1-3): a hover-only render must not resample, and
+  // panning reuses the cached compiled rule per point.
+  const traces = useMemo(
+    () =>
+      v ? spec.fns.map((latex) => sampleFunction(latex, [v.xMin, v.xMax], PLOT_SAMPLE_COUNT)) : [],
+    [specKey, v], // eslint-disable-line react-hooks/exhaustive-deps
+  );
+
   // Wheel zoom — native listener with passive:false so the desk's scroll
   // does not fight the learner's pinch (React's onWheel is passive).
   useEffect(() => {
@@ -189,9 +199,8 @@ const PlotSlip: React.FC<{ spec: PlotSpec }> = ({ spec }) => {
   const sx = (x: number): number => PAD + ((x - v.xMin) / (v.xMax - v.xMin)) * (W - 2 * PAD);
   const sy = (y: number): number => H - PAD - ((y - v.yMin) / (v.yMax - v.yMin)) * (H - 2 * PAD);
 
-  // Resample every rule over the CURRENT window — the desk computes the
-  // curve at whatever magnification the learner chooses. A jump taller
-  // than two screens is a pole: the pen lifts instead of streaking.
+  // A jump taller than two screens is a pole: the pen lifts instead of
+  // streaking. Samples come from the memoized `traces` above.
   const toPath = (pts: PlotSample[]): string => {
     let d = '';
     let prevY = 0;
@@ -279,7 +288,7 @@ const PlotSlip: React.FC<{ spec: PlotSpec }> = ({ spec }) => {
             </g>
           ))}
           {spec.fns.map((latex, i) => {
-            const pts = sampleFunction(latex, [v.xMin, v.xMax], PLOT_SAMPLE_COUNT);
+            const pts = traces[i];
             if (!pts) return null;
             return (
               <path

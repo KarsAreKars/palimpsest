@@ -111,6 +111,9 @@ const DeskCanvas = forwardRef<DeskCanvasHandle, { bookKey: string }>(({ bookKey 
   const updateBlock = useWorkbenchChatStore((s) => s.updateBlock);
   const setBlocks = useWorkbenchChatStore((s) => s.setBlocks);
 
+  // ── The floating composer state machine (d2 §7.1) ─────────────────────
+  const [composer, dispatch] = useReducer(deskComposerReducer, idleComposer);
+
   /** Delete a block (owner dogfood: blocks need controls). User blocks only
    *  carry plain content; professor artifacts vanish with their slot. */
   const deleteBlock = useCallback(
@@ -132,6 +135,10 @@ const DeskCanvas = forwardRef<DeskCanvasHandle, { bookKey: string }>(({ bookKey 
    *  remove the old block; sending writes the new version. */
   const editBlock = useCallback(
     (id: string) => {
+      // A PLACE/FOCUS/CHANGE dispatched while 'sending' is a reducer no-op,
+      // so deleting first would drop the block with no replacement — the
+      // edit gesture is inert until the in-flight turn settles.
+      if (composer.kind === 'sending') return;
       const b = (useWorkbenchChatStore.getState().blocks[bookKey] ?? []).find((x) => x.id === id);
       if (!b) return;
       const x = b.x ?? 32;
@@ -142,7 +149,7 @@ const DeskCanvas = forwardRef<DeskCanvasHandle, { bookKey: string }>(({ bookKey 
       dispatch({ type: 'FOCUS' });
       dispatch({ type: 'CHANGE', text: b.content });
     },
-    [bookKey, deleteBlock],
+    [bookKey, deleteBlock, composer.kind],
   );
 
   const aiSettings = useSettingsStore((s) => s.settings.aiSettings);
@@ -164,14 +171,11 @@ const DeskCanvas = forwardRef<DeskCanvasHandle, { bookKey: string }>(({ bookKey 
     useSettingsStore.getState().setSettingsDialogOpen(true);
   }, []);
 
-  // ── The floating composer state machine (d2 §7.1) ─────────────────────
-  const [composer, dispatch] = useReducer(deskComposerReducer, idleComposer);
-
   // ── The tldraw reskin (owner ruling 2026-09-16): tldraw's geometry, the
-  // Antiquarian palette. Tool pill bottom-center (select/text/math), a
+  // Antiquarian palette. Tool pill bottom-center (select/text), a
   // selection model with a stamp outline + floating action bar. Default is
   // 'text' — the desk's first verb is writing; 'select' is for arranging.
-  const [tool, setTool] = useState<'select' | 'text' | 'math'>('text');
+  const [tool, setTool] = useState<'select' | 'text'>('text');
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
   // ── Scroll policy (§8): pinned follow, no yank, one quiet stamp chip ───
@@ -485,6 +489,9 @@ const DeskCanvas = forwardRef<DeskCanvasHandle, { bookKey: string }>(({ bookKey 
       const dragH = estimateHeight(
         (useWorkbenchChatStore.getState().blocks[bookKey] ?? []).find((b) => b.id === blockId)!,
       );
+      // Snap targets are static mid-drag (other blocks move only on commit)
+      // — compute once at drag start, never per pointermove.
+      const targets = snapTargets(blockId);
       const onMove = (ev: PointerEvent) => {
         setDrag((d) => {
           if (!d) return d;
@@ -497,7 +504,7 @@ const DeskCanvas = forwardRef<DeskCanvasHandle, { bookKey: string }>(({ bookKey 
               w: d.origW,
               h: dragH,
             },
-            snapTargets(d.id),
+            targets,
           );
           return {
             ...raw,
@@ -623,6 +630,14 @@ const DeskCanvas = forwardRef<DeskCanvasHandle, { bookKey: string }>(({ bookKey 
 
   // ── Render ────────────────────────────────────────────────────────────
   const sessionActive = blocks.length > 0 || streaming.phase !== 'idle';
+  // Stabilized per-block props so the memoized BlockBody skips untouched
+  // subtrees on drag frames and streaming tokens (perf review P1-1).
+  const sendProbePick = streaming.sendProbePick;
+  const onPickProbe = useCallback(
+    (blockId: string, stance: ProbeStance, message: string) =>
+      sendProbePick(blockId, stance, message),
+    [sendProbePick],
+  );
   const showScrollChip = !pinned && growth;
   // A folio is open while the last professor block carries a derivation —
   // only a later professor prose block closes it (s3 §7.3, §10 Q2).
@@ -643,9 +658,7 @@ const DeskCanvas = forwardRef<DeskCanvasHandle, { bookKey: string }>(({ bookKey 
       resumeFirst={i === 0 && !resumeNotice}
       voice={voicePropsFor(b)}
       onOpenThread={scrollToBlock}
-      onPickProbe={(blockId: string, stance: ProbeStance, message: string) =>
-        streaming.sendProbePick(blockId, stance, message)
-      }
+      onPickProbe={onPickProbe}
       quoteForPage={quoteForPage}
       onGoPage={goToPage}
     />
@@ -938,8 +951,8 @@ const DeskCanvas = forwardRef<DeskCanvasHandle, { bookKey: string }>(({ bookKey 
         })()}
 
       {/* The tldraw pill (owner ruling: tldraw geometry, Antiquarian
-          palette) — select / text / math. Anchored bottom-center of the
-          sheet, never scrolls with the paper. */}
+          palette) — select / text. Anchored bottom-center of the sheet,
+          never scrolls with the paper. */}
       <div className='desk-toolbar' role='toolbar' aria-label={_('Desk tools')}>
         <button
           type='button'
@@ -958,15 +971,6 @@ const DeskCanvas = forwardRef<DeskCanvasHandle, { bookKey: string }>(({ bookKey 
           onClick={() => setTool('text')}
         >
           T
-        </button>
-        <button
-          type='button'
-          className={`desk-tool${tool === 'math' ? ' desk-tool-active' : ''}`}
-          aria-label={_('Math')}
-          title={_('Math')}
-          onClick={() => setTool('math')}
-        >
-          ƒx
         </button>
       </div>
     </div>

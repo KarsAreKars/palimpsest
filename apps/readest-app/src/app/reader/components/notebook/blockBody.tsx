@@ -392,8 +392,32 @@ export interface BlockBodyProps {
 }
 
 /** One committed block on the paper: the <article> shell with its data-bid
- *  scroll anchor, everything the tab's loop used to render inline. */
-export const BlockBody: React.FC<BlockBodyProps> = ({
+ *  scroll anchor, everything the tab's loop used to render inline.
+ *
+ *  Memoized (perf review P1-1): a drag frame or a streaming token must not
+ *  reconcile every block subtree. The comparator trusts identity for the
+ *  store-fed props (the store replaces objects on update) and compares the
+ *  voice wiring by its scalar fields — useDeskVoice rebuilds the callbacks
+ *  per render, but they close over the same block and stable handlers. */
+const voicePropsEqual = (a: VoiceControlProps, b: VoiceControlProps): boolean =>
+  a.block === b.block &&
+  a.playerState === b.playerState &&
+  a.notice === b.notice &&
+  a.speaking === b.speaking;
+
+const blockBodyPropsEqual = (prev: BlockBodyProps, next: BlockBodyProps): boolean =>
+  prev.b === next.b &&
+  prev.blocks === next.blocks &&
+  prev.check === next.check &&
+  prev.checks === next.checks &&
+  prev.resumeFirst === next.resumeFirst &&
+  prev.onOpenThread === next.onOpenThread &&
+  prev.onPickProbe === next.onPickProbe &&
+  prev.quoteForPage === next.quoteForPage &&
+  prev.onGoPage === next.onGoPage &&
+  voicePropsEqual(prev.voice, next.voice);
+
+const BlockBodyInner: React.FC<BlockBodyProps> = ({
   b,
   blocks,
   check,
@@ -485,6 +509,8 @@ export const BlockBody: React.FC<BlockBodyProps> = ({
     </article>
   );
 };
+
+export const BlockBody = React.memo(BlockBodyInner, blockBodyPropsEqual);
 
 export interface StreamingBodyProps {
   partial: string;

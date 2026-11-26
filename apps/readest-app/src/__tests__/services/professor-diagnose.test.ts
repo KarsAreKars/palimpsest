@@ -77,6 +77,16 @@ describe('similarity — the wrong answer against one wrong reading', () => {
     ).toBe(0);
   });
 
+  it('a 2-token signature needs BOTH words — one shared word never matches (bug-hunt #6)', () => {
+    expect(
+      misconceptionSimilarity(
+        'I swapped the order of integration and Fubini says that is fine',
+        'swapped bounds',
+      ),
+    ).toBe(0);
+    expect(misconceptionSimilarity('I swapped the bounds here', 'swapped bounds')).toBe(1);
+  });
+
   it('an unrelated answer scores zero', () => {
     for (const m of misconceptionsForConcept(LIBRARY, 'correlation')) {
       expect(misconceptionSimilarity(NON_MATCHING_ANSWER, m.wrongReading)).toBe(0);

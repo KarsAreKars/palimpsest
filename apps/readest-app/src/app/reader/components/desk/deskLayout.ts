@@ -119,12 +119,17 @@ export function layoutCluster(
       : columnPlacement(stageWidth, flowY)
     : null;
 
-  const mode: ClusterLayout['mode'] = !placed
-    ? 'column'
-    : anchorPos!.x + STAGE.anchorWidth + STAGE.clusterGap + STAGE.artifactWidth + STAGE.marginX <=
-        stageWidth
-      ? 'beside'
-      : 'below';
+  // The fit test uses the anchor's ACTUAL rendered width (a composed user
+  // block is stored 720-wide) — testing STAGE.anchorWidth (380) would slot
+  // the artifact horizontally inside the anchor and the collision pass
+  // would shove it below anyway.
+  const mode: ClusterLayout['mode'] =
+    !placed || !anchorPos
+      ? 'column'
+      : anchorPos.x + anchorPos.width + STAGE.clusterGap + STAGE.artifactWidth + STAGE.marginX <=
+          stageWidth
+        ? 'beside'
+        : 'below';
 
   const baseX = anchorPos ? anchorPos.x : columnPlacement(stageWidth, 0).x;
   const baseY = anchorPos ? anchorPos.y : flowY;
@@ -133,19 +138,22 @@ export function layoutCluster(
   const artifactLayouts: ClusterPlacement[] = [];
   // Beside mode begins level with the anchor ("he writes beside your ink");
   // column/below modes begin UNDER the anchor — never overlapping it.
+  const besideX = baseX + (anchorPos?.width ?? STAGE.anchorWidth) + STAGE.clusterGap;
   let cursorY = mode === 'beside' ? baseY : baseY + (anchor ? anchorH + STAGE.clusterGap : 0);
   for (const a of artifacts) {
     // Dragged/moved blocks keep their hand-placed point (owner dogfood:
-    // "if you could get the responses and move them around").
+    // "if you could get the responses and move them around"). The stored y
+    // must ALSO enter the cluster height — a block dragged below the flow
+    // has to be covered by the reserved extent, else it is unreachable.
     if (a.x != null && a.y != null) {
       artifactLayouts.push({ x: a.x, y: a.y, width: a.width ?? STAGE.artifactWidth });
-      cursorY += estimateHeight(a) + STAGE.clusterGap;
+      cursorY = Math.max(cursorY, a.y + estimateHeight(a) + STAGE.clusterGap);
       continue;
     }
     const slot: ClusterPlacement =
       mode === 'beside'
         ? {
-            x: baseX + STAGE.anchorWidth + STAGE.clusterGap,
+            x: besideX,
             y: cursorY,
             width: STAGE.artifactWidth,
           }
@@ -269,7 +277,7 @@ export function layoutSheet(blocks: TranscriptBlock[], stageWidth: number): Shee
     }
   });
 
-  // ── Collision pass, document order ──────────────────────────────────
+  // ── Collision pass, two phases ──────────────────────────────────────
   // Hand-placed blocks keep their point verbatim and become obstacles.
   // Auto-placed blocks are pushed DOWN (never sideways) past every
   // gap-inflated intersection. Pure; heights are the same estimates the
@@ -280,15 +288,22 @@ export function layoutSheet(blocks: TranscriptBlock[], stageWidth: number): Shee
     occupied.some(
       (o) => x < o.x + o.w + gap && x + w + gap > o.x && y < o.y + o.h + gap && y + h + gap > o.y,
     );
+  // Phase 1: collect EVERY hand-placed rect as an obstacle FIRST — an auto
+  // block must dodge hand-placed ink that follows it in document order too
+  // (a single doc-order pass only saw obstacles that preceded the auto).
   for (const b of blocks) {
     const p = placements.get(b.id);
     if (!p) continue;
-    const h = estimateHeight(b);
     if (b.x != null && b.y != null) {
-      // Hand-placed: verbatim, recorded as an obstacle.
-      occupied.push({ x: p.x, y: p.y, w: p.width, h });
-      continue;
+      occupied.push({ x: p.x, y: p.y, w: p.width, h: estimateHeight(b) });
     }
+  }
+  // Phase 2: flow the autos down past the obstacles, document order.
+  for (const b of blocks) {
+    const p = placements.get(b.id);
+    if (!p) continue;
+    if (b.x != null && b.y != null) continue; // hand-placed: verbatim
+    const h = estimateHeight(b);
     let y = p.y;
     let guard = 0;
     while (overlaps(p.x, y, p.width, h) && guard < 64) {

@@ -44,24 +44,42 @@ const getEngine = (): ComputeEngine => (engine ??= new ComputeEngine());
 /** Compile a LaTeX rule into a numeric evaluator of x. null when the rule
  *  does not compile — garbage LaTeX degrades, never throws. Non-finite or
  *  non-number results (poles, booleans from an equation) surface as NaN so
- *  the sampler can lift the pen there. */
+ *  the sampler can lift the pen there.
+ *
+ *  Compiled-rule cache (perf review P1-3): a fresh ComputeEngine
+ *  parse+compile per call was millisecond-scale work repeated on every
+ *  hover pointermove and every render. Rules are few and tiny; the cache
+ *  is keyed by the latex string and bounded with simple oldest-first
+ *  eviction (Map preserves insertion order). */
+const RULE_CACHE_LIMIT = 50;
+const ruleCache = new Map<string, ((x: number) => number) | null>();
+
 const compileRule = (latex: string): ((x: number) => number) | null => {
+  if (ruleCache.has(latex)) return ruleCache.get(latex) ?? null;
+  if (ruleCache.size >= RULE_CACHE_LIMIT) {
+    const oldest = ruleCache.keys().next().value;
+    if (oldest !== undefined) ruleCache.delete(oldest);
+  }
+  let f: ((x: number) => number) | null = null;
   try {
     const parsed = getEngine().parse(latex);
     const compiled = compile(parsed, { realOnly: true });
-    if (!compiled.success || typeof compiled.run !== 'function') return null;
-    const run = compiled.run;
-    return (x: number): number => {
-      try {
-        const v: unknown = run({ x });
-        return typeof v === 'number' ? v : NaN;
-      } catch {
-        return NaN;
-      }
-    };
+    if (compiled.success && typeof compiled.run === 'function') {
+      const run = compiled.run;
+      f = (x: number): number => {
+        try {
+          const v: unknown = run({ x });
+          return typeof v === 'number' ? v : NaN;
+        } catch {
+          return NaN;
+        }
+      };
+    }
   } catch {
-    return null;
+    f = null;
   }
+  ruleCache.set(latex, f);
+  return f;
 };
 
 /** One evaluation — point probes and the correctness contract. null when

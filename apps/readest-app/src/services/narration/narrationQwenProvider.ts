@@ -71,6 +71,25 @@ function noteSynthesisSuccess(): void {
   consecutiveFailures = 0;
 }
 
+/**
+ * Death classification for the restart watchdog (P1-V2). A `TimeoutError`
+ * means the server is SLOW, not dead — the single-threaded server cannot
+ * answer while mid-generation, so the player's 30s synthesis timeout can
+ * fire against a perfectly healthy server; counting it triggered
+ * `restart_voice_server` against healthy servers and manufactured the
+ * outage it exists to cure. An `AbortError` is the caller cancelling
+ * (skip-storm aborts) — also not a death. Only transport-level failures
+ * (connection refused, EPIPE — fetch rejects with a TypeError) count
+ * here; HTTP status failures are classified at the `res.ok` check (5xx
+ * counts, 400s are permanent caller errors and never reach the counter).
+ */
+export function isServerDeathError(e: unknown): boolean {
+  if (e instanceof DOMException && (e.name === 'AbortError' || e.name === 'TimeoutError')) {
+    return false;
+  }
+  return true;
+}
+
 export class NarrationQwenProvider implements SpeechProvider {
   readonly id = 'qwen-local';
   readonly label = 'Qwen3-TTS (local)';
@@ -123,7 +142,7 @@ export class NarrationQwenProvider implements SpeechProvider {
       signal,
     }).catch((e: unknown) => {
       if (e instanceof DOMException && e.name === 'AbortError') throw e;
-      noteSynthesisFailure();
+      if (isServerDeathError(e)) noteSynthesisFailure();
       throw e;
     });
     if (!res.ok) {

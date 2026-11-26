@@ -476,6 +476,75 @@ describe('layoutSheet — collision resolution (owner dogfood round 2)', () => {
   });
 });
 
+describe('layoutSheet — collision pass is order-independent (bug-hunt #1)', () => {
+  test('a hand-placed block AFTER an auto block in doc order still repels it', () => {
+    const blocks = [
+      userBlock({ id: 'u1', x: 40, y: 60, content: 'Why?' }),
+      profBlock({ id: 'p1' }), // auto: beside u1 at x=444, y=60
+      // Dragged ONTO the reply later — hand-placed, but AFTER p1 in the doc.
+      userBlock({ id: 'u2', x: 444, y: 60, content: 'My ink, dropped on the reply.' }),
+    ];
+    const layout = layoutSheet(blocks, 1600);
+    const ink = layout.placements.get('u2')!;
+    const art = layout.placements.get('p1')!;
+    expect(ink).toEqual({ x: 444, y: 60, width: STAGE.anchorWidth }); // verbatim
+    const inkH = estimateHeight(blocks[2]!);
+    const overlap =
+      art.x < ink.x + ink.width + STAGE.clusterGap &&
+      art.x + art.width + STAGE.clusterGap > ink.x &&
+      art.y < ink.y + inkH + STAGE.clusterGap &&
+      art.y + estimateHeight(blocks[1]!) + STAGE.clusterGap > ink.y;
+    expect(overlap).toBe(false);
+    expect(art.y).toBeGreaterThanOrEqual(60 + inkH + STAGE.clusterGap - 1);
+  });
+});
+
+describe('layoutSheet — extent covers hand-placed blocks (bug-hunt #2)', () => {
+  test('a block dragged to y=3000 is inside the reserved extent', () => {
+    const blocks = [
+      userBlock({ id: 'u1', x: 60, y: 100 }),
+      profBlock({ id: 'p1', x: 60, y: 3000 }), // dragged far below the flow
+    ];
+    const layout = layoutSheet(blocks, 1600);
+    expect(layout.placements.get('p1')).toEqual({ x: 60, y: 3000, width: STAGE.artifactWidth });
+    expect(layout.extent).toBeGreaterThanOrEqual(3000 + estimateHeight(blocks[1]!));
+  });
+});
+
+describe('layoutCluster — beside fit uses the anchor stored width (bug-hunt #5)', () => {
+  test('a 720-wide anchor on a 1200 stage lays artifacts BELOW, never overlapping', () => {
+    const anchor = userBlock({ id: 'u1', x: 60, y: 100, width: 720 });
+    const artifact = profBlock({ id: 'p1' });
+    // 60 + 720 + 24 + 380 + 32 = 1216 > 1200 — no beside room at the real width.
+    const layout = layoutCluster({ anchor, artifacts: [artifact] }, 1200, 0);
+    expect(layout.mode).toBe('below');
+    expect(layout.artifacts[0]!.y).toBeGreaterThanOrEqual(100 + estimateHeight(anchor));
+  });
+
+  test('the same anchor on a wide-enough stage sits beside at the real offset', () => {
+    const anchor = userBlock({ id: 'u1', x: 60, y: 100, width: 720 });
+    const layout = layoutCluster({ anchor, artifacts: [profBlock({ id: 'p1' })] }, 1400, 0);
+    expect(layout.mode).toBe('beside');
+    expect(layout.artifacts[0]!.x).toBe(60 + 720 + STAGE.clusterGap);
+  });
+});
+
+describe('review-campaign guards (bug-hunt #3/#4)', () => {
+  test('editBlock refuses to run while the composer is sending (no silent delete)', () => {
+    const src = readFileSync('src/app/reader/components/desk/DeskCanvas.tsx', 'utf8');
+    const edit = src.slice(src.indexOf('const editBlock'), src.indexOf('const aiSettings'));
+    expect(edit).toContain("composer.kind === 'sending'");
+    expect(edit.indexOf("composer.kind === 'sending'")).toBeLessThan(
+      edit.indexOf('deleteBlock(id)'),
+    );
+  });
+
+  test('Notebook keys StudyTab by book — a book switch remounts all session state', () => {
+    const src = readFileSync('src/app/reader/components/notebook/Notebook.tsx', 'utf8');
+    expect(src).toMatch(/<StudyTab key=\{sideBarBookKey\} bookKey=\{sideBarBookKey\} \/>/);
+  });
+});
+
 describe('snapDrag — alignment snapping (tldraw port)', () => {
   const o = { x: 100, y: 100, w: 380, h: 120 };
   test('snaps a nearby left edge to the obstacle left edge and returns the guide', () => {

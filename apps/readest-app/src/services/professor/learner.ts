@@ -40,6 +40,7 @@ import { getDir } from '@/utils/book';
 import type { CardState } from './scheduler';
 import type { MisconceptionLibrary } from './misconceptions';
 import { initialCard, reviewCard, RATING_AGAIN, RATING_GOOD } from './scheduler';
+import { toText } from './io';
 
 export const LEARNER_FILENAME = 'learner.json';
 export const NOTES_FILENAME = 'notes.md';
@@ -211,9 +212,6 @@ export function stuckNoteForPrompt(state: LearnerState, concept: string): string
 // ---------------------------------------------------------------------------
 // Persistence (per book, in the Books base dir — travels with the .hpub)
 // ---------------------------------------------------------------------------
-
-const toText = (c: string | ArrayBuffer): string =>
-  typeof c === 'string' ? c : new TextDecoder().decode(c);
 
 // Read-modify-write must not interleave across overlapping exchanges; one
 // in-flight chain per book serializes appends.

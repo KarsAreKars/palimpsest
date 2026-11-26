@@ -59,6 +59,7 @@ import {
 import { loadProfile, saveProfile, type LearnerProfile } from '@/services/professor/learnerProfile';
 import { planRoute, type RouteSeed, type StudyRoute } from '@/services/professor/planRoute';
 import { buildPracticeQuestion, composePracticeQueue } from '@/services/professor/practice';
+import { toText } from '@/services/professor/io';
 import { syncProfileGraph, toneOf } from '@/services/professor/conceptGraph';
 import { slugifyConcept } from '@/services/professor/annotations';
 import type { TOCItem } from '@/libs/document';
@@ -71,9 +72,6 @@ export const PROF_ASK_EVENT = 'palimpsest-prof-ask';
 export const askProfessorFromUI = (bookKey: string, question: string): void => {
   window.dispatchEvent(new CustomEvent(PROF_ASK_EVENT, { detail: { bookKey, question } }));
 };
-
-const toText = (c: string | ArrayBuffer): string =>
-  typeof c === 'string' ? c : new TextDecoder().decode(c);
 
 const BloomPips: React.FC<{ level: number }> = ({ level }) => (
   <span className='inline-flex gap-0.5' title={`Bloom level ${level}/6`}>

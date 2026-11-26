@@ -316,7 +316,13 @@ const Notebook: React.FC = ({}) => {
             showSearchButton={false}
           />
         </div>
-        {notebookActiveTab === 'study' ? <StudyTab bookKey={sideBarBookKey} /> : null}
+        {/* Keyed by book: a book switch must remount the tab — every piece
+            of session state (objectives, verdict refs, endSession) derives
+            from the book, and stale refs would stamp book A's gradings
+            into book B's notes.md/learner.json. */}
+        {notebookActiveTab === 'study' ? (
+          <StudyTab key={sideBarBookKey} bookKey={sideBarBookKey} />
+        ) : null}
         <div
           className='flex-shrink-0'
           style={{

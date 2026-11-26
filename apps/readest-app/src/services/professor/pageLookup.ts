@@ -17,6 +17,7 @@ import { getNarration } from '@/services/narration/speakMode';
 import type { HpubManifest } from '@/services/narration';
 import type { TOCItem } from '@/libs/document';
 import { useBookDataStore } from '@/store/bookDataStore';
+import { toText } from './io';
 
 /** Hard cap on pages per [LOOK] (the audit's Risk 2 bound — do not raise). */
 export const LOOK_MAX_PAGES = 4;
@@ -101,9 +102,6 @@ export function lookupPages(args: {
 // Book source — moved verbatim from workbenchSession.ts (audit §1.2: the
 // move kills the circular import a lookup-from-session would create).
 // ---------------------------------------------------------------------------
-
-const toText = (c: string | ArrayBuffer): string =>
-  typeof c === 'string' ? c : new TextDecoder().decode(c);
 
 /** TOC for T1 chapter bounds — the bookDoc when loaded, else empty (T1 then
  *  degrades gracefully to the reader's own page). */

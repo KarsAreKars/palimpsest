@@ -20,9 +20,7 @@ import {
   serializeTranscript,
   useWorkbenchChatStore,
 } from '../notebook/workbenchChat';
-
-const toText = (c: string | ArrayBuffer): string =>
-  typeof c === 'string' ? c : new TextDecoder().decode(c);
+import { toText } from '@/services/professor/io';
 
 export function useTranscriptPersistence(bookKey: string): {
   /** Gate: never save before the first load has settled. Informational —
