@@ -32,6 +32,7 @@
   min-width: 8px;
   border-radius: 1px;
   background: color-mix(in srgb, var(--ink) 15%, transparent);
+  transition: background 0.3s ease;
 }
 .gs-route-settled {
   background: var(--stamp);
@@ -50,19 +51,31 @@
   background: transparent;
 }
 .gs-thread {
-  max-width: 720px;
+  max-width: 680px;
   margin: 0 auto;
-  padding: 24px 20px 32px;
+  padding: 32px 24px 40px;
   display: flex;
   flex-direction: column;
-  gap: 18px;
+  gap: 24px;
 }
 
+/* ---------- the turns ---------- */
 .gs-turn {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  max-width: 85%;
+  gap: 6px;
+  max-width: 82%;
+  animation: gs-turn-in 0.3s ease-out;
+}
+@keyframes gs-turn-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 .gs-turn-prof {
   align-self: flex-start;
@@ -72,9 +85,18 @@
   text-align: right;
 }
 .gs-turn-who {
+  font-family: 'Special Elite', 'Courier New', monospace;
   font-size: 8.5px;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.1em;
   color: var(--muted, #6b6156);
+  text-transform: uppercase;
+}
+.gs-turn-prof .gs-turn-who {
+  color: var(--stamp);
+}
+.gs-verdict {
+  font-size: 12px;
+  margin-left: 4px;
 }
 .gs-verdict.gs-pass {
   color: var(--stamp);
@@ -82,43 +104,87 @@
 .gs-verdict.gs-retry {
   color: var(--sage);
 }
-.gs-turn-body {
-  font-size: 14px;
-  line-height: 1.6;
-}
-.gs-turn-learner .gs-turn-body {
-  display: inline-block;
+
+/* Professor turns: the paper slip — a subtle card with a left rule. */
+.gs-turn-prof .gs-turn-body {
+  font-size: 14.5px;
+  line-height: 1.65;
   background: var(--paper-light);
-  border: 1px solid color-mix(in srgb, var(--ink) 18%, transparent);
+  border: 1px solid color-mix(in srgb, var(--ink) 14%, transparent);
+  border-left: 2px solid var(--stamp);
   border-radius: 2px;
-  padding: 6px 10px;
-  text-align: left;
+  padding: 12px 16px;
+  box-shadow: 0 1px 3px rgba(46, 42, 38, 0.06);
 }
 .gs-turn-prof .gs-turn-body .wb-prose {
+  font-size: 14.5px;
+  line-height: 1.65;
+}
+.gs-turn-prof .gs-turn-body .wb-prose p {
+  margin: 0 0 0.6em;
+}
+.gs-turn-prof .gs-turn-body .wb-prose p:last-child {
+  margin-bottom: 0;
+}
+
+/* Learner turns: right-aligned, stamp-tinted. */
+.gs-turn-learner .gs-turn-body {
+  display: inline-block;
   font-size: 14px;
+  line-height: 1.55;
+  background: color-mix(in srgb, var(--stamp) 8%, var(--paper-light));
+  border: 1px solid color-mix(in srgb, var(--stamp) 22%, transparent);
+  border-radius: 2px;
+  padding: 8px 12px;
+  text-align: left;
+  max-width: 100%;
 }
 
 /* ---------- the start plate ---------- */
 .gs-start {
   margin: auto;
-  padding: 48px 0;
+  padding: 64px 0;
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
+  align-items: center;
+  text-align: center;
   max-width: 480px;
+}
+.gs-start .content {
+  font-size: 18px;
+  margin-bottom: 8px;
+}
+.gs-start .typed {
+  max-width: 400px;
 }
 
 /* ---------- the composer ---------- */
 .gs-composer {
   background: var(--paper-light);
+  border-top: 1px solid color-mix(in srgb, var(--ink) 12%, transparent);
+  padding: 12px 16px;
 }
 .gs-input {
   border-radius: 2px;
   line-height: 1.5;
   font-family: inherit;
+  transition: border-color 0.2s ease;
+}
+.gs-input:focus {
+  border-color: var(--stamp);
 }
 .gs-input:disabled {
   opacity: 0.55;
+}
+
+/* ---------- the status line ---------- */
+.gs-status {
+  font-family: 'Special Elite', 'Courier New', monospace;
+  font-size: 8.5px;
+  letter-spacing: 0.08em;
+  color: var(--muted, #6b6156);
+  text-transform: uppercase;
+  padding: 6px 16px 0;
 }
 
 [data-eink='true'] .gs-sheet {

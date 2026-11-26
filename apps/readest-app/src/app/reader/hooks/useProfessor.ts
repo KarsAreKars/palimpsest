@@ -149,13 +149,18 @@ export const useProfessor = ({ bookKey }: { bookKey: string }) => {
       const detail = (e as CustomEvent<{ bookKey?: string; question?: string } & ProfAskOptions>)
         .detail;
       if (detail?.bookKey !== bookKey || !detail.question) return;
-      setOpen(true);
+      // Driving-surface asks (the guided session's onAnswer) run the loop
+      // WITHOUT opening the overlay — the response belongs to the session's
+      // conversation, not the floating window. User asks (⌥Space, the Study
+      // tab's review buttons) open the overlay as before.
+      if (!detail.onAnswer) setOpen(true);
       // Pass the options through whole (system override, silent, the
       // driving surface's onAnswer) — absent keys stay absent.
       const opts: ProfAskOptions = {};
       if (detail.system) opts.system = detail.system;
       if (detail.silent) opts.silent = detail.silent;
       if (detail.onAnswer) opts.onAnswer = detail.onAnswer;
+      if (detail.onError) opts.onError = detail.onError;
       void askRef.current(detail.question, opts);
     };
     window.addEventListener(PROF_ASK_EVENT, onAsk);
@@ -232,9 +237,10 @@ export const useProfessor = ({ bookKey }: { bookKey: string }) => {
       }
       if (!controller) {
         profTraceDump('no narration controller (text layer missing)');
-        setError(
-          'The professor is still preparing this book (no text layer yet). Try again once the book has finished importing.',
-        );
+        const msg =
+          'The professor is still preparing this book (no text layer yet). Try again once the book has finished importing.';
+        setError(msg);
+        opts?.onError?.(msg); // the driving surface must know — never hang
         return;
       }
       // Which pages are actually on screen? In two-page spread mode the

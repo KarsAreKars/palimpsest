@@ -163,6 +163,10 @@ const GuidedSessionView: React.FC<{ bookKey: string }> = ({ bookKey }) => {
   };
 
   const onComposerKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    // The session composer owns its keys — global shortcuts (⌥Space, page
+    // turns, narration) must never fire while typing here (owner report:
+    // "when I type smth the option command ask prof things comes up").
+    e.stopPropagation();
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       send();
@@ -324,9 +328,7 @@ const GuidedSessionView: React.FC<{ bookKey: string }> = ({ bookKey }) => {
       {/* The composer — text-to-text. Enter sends; Shift+Enter breaks. */}
       {live && (
         <div className='gs-composer border-ink/25 flex-none border-t px-4 py-3'>
-          {statusLine && (
-            <p className='typed text-stamp mb-1 text-[9px] leading-relaxed'>{statusLine}</p>
-          )}
+          {statusLine && <p className='gs-status'>{statusLine}</p>}
           {session.phase === 'teaching' && !session.paused && (
             <div className='mb-1 flex justify-end'>
               <button
