@@ -94,6 +94,9 @@ const StudyTab: React.FC<{ bookKey: string }> = ({ bookKey }) => {
   const booknotes = useBookDataStore((s) => s.booksData[bookKey]?.config?.booknotes);
   const [learner, setLearner] = useState<LearnerState | null>(null);
   const [notes, setNotes] = useState('');
+  // The notebook is now four focused surfaces, not one long scroll
+  // (owner ruling 2026-11-25: declutter, graph views, different tabs).
+  const [view, setView] = useState<'review' | 'graph' | 'session' | 'practice'>('review');
   // The reader's own account (additive, per reader): the stated study
   // goal drives the route + practice lane; the knowledge graph rides the
   // same file, synced from this book's ledger below.
@@ -198,7 +201,13 @@ const StudyTab: React.FC<{ bookKey: string }> = ({ bookKey }) => {
         TONE_RANK[toneOf(a)] - TONE_RANK[toneOf(b)] ||
         (b.last_review_ts ?? 0) - (a.last_review_ts ?? 0),
     )
-    .slice(0, 30);
+    .slice(0, 60);
+
+  const graphStats = {
+    known: graphNodes.filter((n) => toneOf(n) === 'known').length,
+    edge: graphNodes.filter((n) => toneOf(n) === 'edge').length,
+    unknown: graphNodes.filter((n) => toneOf(n) === 'unknown').length,
+  };
 
   const saveGoal = async () => {
     if (!appService || !profile) return;
@@ -527,378 +536,491 @@ const StudyTab: React.FC<{ bookKey: string }> = ({ bookKey }) => {
   const empty =
     queue.length === 0 && notes.trim().length === 0 && deck.length === 0 && due.length === 0;
 
+  // ── The four surfaces (owner ruling 2026-11-25: declutter, graph views,
+  //    different tabs). One at a time, each with room to breathe. ─────────
+  const TABS = [
+    { id: 'review' as const, label: _('Review'), count: due.length || queue.length },
+    { id: 'graph' as const, label: _('Graph'), count: graphNodes.length },
+    { id: 'session' as const, label: _('Session'), count: objectives?.length ?? 0 },
+    { id: 'practice' as const, label: _('Practice'), count: practiceItems.length },
+  ];
+
+  const tabBtn = (id: typeof view, label: string, count: number) => (
+    <button
+      key={id}
+      className={`rounded-sm px-2.5 py-1.5 text-[11px] tracking-wide transition-colors ${
+        view === id
+          ? 'bg-stamp text-paper font-medium'
+          : 'text-mutedink hover:bg-[rgba(38,34,27,0.06)] hover:text-ink'
+      }`}
+      onClick={() => setView(id)}
+      aria-pressed={view === id}
+    >
+      {label}
+      {count > 0 && <span className='ml-1 opacity-70'>{count}</span>}
+    </button>
+  );
+
   return (
     <div className='flex min-h-0 flex-1 flex-col'>
-      <div className='flex items-center justify-between px-3 pt-2'>
+      {/* Header: title + refresh. No quiz button clutter — it lives in Session. */}
+      <div className='flex items-center justify-between px-3 pt-2.5'>
         <span className='typed text-mutedink text-[9px]'>{_('YOUR MARGINS, BACK TO YOU')}</span>
-        <div className='flex items-center gap-1'>
-          {/* OpenMAIC-style chapter quiz, run entirely through the Prof's
-              voice loop: one question at a time, graded answers. */}
-          <button
-            className='typed text-stamp hover:bg-[rgba(140,59,34,0.08)] rounded px-1.5 py-0.5 text-[9px] tracking-wider'
-            onClick={() =>
-              askProfessorFromUI(
-                bookKey,
-                'Quiz me on what I\u2019m reading. Run a 5-question spoken quiz on the material ' +
-                  'around this page: one question at a time, wait for my answer after each, ' +
-                  'grade each one briefly and specifically (what was right, what was missing), ' +
-                  'then move to the next. Start with question one now.',
-              )
-            }
-            aria-label={_('Chapter quiz')}
-            title={_('Chapter quiz')}
-          >
-            {_('QUIZ ME')}
-          </button>
-          <button
-            className={
-              'flex h-6 w-6 items-center justify-center rounded-full text-mutedink transition-colors hover:bg-[rgba(38,34,27,0.08)] hover:text-ink focus-visible:outline-offset-2 focus-visible:outline-stamp focus-visible:outline-2'
-            }
-            onClick={() => void reload()}
-            aria-label={_('Refresh')}
-            title={_('Refresh')}
-          >
-            <PiArrowsClockwise size={14} />
-          </button>
-        </div>
+        <button
+          className='flex h-6 w-6 items-center justify-center rounded-full text-mutedink transition-colors hover:bg-[rgba(38,34,27,0.08)] hover:text-ink'
+          onClick={() => void reload()}
+          aria-label={_('Refresh')}
+          title={_('Refresh')}
+        >
+          <PiArrowsClockwise size={14} />
+        </button>
       </div>
-      <div className='flex-grow overflow-y-auto px-3 pb-3'>
-        {/* CHAPTER SESSION — the OpenMAIC learning loop: the chapter is the
-            course, the Prof quizzes each objective through the voice loop. */}
-        <p className='content font-size-base mt-1'>{_('Chapter session')}</p>
-        {chapterLabel && (
-          <p className='typed text-mutedink mt-0.5 text-[8.5px]'>{chapterLabel.toUpperCase()}</p>
-        )}
-        {objectives ? (
-          <ol className='mt-1'>
-            {objectives.map((o, i) => (
-              <li
-                key={i}
-                className={`border-ink bg-paperlight my-1.5 border px-2 py-1.5 ${
-                  sessionNotStarted ? 'cursor-pointer hover:border-stamp' : ''
-                }`}
-                onClick={() => sessionNotStarted && togglePicked(i)}
-              >
-                <div className='flex items-start gap-2'>
-                  <span
-                    className={`typed mt-0.5 text-[9px] leading-snug ${
-                      picked.includes(i) ? 'text-stamp' : 'text-mutedink'
-                    }`}
-                  >
-                    {sessionNotStarted ? (picked.includes(i) ? '✓' : '○') : `${i + 1}.`}
-                  </span>
-                  <span className='flex-1 text-[13px] leading-snug'>{o.text}</span>
-                  {o.status === 'pass' && (
-                    <span className='text-stamp text-sm leading-none' title={_('Pass')}>
-                      ✓
-                    </span>
-                  )}
-                  {o.status === 'retry' && (
-                    <span className='text-stamp text-sm leading-none' title={_('Retry')}>
-                      ↻
-                    </span>
-                  )}
-                </div>
-                {i === activeIdx && (
-                  <p className='typed text-stamp mt-1 text-[8.5px]'>
-                    {_('THE PROF IS ASKING — ANSWER HIM AND HE STAMPS THE VERDICT')}
-                  </p>
-                )}
-              </li>
-            ))}
-          </ol>
-        ) : (
-          <p className='typed text-mutedink mt-1 text-[9px] leading-relaxed'>
-            {_(
-              'THE CHAPTER IS THE COURSE. THE PROF DRAFTS 3–5 OBJECTIVES, THEN QUIZZES YOU ON EACH — ONE SPOKEN QUESTION AT A TIME.',
-            )}
-          </p>
-        )}
-        {sessionNote && (
-          <p className='typed text-mutedink mt-1 text-[9px] leading-relaxed'>
-            {sessionNote.toUpperCase()}
-          </p>
-        )}
-        {objectives && sessionNotStarted && (
-          <p className='typed text-mutedink mt-1 text-[9px] leading-relaxed'>
-            {_('TAP THE ONES YOU WANT — ONE TO THREE. THE SESSION QUIZZES ONLY THOSE.')}
-          </p>
-        )}
-        <div className='mt-1.5 flex flex-wrap gap-1.5'>
-          {!objectives && (
-            <StampButton onClick={() => void generateObjectives()} disabled={generating}>
-              {generating ? _('Drafting…') : _('Generate objectives')}
-            </StampButton>
-          )}
-          {objectives && activeIdx === null && !sessionDone && (
-            <StampButton onClick={startSession} disabled={picked.length === 0}>
-              {_('Start session')}
-            </StampButton>
-          )}
-          {activeIdx !== null && (
-            <>
-              <StampButton onClick={skipObjective}>{_('Skip')}</StampButton>
-              <StampButton onClick={() => void endSession(objectivesRef.current ?? [])}>
-                {_('End session')}
-              </StampButton>
-            </>
-          )}
-          {sessionDone && (
-            <StampButton
-              onClick={() => {
-                setObjs(null);
-                setSessionNote('');
-              }}
-            >
-              {_('New session')}
-            </StampButton>
-          )}
-        </div>
-        {empty ? (
-          <div className='flex items-center justify-center py-6'>
-            <EmptyState
-              Icon={PiGraduationCap}
-              label={_('Nothing to review yet')}
-              hint={_(
-                'Highlight as you read, or ask the professor something with ⌥Space — it all resurfaces here',
-              )}
-            />
-          </div>
-        ) : (
+
+      {/* Segmented control */}
+      <div className='border-faint mt-2 flex gap-1 border-b px-3 pb-2'>
+        {TABS.map((t) => tabBtn(t.id, t.label, t.count))}
+      </div>
+
+      <div className='flex-grow overflow-y-auto px-3 pb-3 pt-2'>
+        {/* ── REVIEW ─────────────────────────────────────────────── */}
+        {view === 'review' && (
           <>
-            {deck.length > 0 && (
-              <>
-                <p className='content font-size-base mt-1'>{_('From your margins')}</p>
-                <ul>
-                  {deck.map((n) => {
-                    const excerpt = (n.text || n.note || '').trim();
-                    return (
-                      <li
-                        key={n.id}
-                        className='border-ink bg-paperlight my-2 rounded-sm border p-2.5'
-                      >
-                        <p className='line-clamp-3 text-[13px] italic'>{excerpt}</p>
-                        <div className='mt-1.5 flex items-center justify-between'>
-                          <button
-                            className='typed text-mutedink hover:text-ink text-[9px]'
-                            onClick={() => goTo(n.cfi)}
-                          >
-                            {typeof n.page === 'number' ? `P. ${n.page + 1}` : _('GO')}
-                          </button>
-                          <StampButton
-                            className='flex items-center gap-1'
-                            onClick={() =>
-                              quizMe(excerpt, typeof n.page === 'number' ? n.page + 1 : undefined)
-                            }
-                          >
-                            <PiSparkle size={12} />
-                            {_('Quiz me')}
-                          </StampButton>
-                        </div>
-                      </li>
-                    );
-                  })}
-                </ul>
-              </>
-            )}
-            {due.length > 0 && (
-              <>
-                <p className='content font-size-base mt-1'>{_('Due for review')}</p>
-                <p className='typed text-mutedink mt-0.5 text-[9px] leading-relaxed'>
-                  {_(
-                    'THE PROF BRINGS THESE BACK WHEN THEY ARE ABOUT TO FADE — A SHORT LOOK KEEPS THEM YOURS.',
+            {empty ? (
+              <div className='flex items-center justify-center py-8'>
+                <EmptyState
+                  Icon={PiGraduationCap}
+                  label={_('Nothing to review yet')}
+                  hint={_(
+                    'Highlight as you read, or ask the professor something with ⌥Space — it all resurfaces here',
                   )}
-                </p>
-                <ul>
-                  {due.map(({ concept, card }) => (
-                    <li
-                      key={concept}
-                      className='border-ink bg-paperlight my-2 rounded-sm border p-2.5'
-                    >
-                      <div className='flex items-center justify-between gap-2'>
-                        <span className='text-sm font-medium'>{concept.replace(/_/g, ' ')}</span>
-                        <span className='typed text-mutedink text-[9px]'>
-                          {MASTERY_LABEL[masteryOf(learner!.concept_states[concept]!)]}
-                        </span>
-                      </div>
-                      <div className='mt-1.5 flex items-center justify-between'>
-                        <span className='font-size-xs text-mutedink'>
-                          {card.due_ts <= nowTick - 24 * 60 * 60 * 1000
-                            ? _('back since {{date}}', {
-                                date: new Date(card.due_ts).toLocaleDateString('en-US', {
-                                  month: 'short',
-                                  day: 'numeric',
-                                }),
-                              })
-                            : _('due today')}
-                        </span>
-                        <StampButton
-                          className='flex items-center gap-1'
-                          onClick={() => reviewDue(concept)}
-                        >
-                          <PiSparkle size={12} />
-                          {_('Review')}
-                        </StampButton>
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-              </>
-            )}
-            {/* PRACTICE (Wave 'Learn Mode') — its own mode beside 'Due for
-                review': a focused run of checks over the due queue plus the
-                route's forming nodes. The professor runs it through the
-                ordinary voice loop; verdicts land on the ledger the usual
-                way. */}
-            {learner && (
+                />
+              </div>
+            ) : (
               <>
-                <p className='content font-size-base mt-1'>{_('Practice')}</p>
-                <div className='mt-1 flex items-center gap-1.5'>
-                  <input
-                    className='border-ink bg-paperlight flex-1 border px-2 py-1 text-[12px] italic outline-none placeholder:text-mutedink/70'
-                    value={goalDraft}
-                    onChange={(e) => setGoalDraft(e.target.value)}
-                    placeholder={_('What are you working toward?')}
-                    aria-label={_('Study goal')}
-                  />
-                  <StampButton onClick={() => void saveGoal()}>{_('Set course')}</StampButton>
-                </div>
-                {route && (
+                {due.length > 0 && (
                   <>
-                    <p className='typed text-mutedink mt-1 text-[9px] leading-relaxed'>
-                      {_('THE ROAD TO {{goal}} — WHAT YOU OWN, WHAT IS FORMING, WHAT WAITS.', {
-                        goal: route.goalLabel.toUpperCase(),
-                      })}
+                    <p className='content font-size-base mt-1'>{_('Due for review')}</p>
+                    <p className='typed text-mutedink mt-0.5 text-[9px] leading-relaxed'>
+                      {_(
+                        'THE PROF BRINGS THESE BACK WHEN THEY ARE ABOUT TO FADE — A SHORT LOOK KEEPS THEM YOURS.',
+                      )}
                     </p>
-                    <ol className='border-faint mt-1 border-l pl-2'>
-                      {route.nodes.map((n) => (
+                    <ul className='mt-1'>
+                      {due.map(({ concept, card }) => (
                         <li
-                          key={n.name}
-                          className='text-[12px] leading-relaxed'
-                          style={{
-                            color:
-                              n.role === 'goal'
-                                ? 'var(--stamp)'
-                                : n.mastery === 'known'
-                                  ? 'var(--stamp)'
-                                  : n.mastery === 'edge'
-                                    ? 'var(--sage)'
-                                    : 'var(--muted)',
-                          }}
+                          key={concept}
+                          className='border-ink bg-paperlight my-2 rounded-sm border p-2.5'
                         >
-                          {n.role === 'goal' ? '◈ ' : ''}
-                          {n.label}
-                        </li>
-                      ))}
-                    </ol>
-                  </>
-                )}
-                {practiceItems.length > 0 && (
-                  <>
-                    <div className='mt-1.5 flex items-center justify-between gap-2'>
-                      <span className='typed text-mutedink text-[9px]'>
-                        {_('{{count}} CHECKS READY', { count: practiceItems.length })}
-                      </span>
-                      <StampButton
-                        className='flex items-center gap-1'
-                        onClick={() => {
-                          const q = buildPracticeQuestion(practiceItems);
-                          if (q) askProfessorFromUI(bookKey, q);
-                        }}
-                      >
-                        <PiSparkle size={12} />
-                        {_('Practice')}
-                      </StampButton>
-                    </div>
-                    <ul className='mt-0.5'>
-                      {practiceItems.map((it) => (
-                        <li key={it.concept} className='text-[12px] leading-relaxed'>
-                          <span
-                            style={{
-                              color: it.kind === 'due' ? 'var(--stamp)' : 'var(--sage)',
-                            }}
-                          >
-                            {it.kind === 'due' ? _('back for review') : _('forming')}
-                          </span>{' '}
-                          <span className='text-ink'>{it.concept.replace(/_/g, ' ')}</span>
+                          <div className='flex items-center justify-between gap-2'>
+                            <span className='text-sm font-medium'>
+                              {concept.replace(/_/g, ' ')}
+                            </span>
+                            <span className='typed text-mutedink text-[9px]'>
+                              {MASTERY_LABEL[masteryOf(learner!.concept_states[concept]!)]}
+                            </span>
+                          </div>
+                          <div className='mt-1.5 flex items-center justify-between'>
+                            <span className='font-size-xs text-mutedink'>
+                              {card.due_ts <= nowTick - 24 * 60 * 60 * 1000
+                                ? _('back since {{date}}', {
+                                    date: new Date(card.due_ts).toLocaleDateString('en-US', {
+                                      month: 'short',
+                                      day: 'numeric',
+                                    }),
+                                  })
+                                : _('due today')}
+                            </span>
+                            <StampButton
+                              className='flex items-center gap-1'
+                              onClick={() => reviewDue(concept)}
+                            >
+                              <PiSparkle size={12} />
+                              {_('Review')}
+                            </StampButton>
+                          </div>
                         </li>
                       ))}
                     </ul>
                   </>
                 )}
+                {queue.length > 0 && (
+                  <>
+                    <p className='content font-size-base mt-2'>{_('Review queue')}</p>
+                    <ul>
+                      {queue.map(([name, s]) => (
+                        <li
+                          key={name}
+                          className='border-ink bg-paperlight my-2 rounded-sm border p-2.5'
+                        >
+                          <div className='flex items-center justify-between gap-2'>
+                            <span className='text-sm font-medium'>{name.replace(/_/g, ' ')}</span>
+                            <BloomPips level={s.bloom} />
+                          </div>
+                          <div className='mt-1.5 flex items-center justify-between'>
+                            <span className='font-size-xs text-mutedink'>
+                              {s.asked >= STUCK_THRESHOLD
+                                ? _('asked {{count}}x — stuck, switch it up', { count: s.asked })
+                                : _('asked {{count}}x', { count: s.asked })}
+                            </span>
+                            <StampButton
+                              className='flex items-center gap-1'
+                              onClick={() => startReview(name)}
+                            >
+                              <PiSparkle size={12} />
+                              {_('Feynman review')}
+                            </StampButton>
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
+                  </>
+                )}
+                {deck.length > 0 && (
+                  <>
+                    <p className='content font-size-base mt-2'>{_('From your margins')}</p>
+                    <ul>
+                      {deck.map((n) => {
+                        const excerpt = (n.text || n.note || '').trim();
+                        return (
+                          <li
+                            key={n.id}
+                            className='border-ink bg-paperlight my-2 rounded-sm border p-2.5'
+                          >
+                            <p className='line-clamp-3 text-[13px] italic'>{excerpt}</p>
+                            <div className='mt-1.5 flex items-center justify-between'>
+                              <button
+                                className='typed text-mutedink hover:text-ink text-[9px]'
+                                onClick={() => goTo(n.cfi)}
+                              >
+                                {typeof n.page === 'number' ? `P. ${n.page + 1}` : _('GO')}
+                              </button>
+                              <StampButton
+                                className='flex items-center gap-1'
+                                onClick={() =>
+                                  quizMe(
+                                    excerpt,
+                                    typeof n.page === 'number' ? n.page + 1 : undefined,
+                                  )
+                                }
+                              >
+                                <PiSparkle size={12} />
+                                {_('Quiz me')}
+                              </StampButton>
+                            </div>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  </>
+                )}
+                {notes.trim().length > 0 && (
+                  <>
+                    <p className='content font-size-base mt-3'>{_('Study notes')}</p>
+                    <div className='prose prose-sm font-size-xs mt-1 max-w-none select-text'>
+                      <ReactMarkdown remarkPlugins={[remarkGfm]}>{notes}</ReactMarkdown>
+                    </div>
+                  </>
+                )}
               </>
             )}
-            {/* The map of what you know (Wave 'Learn Mode') — the minimal
-                knowledge graph across every book, colored by mastery; a tap
-                brings the concept back for review. */}
+          </>
+        )}
+
+        {/* ── GRAPH ─────────────────────────────────────────────── */}
+        {view === 'graph' && (
+          <>
+            <p className='content font-size-base mt-1'>{_('The map of what you know')}</p>
+            <p className='typed text-mutedink mt-0.5 text-[9px] leading-relaxed'>
+              {_(
+                'EVERY IDEA YOU HAVE TOUCHED, IN EVERY BOOK ON THE DESK — TAP ONE AND THE PROF BRINGS IT BACK.',
+              )}
+            </p>
+            {/* Stats strip */}
             {graphNodes.length > 0 && (
+              <div className='mt-2 flex gap-4'>
+                <div>
+                  <div
+                    className='text-[22px] font-semibold leading-none'
+                    style={{ color: 'var(--stamp)' }}
+                  >
+                    {graphStats.known}
+                  </div>
+                  <div className='typed text-mutedink mt-0.5 text-[8.5px]'>{_('TAKING HOLD')}</div>
+                </div>
+                <div>
+                  <div
+                    className='text-[22px] font-semibold leading-none'
+                    style={{ color: 'var(--sage)' }}
+                  >
+                    {graphStats.edge}
+                  </div>
+                  <div className='typed text-mutedink mt-0.5 text-[8.5px]'>
+                    {_('STILL FORMING')}
+                  </div>
+                </div>
+                <div>
+                  <div className='text-[22px] font-semibold leading-none text-mutedink'>
+                    {graphStats.unknown}
+                  </div>
+                  <div className='typed text-mutedink mt-0.5 text-[8.5px]'>
+                    {_('NOT YET CHECKED')}
+                  </div>
+                </div>
+              </div>
+            )}
+            {/* The map: grouped by mastery, sized by recency */}
+            {graphNodes.length === 0 ? (
+              <p className='typed text-mutedink mt-4 text-[10px] leading-relaxed'>
+                {_(
+                  'NOTHING MAPPED YET — ASK THE PROF SOMETHING, OR TAKE A CHAPTER SESSION, AND YOUR IDEAS START HERE.',
+                )}
+              </p>
+            ) : (
               <>
-                <p className='content font-size-base mt-1'>{_('The map of what you know')}</p>
-                <p className='typed text-mutedink mt-0.5 text-[9px] leading-relaxed'>
-                  {_(
-                    'EVERY IDEA YOU HAVE TOUCHED, IN EVERY BOOK ON THE DESK — TAP ONE AND THE PROF BRINGS IT BACK FOR A LOOK.',
-                  )}
+                {(['known', 'edge', 'unknown'] as const).map((tone) => {
+                  const nodes = graphNodes.filter((n) => toneOf(n) === tone);
+                  if (nodes.length === 0) return null;
+                  const color =
+                    tone === 'known'
+                      ? 'var(--stamp)'
+                      : tone === 'edge'
+                        ? 'var(--sage)'
+                        : 'var(--muted)';
+                  const label =
+                    tone === 'known'
+                      ? _('Taking hold')
+                      : tone === 'edge'
+                        ? _('Still forming')
+                        : _('Not yet checked');
+                  return (
+                    <div key={tone} className='mt-3'>
+                      <div className='flex items-center gap-1.5'>
+                        <span
+                          className='inline-block h-2 w-2 rounded-full'
+                          style={{ background: color }}
+                        />
+                        <span className='typed text-mutedink text-[9px]'>
+                          {label.toUpperCase()}
+                        </span>
+                        <span className='typed text-mutedink/60 text-[9px]'>({nodes.length})</span>
+                      </div>
+                      <div className='mt-1 flex flex-wrap gap-x-2.5 gap-y-1.5'>
+                        {nodes.map((n) => (
+                          <button
+                            key={n.name}
+                            className='rounded-sm border px-2 py-0.5 text-[12px] transition-colors hover:border-stamp'
+                            style={{ borderColor: 'rgba(38,34,27,0.18)', color }}
+                            onClick={() => reviewDue(n.name)}
+                            title={
+                              n.last_review_ts
+                                ? _('last seen {{date}}', {
+                                    date: new Date(n.last_review_ts).toLocaleDateString('en-US', {
+                                      month: 'short',
+                                      day: 'numeric',
+                                    }),
+                                  })
+                                : undefined
+                            }
+                          >
+                            {n.name.replace(/_/g, ' ')}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })}
+              </>
+            )}
+          </>
+        )}
+
+        {/* ── SESSION ────────────────────────────────────────────── */}
+        {view === 'session' && (
+          <>
+            <div className='flex items-center justify-between'>
+              <p className='content font-size-base mt-1'>{_('Chapter session')}</p>
+              <button
+                className='typed text-stamp hover:bg-[rgba(140,59,34,0.08)] rounded px-1.5 py-0.5 text-[9px] tracking-wider'
+                onClick={() =>
+                  askProfessorFromUI(
+                    bookKey,
+                    'Quiz me on what I\u2019m reading. Run a 5-question spoken quiz on the material ' +
+                      'around this page: one question at a time, wait for my answer after each, ' +
+                      'grade each one briefly and specifically (what was right, what was missing), ' +
+                      'then move to the next. Start with question one now.',
+                  )
+                }
+              >
+                {_('QUIZ ME')}
+              </button>
+            </div>
+            {chapterLabel && (
+              <p className='typed text-mutedink mt-0.5 text-[8.5px]'>
+                {chapterLabel.toUpperCase()}
+              </p>
+            )}
+            {objectives ? (
+              <ol className='mt-1'>
+                {objectives.map((o, i) => (
+                  <li
+                    key={i}
+                    className={`border-ink bg-paperlight my-1.5 border px-2 py-1.5 ${sessionNotStarted ? 'cursor-pointer hover:border-stamp' : ''}`}
+                    onClick={() => sessionNotStarted && togglePicked(i)}
+                  >
+                    <div className='flex items-start gap-2'>
+                      <span
+                        className={`typed mt-0.5 text-[9px] leading-snug ${picked.includes(i) ? 'text-stamp' : 'text-mutedink'}`}
+                      >
+                        {sessionNotStarted ? (picked.includes(i) ? '✓' : '○') : `${i + 1}.`}
+                      </span>
+                      <span className='flex-1 text-[13px] leading-snug'>{o.text}</span>
+                      {o.status === 'pass' && (
+                        <span className='text-stamp text-sm leading-none' title={_('Pass')}>
+                          ✓
+                        </span>
+                      )}
+                      {o.status === 'retry' && (
+                        <span className='text-stamp text-sm leading-none' title={_('Retry')}>
+                          ↻
+                        </span>
+                      )}
+                    </div>
+                    {i === activeIdx && (
+                      <p className='typed text-stamp mt-1 text-[8.5px]'>
+                        {_('THE PROF IS ASKING — ANSWER HIM AND HE STAMPS THE VERDICT')}
+                      </p>
+                    )}
+                  </li>
+                ))}
+              </ol>
+            ) : (
+              <p className='typed text-mutedink mt-1 text-[9px] leading-relaxed'>
+                {_(
+                  'THE CHAPTER IS THE COURSE. THE PROF DRAFTS 3–5 OBJECTIVES, THEN QUIZZES YOU ON EACH — ONE SPOKEN QUESTION AT A TIME.',
+                )}
+              </p>
+            )}
+            {sessionNote && (
+              <p className='typed text-mutedink mt-1 text-[9px] leading-relaxed'>
+                {sessionNote.toUpperCase()}
+              </p>
+            )}
+            {objectives && sessionNotStarted && (
+              <p className='typed text-mutedink mt-1 text-[9px] leading-relaxed'>
+                {_('TAP THE ONES YOU WANT — ONE TO THREE. THE SESSION QUIZZES ONLY THOSE.')}
+              </p>
+            )}
+            <div className='mt-1.5 flex flex-wrap gap-1.5'>
+              {!objectives && (
+                <StampButton onClick={() => void generateObjectives()} disabled={generating}>
+                  {generating ? _('Drafting…') : _('Generate objectives')}
+                </StampButton>
+              )}
+              {objectives && activeIdx === null && !sessionDone && (
+                <StampButton onClick={startSession} disabled={picked.length === 0}>
+                  {_('Start session')}
+                </StampButton>
+              )}
+              {activeIdx !== null && (
+                <>
+                  <StampButton onClick={skipObjective}>{_('Skip')}</StampButton>
+                  <StampButton onClick={() => void endSession(objectivesRef.current ?? [])}>
+                    {_('End session')}
+                  </StampButton>
+                </>
+              )}
+              {sessionDone && (
+                <StampButton
+                  onClick={() => {
+                    setObjs(null);
+                    setSessionNote('');
+                  }}
+                >
+                  {_('New session')}
+                </StampButton>
+              )}
+            </div>
+          </>
+        )}
+
+        {/* ── PRACTICE ───────────────────────────────────────────── */}
+        {view === 'practice' && (
+          <>
+            <p className='content font-size-base mt-1'>{_('Practice')}</p>
+            <div className='mt-1 flex items-center gap-1.5'>
+              <input
+                className='border-ink bg-paperlight flex-1 border px-2 py-1 text-[12px] italic outline-none placeholder:text-mutedink/70'
+                value={goalDraft}
+                onChange={(e) => setGoalDraft(e.target.value)}
+                placeholder={_('What are you working toward?')}
+                aria-label={_('Study goal')}
+              />
+              <StampButton onClick={() => void saveGoal()}>{_('Set course')}</StampButton>
+            </div>
+            {route && (
+              <>
+                <p className='typed text-mutedink mt-2 text-[9px] leading-relaxed'>
+                  {_('THE ROAD TO {{goal}} — WHAT YOU OWN, WHAT IS FORMING, WHAT WAITS.', {
+                    goal: route.goalLabel.toUpperCase(),
+                  })}
                 </p>
-                <div className='mt-1 flex flex-wrap gap-x-2 gap-y-1'>
-                  {graphNodes.map((n) => (
-                    <button
+                <ol className='border-faint mt-1 border-l pl-2'>
+                  {route.nodes.map((n) => (
+                    <li
                       key={n.name}
-                      className='text-[12px] italic underline-offset-2 hover:underline'
+                      className='text-[12px] leading-relaxed'
                       style={{
                         color:
-                          toneOf(n) === 'known'
+                          n.role === 'goal'
                             ? 'var(--stamp)'
-                            : toneOf(n) === 'edge'
-                              ? 'var(--sage)'
-                              : 'var(--muted)',
+                            : n.mastery === 'known'
+                              ? 'var(--stamp)'
+                              : n.mastery === 'edge'
+                                ? 'var(--sage)'
+                                : 'var(--muted)',
                       }}
-                      onClick={() => reviewDue(n.name)}
                     >
-                      {n.name.replace(/_/g, ' ')}
-                    </button>
+                      {n.role === 'goal' ? '◈ ' : ''}
+                      {n.label}
+                    </li>
                   ))}
-                </div>
+                </ol>
               </>
             )}
-            {queue.length > 0 && (
+            {practiceItems.length > 0 ? (
               <>
-                <p className='content font-size-base mt-1'>{_('Review queue')}</p>
-                <ul>
-                  {queue.map(([name, s]) => (
-                    <li
-                      key={name}
-                      className='border-ink bg-paperlight my-2 rounded-sm border p-2.5'
-                    >
-                      <div className='flex items-center justify-between gap-2'>
-                        <span className='text-sm font-medium'>{name.replace(/_/g, ' ')}</span>
-                        <BloomPips level={s.bloom} />
-                      </div>
-                      <div className='mt-1.5 flex items-center justify-between'>
-                        <span className='font-size-xs text-mutedink'>
-                          {s.asked >= STUCK_THRESHOLD
-                            ? _('asked {{count}}x — stuck, switch it up', { count: s.asked })
-                            : _('asked {{count}}x', { count: s.asked })}
-                        </span>
-                        <StampButton
-                          className='flex items-center gap-1'
-                          onClick={() => startReview(name)}
-                        >
-                          <PiSparkle size={12} />
-                          {_('Feynman review')}
-                        </StampButton>
-                      </div>
+                <div className='mt-2 flex items-center justify-between gap-2'>
+                  <span className='typed text-mutedink text-[9px]'>
+                    {_('{{count}} CHECKS READY', { count: practiceItems.length })}
+                  </span>
+                  <StampButton
+                    className='flex items-center gap-1'
+                    onClick={() => {
+                      const q = buildPracticeQuestion(practiceItems);
+                      if (q) askProfessorFromUI(bookKey, q);
+                    }}
+                  >
+                    <PiSparkle size={12} />
+                    {_('Practice')}
+                  </StampButton>
+                </div>
+                <ul className='mt-1'>
+                  {practiceItems.map((it) => (
+                    <li key={it.concept} className='text-[12px] leading-relaxed'>
+                      <span style={{ color: it.kind === 'due' ? 'var(--stamp)' : 'var(--sage)' }}>
+                        {it.kind === 'due' ? _('back for review') : _('forming')}
+                      </span>{' '}
+                      <span className='text-ink'>{it.concept.replace(/_/g, ' ')}</span>
                     </li>
                   ))}
                 </ul>
               </>
-            )}
-            {notes.trim().length > 0 && (
-              <>
-                <p className='content font-size-base mt-3'>{_('Study notes')}</p>
-                <div className='prose prose-sm font-size-xs mt-1 max-w-none select-text'>
-                  <ReactMarkdown remarkPlugins={[remarkGfm]}>{notes}</ReactMarkdown>
-                </div>
-              </>
+            ) : (
+              <p className='typed text-mutedink mt-3 text-[10px] leading-relaxed'>
+                {_(
+                  'SET A COURSE ABOVE AND THE PROF PREPARES CHECKS FROM WHAT YOU ARE WORKING TOWARD.',
+                )}
+              </p>
             )}
           </>
         )}
