@@ -29,6 +29,9 @@ export interface TutorRequest {
   /** When absent or disabled, the echo tutor answers instead. */
   aiSettings?: AISettings | null;
   signal?: AbortSignal;
+  /** System prompt override (guided sessions compose the persona with the
+   *  session doctrine — prompt.ts). Absent = the plain persona. */
+  system?: string;
   /** A8: rendered images of the visible page(s) — PNG data URLs. Evidence
    *  for figures/diagrams/rendered math; annotations still use block ids. */
   images?: string[];
@@ -176,7 +179,7 @@ export async function askProfessor(req: TutorRequest): Promise<void> {
   try {
     const result = streamText({
       model,
-      system: PROFESSOR_SYSTEM_PROMPT,
+      system: req.system ?? PROFESSOR_SYSTEM_PROMPT,
       messages: [{ role: 'user', content: buildUserContent(question, pack, req.images) }],
       abortSignal: combined,
     });

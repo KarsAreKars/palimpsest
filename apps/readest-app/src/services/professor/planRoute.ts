@@ -55,7 +55,7 @@ export interface StudyRoute {
 /** A route longer than this reads as a syllabus, not a path. */
 export const ROUTE_MAX_NODES = 12;
 
-const SKIP_CONCEPTS = new Set([UNCATEGORIZED_CONCEPT, 'chapter_session']);
+const SKIP_CONCEPTS = new Set([UNCATEGORIZED_CONCEPT, 'chapter_session', 'guided_session']);
 
 const pretty = (slug: string): string => slug.replace(/_/g, ' ');
 

@@ -77,7 +77,7 @@ export const useProfessor = ({ bookKey }: { bookKey: string }) => {
   const [error, setError] = useState<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
   const voiceRef = useRef<ProfessorVoice | null>(null);
-  const askRef = useRef<(q: string) => Promise<void>>(async () => {});
+  const askRef = useRef<(q: string, opts?: { system?: string }) => Promise<void>>(async () => {});
   const getView = useReaderStore((s) => s.getView);
   const { appService } = useEnv();
   const getBookData = useBookDataStore((s) => s.getBookData);
@@ -146,10 +146,11 @@ export const useProfessor = ({ bookKey }: { bookKey: string }) => {
   // a question through the normal loop — voice, pen, and logging included.
   useEffect(() => {
     const onAsk = (e: Event) => {
-      const detail = (e as CustomEvent<{ bookKey?: string; question?: string }>).detail;
+      const detail = (e as CustomEvent<{ bookKey?: string; question?: string; system?: string }>)
+        .detail;
       if (detail?.bookKey !== bookKey || !detail.question) return;
       setOpen(true);
-      void askRef.current(detail.question);
+      void askRef.current(detail.question, detail.system ? { system: detail.system } : undefined);
     };
     window.addEventListener(PROF_ASK_EVENT, onAsk);
     return () => window.removeEventListener(PROF_ASK_EVENT, onAsk);
@@ -205,7 +206,7 @@ export const useProfessor = ({ bookKey }: { bookKey: string }) => {
   }, [bookKey, cancelGestureFade]);
 
   const ask = useCallback(
-    async (question: string) => {
+    async (question: string, opts?: { system?: string }) => {
       const q = question.trim();
       if (!q) return;
       profTraceReset();
@@ -328,6 +329,7 @@ export const useProfessor = ({ bookKey }: { bookKey: string }) => {
         pack,
         aiSettings,
         images,
+        ...(opts?.system ? { system: opts.system } : {}),
         signal: aborter.signal,
         cb: {
           onToken: (t) => {

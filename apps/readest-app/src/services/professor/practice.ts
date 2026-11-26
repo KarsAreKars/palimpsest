@@ -36,7 +36,7 @@ export interface PracticeItem {
  *  checks are effort, and effort budgets run small (L2 §15's cap, halved). */
 export const PRACTICE_CAP = 8;
 
-const SKIP_CONCEPTS = new Set([UNCATEGORIZED_CONCEPT, 'chapter_session']);
+const SKIP_CONCEPTS = new Set([UNCATEGORIZED_CONCEPT, 'chapter_session', 'guided_session']);
 
 /**
  * Compose the practice queue: due cards first-class (Wave 2 FSRS), the
